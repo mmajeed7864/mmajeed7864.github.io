@@ -180,18 +180,15 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .triage-complete .lbl{color:var(--soft);font-size:13px;margin-bottom:18px}
 
 /* ============ SKILLS ============ */
-.skills-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;align-items:start}
-@media(max-width:820px){.skills-grid{grid-template-columns:1fr}}
-.radar-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center}
-.radar-box .rlabel{font-family:var(--mono);font-size:11px;color:var(--soft);margin-top:10px;letter-spacing:.06em}
+.skills-grid{display:grid;grid-template-columns:1fr;gap:24px;align-items:start}
 .skill-cat{margin-bottom:20px}
 .skill-cat h4{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;margin-bottom:12px;text-transform:uppercase}
-.skill-row{margin-bottom:12px}
-.skill-row .sr-top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;margin-bottom:5px}
-.skill-row .sr-top .nm{color:var(--text)}
-.skill-row .sr-top .pc{color:var(--soft)}
-.skill-bar{height:7px;background:var(--surface2);border-radius:4px;overflow:hidden}
-.skill-bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 1.1s cubic-bezier(.2,.7,.2,1)}
+.skill-evidence-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(max-width:720px){.skill-evidence-grid{grid-template-columns:1fr}}
+.skill-evidence{display:block;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:9px;padding:12px 14px;text-decoration:none;transition:.18s}
+.skill-evidence:hover{border-color:var(--accent);transform:translateY(-2px);background:rgba(230,57,70,.045)}
+.skill-evidence .nm{display:block;font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.skill-evidence .proof{display:block;font-family:var(--mono);font-size:11px;color:var(--accent2);line-height:1.5}
 .tool-cloud{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
 .tool-cloud span{font-family:var(--mono);font-size:11px;color:var(--soft);border:1px solid var(--border);background:var(--surface);padding:5px 10px;border-radius:6px;transition:.16s;cursor:default}
 .tool-cloud span:hover{color:var(--accent);border-color:var(--accent);transform:translateY(-2px)}
@@ -240,9 +237,17 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .log-links a.all:hover{color:var(--accent2);border-color:var(--accent2);background:rgba(244,196,48,.06)}
 .lab-card .lc-link{position:absolute;top:18px;right:18px;font-family:var(--mono);font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--border);padding:5px 10px;border-radius:6px;transition:.16s}
 .lab-card .lc-link:hover{border-color:var(--accent);background:rgba(230,57,70,.08)}
+.lab-card .lc-link.disabled{color:var(--soft);cursor:default;border-style:dashed;background:transparent}
+.lab-card .lc-link.disabled:hover{border-color:var(--border);background:transparent}
+.lab-card p a{color:var(--accent2);text-decoration:none}
+.lab-card p a:hover{text-decoration:underline}
 .lab-metrics{display:flex;gap:24px;flex-wrap:wrap;margin:14px 0}
 .lab-metrics .lm b{display:block;font-family:var(--mono);font-size:22px;color:var(--accent);font-weight:700}
 .lab-metrics .lm span{font-size:11px;color:var(--soft);font-family:var(--mono)}
+.investigation-feature{margin-bottom:16px;padding:18px 20px;border:1px solid rgba(244,196,48,.34);border-left:4px solid var(--accent2);border-radius:12px;background:linear-gradient(135deg,rgba(244,196,48,.055),rgba(230,57,70,.035));display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.investigation-feature .if-kicker{font-family:var(--mono);font-size:10px;color:var(--accent2);letter-spacing:.1em;margin-bottom:5px}
+.investigation-feature h3{font-size:18px;margin-bottom:4px}
+.investigation-feature p{font-size:13px;color:var(--soft);max-width:680px}
 
 /* ============ TERMINAL ============ */
 .term{background:#05080b;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 0 60px rgba(230,57,70,.08)}
@@ -301,7 +306,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 <div class="topbar">
   <span class="tb-dot"></span>
   <span><span class="tb-label">ANALYST:</span> <span class="tb-val">M. MAJEED</span></span>
-  <span class="tb-hide"><span class="tb-label">CLEARANCE:</span> <span class="tb-val" style="color:var(--accent2)">CySA+ · SEC+ · NET+</span></span>
+  <span class="tb-hide"><span class="tb-label">CREDS:</span> <span class="tb-val" style="color:var(--accent2)">CySA+ · SEC+ · NET+</span></span>
   <span class="tb-hide"><span class="tb-label">LOCATION:</span> <span class="tb-val">CHARLOTTE, NC</span></span>
   <div class="tb-right">
     <span class="tb-hide"><span class="tb-label">STATUS:</span> <span class="tb-val" style="color:var(--accent2)">OPEN TO WORK</span></span>
@@ -340,12 +345,13 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
     <a class="btn primary" href="#triage">▶ RUN TRIAGE DEMO</a>
     <a class="btn ghost" href="#terminal">⌨ OPEN TERMINAL</a>
     <a class="btn ghost" href="https://mmajeed7864.github.io/soclab/" target="_blank">↗ VIEW SOC LAB</a>
+    <a class="btn ghost" href="assets/mohammed-majeed-soc-analyst.pdf" download>↓ RESUME</a>
   </div>
   <div class="hero-meta">
-    <div class="hm"><b><span class="u" data-count="4">0</span>+</b> YEARS IN IT / SECURITY</div>
-    <div class="hm"><b><span class="u" data-count="9">0</span></b> LAB PHASES DOCUMENTED</div>
-    <div class="hm"><b><span class="u" data-count="50">0</span>+</b> ALERTS TRIAGED</div>
-    <div class="hm"><b><span class="u" data-count="3">0</span></b> SECURITY CERTS</div>
+    <div class="hm"><b><span class="u" data-stat="years" data-count="3">3</span>+</b> YEARS IN IT / SECURITY</div>
+    <div class="hm"><b><span class="u" data-stat="phases" data-count="11">11</span></b> LAB PHASES DOCUMENTED</div>
+    <div class="hm"><b><span class="u" data-stat="alerts" data-count="50">50</span>+</b> ALERTS TRIAGED</div>
+    <div class="hm"><b><span class="u" data-stat="certs" data-count="3">3</span></b> SECURITY CERTS</div>
   </div>
   <div class="scroll-hint"><span class="ar">▼</span> SCROLL OR USE NAV TO INVESTIGATE</div>
 </header>
@@ -380,34 +386,33 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
   <h2 class="sec-title reveal">Skills &amp; Tooling</h2>
   <p class="sec-sub reveal">These are the skills I use at work and keep sharpening in my lab. Some tools are daily drivers, some are lab reps, but none of this is just resume filler.</p>
   <div class="skills-grid">
-    <div>
-      <div class="skill-cat reveal">
-        <h4>// Core SOC Competencies</h4>
-        <div class="skill-row"><div class="sr-top"><span class="nm">Alert Triage &amp; Queue Management</span><span class="pc">90%</span></div><div class="skill-bar"><i data-w="90"></i></div></div>
-        <div class="skill-row"><div class="sr-top"><span class="nm">Phishing &amp; Email Investigation</span><span class="pc">88%</span></div><div class="skill-bar"><i data-w="88"></i></div></div>
-        <div class="skill-row"><div class="sr-top"><span class="nm">IOC Enrichment &amp; Threat Intel</span><span class="pc">85%</span></div><div class="skill-bar"><i data-w="85"></i></div></div>
-        <div class="skill-row"><div class="sr-top"><span class="nm">SIEM Log Analysis (SPL / KQL)</span><span class="pc">82%</span></div><div class="skill-bar"><i data-w="82"></i></div></div>
-        <div class="skill-row"><div class="sr-top"><span class="nm">Detection Engineering &amp; Tuning</span><span class="pc">78%</span></div><div class="skill-bar"><i data-w="78"></i></div></div>
-        <div class="skill-row"><div class="sr-top"><span class="nm">Incident Documentation</span><span class="pc">90%</span></div><div class="skill-bar"><i data-w="90"></i></div></div>
-      </div>
-    </div>
-    <div>
-      <div class="radar-box reveal">
-        <canvas id="radar" width="320" height="320"></canvas>
-        <div class="rlabel">// COMPETENCY RADAR</div>
+    <div class="skill-cat reveal">
+      <h4>// Core SOC Competencies — Click for Evidence</h4>
+      <div class="skill-evidence-grid">
+        <a class="skill-evidence" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-05-LAB-LOG.md" target="_blank"><span class="nm">Alert Triage &amp; Queue Management</span><span class="proof">50+ documented triage decisions → Day 05</span></a>
+        <a class="skill-evidence" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-07-LAB-LOG.md" target="_blank"><span class="nm">Phishing &amp; Email Investigation</span><span class="proof">5 cases + final incident report → Day 07</span></a>
+        <a class="skill-evidence" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-07-LAB-LOG.md" target="_blank"><span class="nm">IOC Enrichment &amp; Threat Intel</span><span class="proof">Extracted and enriched email, URL, domain, and IP indicators → Day 07</span></a>
+        <a class="skill-evidence" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-08-LAB-LOG.md" target="_blank"><span class="nm">SIEM Log Analysis</span><span class="proof">10 SPL investigations + 3 dashboards → Day 08</span></a>
+        <a class="skill-evidence" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-09-LAB-LOG.md" target="_blank"><span class="nm">Detection Engineering &amp; Tuning</span><span class="proof">6 enabled alerts + 3 Sigma rules + tuning analysis → Day 09</span></a>
+        <a class="skill-evidence" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-06-LAB-LOG.md" target="_blank"><span class="nm">Incident Documentation</span><span class="proof">5 tickets + 3 escalations + 2 handoffs → Day 06</span></a>
       </div>
     </div>
   </div>
 
   <div style="margin-top:26px" class="reveal">
-    <h4 style="font-family:var(--mono);font-size:12px;color:var(--accent2);letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase">// Hands-On — Daily Driver Tools</h4>
-    <p style="font-size:12px;color:var(--soft);margin-bottom:12px;font-family:var(--mono)">Tools I use for real SOC work and hands-on lab reps.</p>
-    <div class="tool-cloud"><span>Splunk</span><span>Elastic SIEM</span><span>Kibana</span><span>Wazuh XDR</span><span>Microsoft Defender for Endpoint</span><span>Suricata IDS</span><span>Sysmon</span><span>Fleet</span><span>Snort</span><span>Wireshark</span><span>pfSense</span><span>VirusTotal</span><span>AbuseIPDB</span><span>Shodan</span><span>ServiceNow</span><span>Jira</span><span>Active Directory</span><span>AWS CloudTrail</span><span>GuardDuty</span><span>Security Hub</span><span>Sigma Rules</span><span>MITRE ATT&CK</span><span>Python</span><span>PowerShell</span><span>Bash</span></div>
+    <h4 style="font-family:var(--mono);font-size:12px;color:var(--accent2);letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase">// Work — Daily</h4>
+    <p style="font-size:12px;color:var(--soft);margin-bottom:12px;font-family:var(--mono)">Tools used in current SOC alert review, investigation, enrichment, and case documentation.</p>
+    <div class="tool-cloud"><span>Splunk</span><span>Elastic SIEM</span><span>Kibana</span><span>Wazuh XDR</span><span>Microsoft Defender for Endpoint</span><span>ServiceNow</span><span>Jira</span><span>VirusTotal</span><span>AbuseIPDB</span><span>Shodan</span></div>
+  </div>
+  <div style="margin-top:20px" class="reveal">
+    <h4 style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase">// Lab — Hands-On</h4>
+    <p style="font-size:12px;color:var(--soft);margin-bottom:12px;font-family:var(--mono)">Platforms and techniques configured, tested, or investigated in the public home lab.</p>
+    <div class="tool-cloud"><span>Suricata IDS</span><span>Sysmon</span><span>Fleet</span><span>Snort</span><span>Wireshark</span><span>pfSense</span><span>Active Directory</span><span>AWS CloudTrail</span><span>GuardDuty</span><span>Security Hub</span><span>Sigma Rules</span><span>Splunk Enterprise</span><span>Python</span><span>PowerShell</span><span>Bash</span><span>MITRE ATT&amp;CK</span></div>
   </div>
   <div style="margin-top:20px" class="reveal">
     <h4 style="font-family:var(--mono);font-size:12px;color:var(--accent4);letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase">// Familiar / Learning — Common SOC Stack</h4>
     <p style="font-size:12px;color:var(--soft);margin-bottom:12px;font-family:var(--mono)">Tools I am building more depth with through coursework, labs, and job-focused practice.</p>
-    <div class="tool-cloud learning"><span>Microsoft Sentinel (KQL)</span><span>CrowdStrike Falcon</span><span>SentinelOne</span><span>IBM QRadar</span><span>Cortex XSOAR</span><span>Splunk SOAR</span><span>TheHive</span><span>MISP</span><span>Zeek</span><span>Velociraptor</span><span>Volatility</span><span>Autopsy</span><span>YARA</span><span>Nessus</span><span>Suricata Rules</span><span>Azure</span><span>Okta</span><span>Carbon Black</span><span>Palo Alto NGFW</span><span>Cuckoo Sandbox</span></div>
+    <div class="tool-cloud learning"><span>Microsoft Sentinel (KQL)</span><span>CrowdStrike Falcon</span><span>SentinelOne</span><span>IBM QRadar</span><span>Cortex XSOAR</span><span>Splunk SOAR</span><span>TheHive</span><span>MISP</span><span>Zeek</span><span>Nessus</span></div>
   </div>
   <div style="margin-top:20px" class="reveal">
     <h4 style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase">// Certifications</h4>
@@ -476,17 +481,25 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
   <div class="sec-tag reveal">Evidence Locker</div>
   <h2 class="sec-title reveal">Hands-On Labs</h2>
   <p class="sec-sub reveal">This is where I keep the receipts: what I built, what broke, how I fixed it, and what each phase taught me as an analyst.</p>
+  <div class="investigation-feature reveal">
+    <div>
+      <div class="if-kicker">READ ONE INVESTIGATION · ABOUT 3 MIN</div>
+      <h3>Phishing Investigation and Incident Report</h3>
+      <p>User-reported alert → header and IOC evidence → phishing verdict → containment and user-action recommendations.</p>
+    </div>
+    <a class="btn ghost" href="https://github.com/mmajeed7864/soclab/blob/main/DAY-07-LAB-LOG.md" target="_blank">↗ READ THE CASE</a>
+  </div>
   <div class="labs-grid">
     <div class="lab-card feature reveal">
       <a class="lc-link" href="https://mmajeed7864.github.io/soclab/" target="_blank">↗ OPEN LAB</a>
       <div class="lc-icon">[ FEATURED PROJECT ]</div>
       <h4>Public SOC Analyst Roadmap &amp; Home Lab</h4>
-      <p>A multi-VM SOC lab and 26-phase roadmap I am building in public. It starts with the lab foundation and moves into real SOC habits: SIEM work, triage, tickets, detections, investigations, and capstone checks. Capstone 01 validated Track 1 + Track 2 at 90% SOC readiness.</p>
+      <p>A multi-VM SOC lab and 26-phase roadmap I am building in public. It starts with the lab foundation and moves into real SOC habits: SIEM work, triage, tickets, detections, investigations, and capstone checks. Tracks 1 and 2 were validated through a <a href="https://github.com/mmajeed7864/soclab/blob/main/capstone-01-soc-l1-core-workflow-readiness-assessment.md" target="_blank">cumulative hands-on capstone</a>.</p>
       <div class="lab-metrics">
-        <div class="lm"><b>9</b><span>PHASES LOGGED</span></div>
-        <div class="lm"><b>50+</b><span>ALERTS TRIAGED</span></div>
-        <div class="lm"><b>6</b><span>SPLUNK DETECTIONS</span></div>
-        <div class="lm"><b>3</b><span>SIGMA RULES</span></div>
+        <div class="lm"><b data-stat="phases">11</b><span>PHASES LOGGED</span></div>
+        <div class="lm"><b><span data-stat="alerts">50</span>+</b><span>ALERTS TRIAGED</span></div>
+        <div class="lm"><b data-stat="detections">6</b><span>SPLUNK DETECTIONS</span></div>
+        <div class="lm"><b data-stat="sigma">3</b><span>SIGMA RULES</span></div>
       </div>
       <div class="lc-tools"><span>Elastic SIEM</span><span>Wazuh XDR</span><span>Suricata</span><span>Sysmon</span><span>Splunk</span><span>Fleet</span><span>Kali</span></div>
       <div class="log-strip">
@@ -501,19 +514,21 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
           <a href="https://github.com/mmajeed7864/soclab/blob/main/DAY-07-LAB-LOG.md" target="_blank">Day 07 · Phishing Investigation</a>
           <a href="https://github.com/mmajeed7864/soclab/blob/main/DAY-08-LAB-LOG.md" target="_blank">Day 08 · Splunk Fundamentals</a>
           <a href="https://github.com/mmajeed7864/soclab/blob/main/DAY-09-LAB-LOG.md" target="_blank">Day 09 · Detection Engineering</a>
+          <a href="https://github.com/mmajeed7864/soclab/blob/main/DAY-10-LAB-LOG.md" target="_blank">Day 10 · Active Directory</a>
+          <a href="https://github.com/mmajeed7864/soclab/blob/main/DAY-11-LAB-LOG.md" target="_blank">Day 11 · AD Attack Triage</a>
           <a href="https://github.com/mmajeed7864/soclab" target="_blank" class="all">↗ All logs on GitHub</a>
         </div>
       </div>
     </div>
     <div class="lab-card reveal">
-      <a class="lc-link" href="https://github.com/mmajeed7864" target="_blank">↗ GITHUB</a>
+      <span class="lc-link disabled">WRITE-UP IN PROGRESS</span>
       <div class="lc-icon">[ CLOUD ]</div>
       <h4>AWS Cloud Security Monitoring</h4>
       <p>Built AWS security monitoring with CloudTrail, GuardDuty, and Security Hub CIS checks, then traced findings back to the raw API activity so the alert actually made sense.</p>
       <div class="lc-tools"><span>CloudTrail</span><span>GuardDuty</span><span>Security Hub</span><span>IAM</span></div>
     </div>
     <div class="lab-card reveal">
-      <a class="lc-link" href="https://github.com/mmajeed7864" target="_blank">↗ GITHUB</a>
+      <span class="lc-link disabled">WRITE-UP IN PROGRESS</span>
       <div class="lc-icon">[ NETWORK ]</div>
       <h4>Network Traffic Analysis &amp; Perimeter Defense</h4>
       <p>Deployed pfSense and Snort, then used Wireshark and malware PCAPs to practice spotting C2 traffic, DNS tunneling, and possible exfiltration patterns.</p>
@@ -561,6 +576,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
       <a href="https://www.linkedin.com/in/mohammed-majeed-40a661271" target="_blank">in · LinkedIn</a>
       <a href="https://github.com/mmajeed7864" target="_blank">⌥ GitHub</a>
       <a href="https://mmajeed7864.github.io/soclab/" target="_blank">↗ SOC Lab</a>
+      <a href="assets/mohammed-majeed-soc-analyst.pdf" download>↓ Resume</a>
       <a href="tel:5105857136">☎ 510-585-7136</a>
     </div>
   </div>
@@ -619,6 +635,12 @@ function skipBoot(){ bootDone=true; const b=document.getElementById('boot'); b.c
 window.addEventListener('load',()=>setTimeout(runBoot,300));
 
 /* ============ HERO TYPEWRITER ============ */
+// Shared portfolio stats. Keep the matching HTML values as static fallbacks for crawlers and no-JS visits.
+const PORTFOLIO_STATS={years:3,phases:11,alerts:50,certs:3,detections:6,sigma:3};
+document.querySelectorAll('[data-stat]').forEach(el=>{
+  const value=PORTFOLIO_STATS[el.dataset.stat];
+  if(value!==undefined){ el.textContent=value; if(el.classList.contains('u')) el.dataset.count=value; }
+});
 const roles=['SOC Analyst (Tier 1)','Phishing Investigator','IOC Enrichment Analyst','Detection Engineer','Incident Responder','Cloud Security Analyst'];
 let rI=0,cI=0,deleting=false,heroStarted=false;
 function startHero(){
@@ -640,7 +662,7 @@ function typeRole(){
 /* count-up hero stats */
 function countUp(){
   document.querySelectorAll('.hm .u').forEach(el=>{
-    const target=+el.dataset.count; let n=0;
+    const target=+el.dataset.count; let n=0; el.textContent='0';
     const step=Math.max(1,Math.round(target/28));
     const iv=setInterval(()=>{ n+=step; if(n>=target){n=target;clearInterval(iv);} el.textContent=n; },28);
   });
@@ -648,79 +670,10 @@ function countUp(){
 
 /* ============ REVEAL ON SCROLL ============ */
 const io=new IntersectionObserver((entries)=>{
-  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);
-    if(e.target.classList.contains('skill-cat')) animateBars();
-    if(e.target.querySelector&&e.target.querySelector('#radar')) drawRadar();
-  } });
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
 },{threshold:.12});
 function observeReveals(){ document.querySelectorAll('.reveal:not(.in)').forEach(el=>io.observe(el)); }
 observeReveals();
-
-/* ============ SKILL BARS ============ */
-let barsDone=false;
-function animateBars(){
-  if(barsDone) return; barsDone=true;
-  document.querySelectorAll('.skill-bar i').forEach(b=>{ setTimeout(()=>{ b.style.width=b.dataset.w+'%'; },150); });
-}
-
-/* ============ RADAR CHART ============ */
-let radarDone=false;
-function drawRadar(){
-  if(radarDone) return; radarDone=true;
-  const cv=document.getElementById('radar'); if(!cv) return;
-  const ctx=cv.getContext('2d'); const W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=120;
-  const axes=['Triage','Phishing','IOC\nEnrich','SIEM','Detection','Docs'];
-  const vals=[.90,.88,.85,.82,.78,.90];
-  const N=axes.length;
-  let prog=0;
-  function frame(){
-    ctx.clearRect(0,0,W,H);
-    // grid rings
-    for(let ring=1;ring<=4;ring++){
-      ctx.beginPath();
-      for(let i=0;i<=N;i++){
-        const a=(Math.PI*2*i/N)-Math.PI/2;
-        const r=R*ring/4;
-        const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
-        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-      }
-      ctx.strokeStyle='rgba(61,31,36,.7)'; ctx.lineWidth=1; ctx.stroke();
-    }
-    // spokes + labels
-    ctx.font='10px "Space Mono", monospace'; ctx.fillStyle='#b08a8f'; ctx.textAlign='center';
-    for(let i=0;i<N;i++){
-      const a=(Math.PI*2*i/N)-Math.PI/2;
-      ctx.beginPath(); ctx.moveTo(cx,cy);
-      ctx.lineTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R);
-      ctx.strokeStyle='rgba(61,31,36,.5)'; ctx.stroke();
-      const lx=cx+Math.cos(a)*(R+22), ly=cy+Math.sin(a)*(R+22);
-      axes[i].split('\n').forEach((ln,k)=>ctx.fillText(ln,lx,ly+k*11+3));
-    }
-    // data polygon
-    ctx.beginPath();
-    for(let i=0;i<=N;i++){
-      const idx=i%N;
-      const a=(Math.PI*2*idx/N)-Math.PI/2;
-      const r=R*vals[idx]*prog;
-      const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
-      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    }
-    ctx.closePath();
-    const grad=ctx.createLinearGradient(0,0,W,H);
-    grad.addColorStop(0,'rgba(230,57,70,.35)'); grad.addColorStop(1,'rgba(244,196,48,.25)');
-    ctx.fillStyle=grad; ctx.fill();
-    ctx.strokeStyle='#e63946'; ctx.lineWidth=2; ctx.stroke();
-    // points
-    for(let i=0;i<N;i++){
-      const a=(Math.PI*2*i/N)-Math.PI/2;
-      const r=R*vals[i]*prog;
-      ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r,3.5,0,Math.PI*2);
-      ctx.fillStyle='#f4c430'; ctx.fill();
-    }
-    if(prog<1){ prog+=0.05; requestAnimationFrame(frame); }
-  }
-  frame();
-}
 
 /* ============ TRIAGE DEMO ============ */
 const alerts=[
@@ -832,7 +785,7 @@ const commands={
   <span class="cy">contact</span>     — get in touch
   <span class="cy">clear</span>       — clear the screen`,
   whoami:()=>`<b>Mohammed H. Majeed</b> — SOC Analyst, Charlotte NC
-SOC &amp; security operations professional with <span class="gr">4+ years</span> across IT support,
+SOC &amp; security operations professional with <span class="gr">3+ years</span> across IT support,
 network ops, and security monitoring. I currently work a Tier 1 alert queue at
 Bay Alarm and keep a public home SOC lab to document the reps behind the skills.
 Status: <span class="gr">OPEN TO WORK</span> — SOC L1/L2, Cybersecurity Analyst, Sec Ops.`,
@@ -852,32 +805,35 @@ Status: <span class="gr">OPEN TO WORK</span> — SOC L1/L2, Cybersecurity Analys
 <span class="am">[◐]</span> ISC2 CCSP                  (in progress)
 <span class="cy">[○]</span> ISC2 CISSP                 (planned, long-term)
 <span class="cy">[○]</span> B.S. Cybersecurity &amp; Information Assurance, WGU (exp. Jan 2027)`,
-  stack:()=>`<span class="gr">── HANDS-ON ──</span>
+  stack:()=>`<span class="gr">── WORK — DAILY ──</span>
 <span class="am">SIEM/EDR:</span>  Splunk · Elastic · Kibana · Wazuh XDR · Defender for Endpoint
-<span class="am">DETECT:</span>    Suricata · Sysmon · Fleet · Snort · Sigma · MITRE ATT&amp;CK
 <span class="am">INTEL:</span>     VirusTotal · AbuseIPDB · Shodan
 <span class="am">TICKETS:</span>   ServiceNow · Jira
+<span class="gr">── LAB — HANDS-ON ──</span>
+<span class="am">DETECT:</span>    Suricata · Sysmon · Fleet · Snort · Sigma · MITRE ATT&amp;CK
 <span class="am">CLOUD:</span>     AWS CloudTrail · GuardDuty · Security Hub
 <span class="am">NET:</span>       Wireshark · pfSense · tcpdump · NMAP
 <span class="am">SCRIPT:</span>    Python · PowerShell · Bash
 <span class="cy">── FAMILIAR / LEARNING ──</span>
   Sentinel (KQL) · CrowdStrike · SentinelOne · QRadar · Cortex XSOAR
-  Splunk SOAR · TheHive · MISP · Zeek · Volatility · Autopsy · YARA · Nessus`,
-  labs:()=>`<span class="cy">★</span> <b>Public SOC Lab &amp; Roadmap</b> — 9 phases · 50+ alerts · 6 Splunk detections
+  Splunk SOAR · TheHive · MISP · Zeek · Nessus`,
+  labs:()=>`<span class="cy">★</span> <b>Public SOC Lab &amp; Roadmap</b> — 11 phases · 50+ alerts · 6 Splunk detections
    → mmajeed7864.github.io/soclab
 <span class="cy">·</span> AWS Cloud Security Monitoring — CloudTrail/GuardDuty/Security Hub
 <span class="cy">·</span> Network Traffic Analysis — pfSense/Snort/Wireshark · malware PCAPs`,
-  hire:()=>`<span class="gr">Why I am worth a conversation:</span>
-• I am already doing Tier 1 SOC work and I am honest about what I am still building.
-• I document my reps instead of just saying I know the tools.
-• I care about clear tickets, clean handoffs, and not wasting analyst time.
-• CySA+, Security+, and Network+ earned; degree and next certs in progress.
+  hire:()=>`<span class="gr">Why I could be useful on your team:</span>
+• I already work alerts, so I understand queue pressure, false positives, and when something needs a closer look.
+• My support and networking background helps me investigate the system behind an alert instead of only reading the detection text.
+• I write tickets and handoffs so the next analyst can continue the work without starting over.
+• I build labs after work for more reps, then publish the evidence instead of padding my resume with tool names.
+• CySA+, Security+, and Network+ earned. I am ready to contribute now and keep learning from a strong security team.
 <span class="am">→ Reach me: hmajeed04@gmail.com</span>`,
   contact:()=>`<span class="am">EMAIL:</span>    hmajeed04@gmail.com
 <span class="am">PHONE:</span>    510-585-7136
 <span class="am">LINKEDIN:</span> linkedin.com/in/mohammed-majeed-40a661271
 <span class="am">GITHUB:</span>   github.com/mmajeed7864
-<span class="am">LAB:</span>      mmajeed7864.github.io/soclab`,
+<span class="am">LAB:</span>      mmajeed7864.github.io/soclab
+<span class="am">RESUME:</span>   mmajeed7864.github.io/assets/mohammed-majeed-soc-analyst.pdf`,
 };
 function termPrint(html,cls){ const d=document.createElement('div'); d.className='tline '+(cls||''); d.innerHTML=html; termBody.appendChild(d); termBody.scrollTop=termBody.scrollHeight; }
 function runCmd(raw){
