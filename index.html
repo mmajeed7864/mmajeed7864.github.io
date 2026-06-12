@@ -145,6 +145,41 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .scroll-hint .ar{animation:bob 1.6s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
 
+/* ============ LAB ARCHITECTURE ============ */
+.architecture-panel{position:relative;border:1px solid var(--border);background:linear-gradient(145deg,rgba(26,14,16,.96),rgba(12,7,8,.98));box-shadow:inset 0 0 46px rgba(230,57,70,.035);overflow:hidden}
+.architecture-panel::before,.architecture-panel::after,.architecture-corners::before,.architecture-corners::after{content:"";position:absolute;width:18px;height:18px;border:2px solid var(--accent);z-index:2;pointer-events:none}
+.architecture-panel::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+.architecture-panel::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+.architecture-corners::before{bottom:-2px;left:-2px;border-right:0;border-top:0}
+.architecture-corners::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+.architecture-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:22px}
+.architecture-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+.architecture-actions .btn{padding:10px 15px;font-size:11px;border-color:rgba(244,196,48,.35);color:var(--accent2);background:rgba(244,196,48,.05)}
+.architecture-actions .btn:hover{border-color:var(--accent2);color:var(--accent2);box-shadow:0 0 20px rgba(244,196,48,.12)}
+.architecture-state{font-family:var(--mono);font-size:10px;color:var(--accent2);letter-spacing:.1em;white-space:nowrap}
+.architecture-shell{padding:8px;background:rgba(7,3,4,.72);overflow-x:auto}
+.architecture-shell svg{display:block;width:100%;min-width:680px;height:auto}
+.architecture-legend{display:flex;flex-wrap:wrap;gap:18px;padding:12px 16px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--soft);letter-spacing:.05em}
+.architecture-legend i{display:inline-block;width:22px;height:0;border-top:2px dashed var(--accent);vertical-align:middle;margin-right:6px}
+.architecture-legend i.attack{border-color:var(--accent4)}
+.architecture-legend i.network{border-color:var(--accent2)}
+.map-tele{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:6 6;fill:none;animation:mapFlow 1.4s linear infinite;filter:drop-shadow(0 0 3px rgba(230,57,70,.85))}
+.map-attack{stroke:var(--accent4);stroke-width:1.7;stroke-dasharray:3 5;fill:none;animation:mapFlow 1s linear infinite;filter:drop-shadow(0 0 3px rgba(255,158,27,.85))}
+.map-pulse{fill:none;stroke:var(--accent);stroke-width:1;animation:mapPulse 2.6s ease-out infinite}
+.map-pulse.attack{stroke:var(--accent4)}
+.map-ring{transform-origin:center;animation:mapSpin 14s linear infinite}
+@keyframes mapFlow{to{stroke-dashoffset:-18}}
+@keyframes mapPulse{0%{r:30;opacity:.5}100%{r:46;opacity:0}}
+@keyframes mapSpin{to{transform:rotate(360deg)}}
+@media(max-width:720px){
+  .architecture-head{align-items:flex-start;flex-direction:column}
+  .architecture-actions{justify-content:flex-start}
+  .architecture-state{white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){
+  .map-tele,.map-attack,.map-pulse,.map-ring{animation:none!important}
+}
+
 /* reveal */
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
@@ -258,6 +293,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .lab-metrics{display:flex;gap:24px;flex-wrap:wrap;margin:14px 0}
 .lab-metrics .lm b{display:block;font-family:var(--mono);font-size:22px;color:var(--accent);font-weight:700}
 .lab-metrics .lm span{font-size:11px;color:var(--soft);font-family:var(--mono)}
+.lab-metrics .lm b span{font-size:inherit;color:inherit}
 .investigation-feature{margin-bottom:16px;padding:18px 20px;border:1px solid rgba(244,196,48,.34);border-left:4px solid var(--accent2);border-radius:12px;background:linear-gradient(135deg,rgba(244,196,48,.055),rgba(230,57,70,.035));display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
 .investigation-feature .if-kicker{font-family:var(--mono);font-size:10px;color:var(--accent2);letter-spacing:.1em;margin-bottom:5px}
 .investigation-feature h3{font-size:18px;margin-bottom:4px}
@@ -332,6 +368,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 <nav class="nav">
   <div class="brand">majeed<b>@</b>soc:~$</div>
   <a href="#hero" class="nav-link">./whoami</a>
+  <a href="#architecture" class="nav-link opt">./lab-map</a>
   <a href="#triage" class="nav-link">./triage-demo</a>
   <a href="#skills" class="nav-link">./skills</a>
   <a href="#experience" class="nav-link opt">./experience</a>
@@ -369,6 +406,108 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
   </div>
   <div class="scroll-hint"><span class="ar">▼</span> SCROLL OR USE NAV TO INVESTIGATE</div>
 </header>
+
+<!-- ============ LAB ARCHITECTURE ============ -->
+<section id="architecture">
+  <div class="architecture-head">
+    <div>
+      <div class="sec-tag reveal">System Architecture · Home SOC</div>
+      <h2 class="sec-title reveal">The Lab Behind the Evidence</h2>
+      <p class="sec-sub reveal">This is the six-VM environment feeding the investigations and build logs. Red paths carry endpoint telemetry into the collection stack; gold paths show controlled attack traffic from Kali.</p>
+    </div>
+    <div class="architecture-actions reveal">
+      <div class="architecture-state">[ 192.168.56.0/24 · ONLINE ]</div>
+      <a class="btn ghost" href="https://mmajeed7864.github.io/soclab/" target="_blank" rel="noopener">↗ VIEW SOC LAB</a>
+    </div>
+  </div>
+
+  <div class="architecture-panel reveal">
+    <span class="architecture-corners"></span>
+    <div class="architecture-shell">
+      <svg viewBox="0 0 900 590" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mohammed Majeed home SOC lab with Elastic SIEM, Splunk, Wazuh, Active Directory, Windows 10, and Kali Linux.">
+        <defs>
+          <marker id="portfolioTelemetryArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#e63946"/></marker>
+          <marker id="portfolioAttackArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#ff9e1b"/></marker>
+          <filter id="portfolioGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+
+        <g>
+          <circle class="map-pulse" cx="170" cy="130" r="34"/>
+          <circle cx="170" cy="130" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
+          <g class="map-ring" style="transform-box:fill-box"><circle cx="170" cy="130" r="41" fill="none" stroke="#3d1f24" stroke-width="1" stroke-dasharray="8 10"/></g>
+          <path d="M152,130 Q170,116 188,130 Q170,144 152,130 Z" fill="none" stroke="#e63946" stroke-width="1.6"/>
+          <circle cx="170" cy="130" r="5" fill="#e63946"/>
+          <text x="170" y="192" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">ELASTIC SIEM</text>
+          <text x="170" y="207" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.101 | SURICATA</text>
+        </g>
+
+        <g>
+          <circle class="map-pulse" cx="450" cy="130" r="34"/>
+          <circle cx="450" cy="130" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
+          <g class="map-ring" style="transform-box:fill-box"><circle cx="450" cy="130" r="41" fill="none" stroke="#3d1f24" stroke-width="1" stroke-dasharray="8 10"/></g>
+          <rect x="437" y="132" width="6" height="12" fill="#e63946"/><rect x="447" y="122" width="6" height="22" fill="#e63946"/><rect x="457" y="114" width="6" height="30" fill="#e63946"/>
+          <text x="450" y="192" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">SPLUNK</text>
+          <text x="450" y="207" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.102 | TCP 9997</text>
+        </g>
+
+        <g>
+          <circle class="map-pulse" cx="730" cy="130" r="34"/>
+          <circle cx="730" cy="130" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
+          <g class="map-ring" style="transform-box:fill-box"><circle cx="730" cy="130" r="41" fill="none" stroke="#3d1f24" stroke-width="1" stroke-dasharray="8 10"/></g>
+          <path d="M730,112 L746,119 V132 Q746,146 730,151 Q714,146 714,132 V119 Z" fill="none" stroke="#e63946" stroke-width="1.6"/>
+          <path d="M723,131 L728,137 L738,124" fill="none" stroke="#e63946" stroke-width="1.8"/>
+          <text x="730" y="192" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">WAZUH XDR</text>
+          <text x="730" y="207" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.105 | FIM</text>
+        </g>
+
+        <line x1="36" y1="290" x2="864" y2="290" stroke="#3d1f24" stroke-width="2"/>
+        <line x1="36" y1="290" x2="864" y2="290" stroke="#f4c430" stroke-width="1" opacity=".42" stroke-dasharray="2 8"/>
+        <rect x="352" y="277" width="196" height="26" fill="#0c0708" stroke="#3d1f24"/>
+        <text x="450" y="294" text-anchor="middle" font-family="Space Mono,monospace" font-size="10.5" fill="#f4c430" filter="url(#portfolioGlow)">192.168.56.0/24</text>
+
+        <g>
+          <circle class="map-pulse" cx="170" cy="430" r="34"/>
+          <circle cx="170" cy="430" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
+          <circle cx="161" cy="423" r="7" fill="none" stroke="#e63946" stroke-width="1.6"/>
+          <path d="M166,428 L184,444 M177,438 L173,443 M182,442 L178,447" stroke="#e63946" stroke-width="1.6" fill="none"/>
+          <text x="170" y="492" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">DC01 | AD</text>
+          <text x="170" y="507" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.10 | MAJEED.LOCAL</text>
+        </g>
+
+        <g>
+          <circle class="map-pulse" cx="450" cy="430" r="34"/>
+          <circle cx="450" cy="430" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
+          <rect x="436" y="416" width="28" height="19" rx="1.5" fill="none" stroke="#e63946" stroke-width="1.6"/>
+          <path d="M444,442 H456 M450,435 V442" stroke="#e63946" stroke-width="1.6"/>
+          <text x="450" y="492" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">WIN10 VICTIM</text>
+          <text x="450" y="507" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.104 | SYSMON + AGENTS</text>
+        </g>
+
+        <g>
+          <circle class="map-pulse attack" cx="730" cy="430" r="34"/>
+          <circle cx="730" cy="430" r="34" fill="#1a0e10" stroke="#ff9e1b" stroke-width="1.5" filter="url(#portfolioGlow)"/>
+          <circle cx="730" cy="430" r="12" fill="none" stroke="#ff9e1b" stroke-width="1.6"/>
+          <path d="M730,412 V422 M730,438 V448 M712,430 H722 M738,430 H748" stroke="#ff9e1b" stroke-width="1.6"/>
+          <circle cx="730" cy="430" r="2.5" fill="#ff9e1b"/>
+          <text x="730" y="492" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#ff9e1b">KALI ATTACKER</text>
+          <text x="730" y="507" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">SCRIPTED ATTACK LOOPS</text>
+        </g>
+
+        <path class="map-tele" d="M432,398 C380,340 240,250 196,166"/>
+        <path class="map-tele" d="M450,396 L450,168" marker-end="url(#portfolioTelemetryArrow)"/>
+        <path class="map-tele" d="M468,398 C520,340 660,250 704,166"/>
+        <path class="map-tele" d="M186,400 C250,320 360,230 426,162" marker-end="url(#portfolioTelemetryArrow)"/>
+        <path class="map-attack" d="M696,430 L488,430" marker-end="url(#portfolioAttackArrow)"/>
+        <path class="map-attack" d="M700,456 C600,565 304,565 204,460" marker-end="url(#portfolioAttackArrow)"/>
+      </svg>
+    </div>
+    <div class="architecture-legend">
+      <span><i></i>TELEMETRY</span>
+      <span><i class="attack"></i>CONTROLLED ATTACK TRAFFIC</span>
+      <span><i class="network"></i>HOST-ONLY NETWORK</span>
+    </div>
+  </div>
+</section>
 
 <!-- ============ TRIAGE DEMO ============ -->
 <section id="triage">
