@@ -157,27 +157,31 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .architecture-actions .btn{padding:10px 15px;font-size:11px;border-color:rgba(244,196,48,.35);color:var(--accent2);background:rgba(244,196,48,.05)}
 .architecture-actions .btn:hover{border-color:var(--accent2);color:var(--accent2);box-shadow:0 0 20px rgba(244,196,48,.12)}
 .architecture-state{font-family:var(--mono);font-size:10px;color:var(--accent2);letter-spacing:.1em;white-space:nowrap}
-.architecture-shell{padding:8px;background:rgba(7,3,4,.72);overflow-x:auto}
-.architecture-shell svg{display:block;width:100%;min-width:680px;height:auto}
+.architecture-shell{padding:8px;background:radial-gradient(circle at 50% 48%,rgba(230,57,70,.055),transparent 52%),rgba(7,3,4,.72);overflow-x:auto}
+.architecture-shell svg{display:block;width:100%;max-width:900px;min-width:680px;height:auto;margin:0 auto}
 .architecture-legend{display:flex;flex-wrap:wrap;gap:18px;padding:12px 16px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--soft);letter-spacing:.05em}
 .architecture-legend i{display:inline-block;width:22px;height:0;border-top:2px dashed var(--accent);vertical-align:middle;margin-right:6px}
 .architecture-legend i.attack{border-color:var(--accent4)}
 .architecture-legend i.network{border-color:var(--accent2)}
-.map-tele{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:6 6;fill:none;animation:mapFlow 1.4s linear infinite;filter:drop-shadow(0 0 3px rgba(230,57,70,.85))}
-.map-attack{stroke:var(--accent4);stroke-width:1.7;stroke-dasharray:3 5;fill:none;animation:mapFlow 1s linear infinite;filter:drop-shadow(0 0 3px rgba(255,158,27,.85))}
-.map-pulse{fill:none;stroke:var(--accent);stroke-width:1;animation:mapPulse 2.6s ease-out infinite}
+.map-tele{stroke:var(--accent);stroke-width:1.55;stroke-dasharray:6 8;fill:none;animation:mapFlow 14s linear infinite;filter:drop-shadow(0 0 3px rgba(230,57,70,.85))}
+.map-attack{stroke:var(--accent4);stroke-width:1.65;stroke-dasharray:3 7;fill:none;animation:mapFlow 5s linear infinite;filter:drop-shadow(0 0 3px rgba(255,158,27,.85))}
+.map-pulse{fill:none;stroke:var(--accent);stroke-width:1;animation:mapPulse 2.8s ease-out infinite}
 .map-pulse.attack{stroke:var(--accent4)}
-.map-ring{transform-origin:center;animation:mapSpin 14s linear infinite}
+.map-sweep{transform-origin:340px 290px;animation:mapSpin 9s linear infinite}
+.map-glow{animation:mapGlow 3s ease-in-out infinite}
+.map-blink{animation:mapBlink 2.4s ease-in-out infinite}
 @keyframes mapFlow{to{stroke-dashoffset:-18}}
 @keyframes mapPulse{0%{r:30;opacity:.5}100%{r:46;opacity:0}}
 @keyframes mapSpin{to{transform:rotate(360deg)}}
+@keyframes mapGlow{0%,100%{opacity:.38}50%{opacity:1}}
+@keyframes mapBlink{0%,100%{opacity:1}50%{opacity:.42}}
 @media(max-width:720px){
   .architecture-head{align-items:flex-start;flex-direction:column}
   .architecture-actions{justify-content:flex-start}
   .architecture-state{white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){
-  .map-tele,.map-attack,.map-pulse,.map-ring{animation:none!important}
+  .map-tele,.map-attack,.map-pulse,.map-sweep,.map-glow,.map-blink{animation:none!important}
 }
 
 /* reveal */
@@ -424,81 +428,77 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
   <div class="architecture-panel reveal">
     <span class="architecture-corners"></span>
     <div class="architecture-shell">
-      <svg viewBox="0 0 900 590" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mohammed Majeed home SOC lab with Elastic SIEM, Splunk, Wazuh, Active Directory, Windows 10, and Kali Linux.">
+      <svg viewBox="0 0 680 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated home SOC topology with Elastic SIEM, Splunk, Wazuh XDR, Active Directory, Windows 10, and Kali Linux.">
+        <title>Six-VM home SOC lab topology</title>
+        <desc>Red dashed paths carry endpoint telemetry into the collection stack. Gold dashed paths carry controlled attack traffic from Kali to the Windows victim and domain controller.</desc>
         <defs>
-          <marker id="portfolioTelemetryArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#e63946"/></marker>
-          <marker id="portfolioAttackArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#ff9e1b"/></marker>
-          <filter id="portfolioGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <radialGradient id="portfolioTopoRadar" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e63946" stop-opacity=".17"/><stop offset="72%" stop-color="#e63946" stop-opacity=".04"/><stop offset="100%" stop-color="#e63946" stop-opacity="0"/></radialGradient>
+          <linearGradient id="portfolioTopoSweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e63946" stop-opacity="0"/><stop offset="100%" stop-color="#e63946" stop-opacity=".21"/></linearGradient>
+          <marker id="portfolioTeleArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#e63946" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+          <marker id="portfolioAttackArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#ff9e1b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+          <filter id="portfolioTopoGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
 
-        <g>
-          <circle class="map-pulse" cx="170" cy="130" r="34"/>
-          <circle cx="170" cy="130" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
-          <g class="map-ring" style="transform-box:fill-box"><circle cx="170" cy="130" r="41" fill="none" stroke="#3d1f24" stroke-width="1" stroke-dasharray="8 10"/></g>
-          <path d="M152,130 Q170,116 188,130 Q170,144 152,130 Z" fill="none" stroke="#e63946" stroke-width="1.6"/>
-          <circle cx="170" cy="130" r="5" fill="#e63946"/>
-          <text x="170" y="192" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">ELASTIC SIEM</text>
-          <text x="170" y="207" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.101 | SURICATA</text>
+        <rect x="12" y="12" width="656" height="556" rx="12" fill="none" stroke="#3d1f24" stroke-width="1"/>
+        <circle cx="340" cy="290" r="214" fill="url(#portfolioTopoRadar)"/>
+        <g class="map-sweep"><path d="M340 290L340 76A214 214 0 0 1 525 183Z" fill="url(#portfolioTopoSweep)"/></g>
+
+        <g stroke-linecap="round" fill="none">
+          <path class="map-tele" d="M180 420L150 164" marker-end="url(#portfolioTeleArrow)"/>
+          <path class="map-tele" d="M340 420L340 164" marker-end="url(#portfolioTeleArrow)"/>
+          <path class="map-tele" d="M340 420L166 164" opacity=".62" marker-end="url(#portfolioTeleArrow)"/>
+          <path class="map-tele" d="M340 420L514 164" opacity=".62" marker-end="url(#portfolioTeleArrow)"/>
+          <path class="map-attack" d="M480 420L374 420" marker-end="url(#portfolioAttackArrow)"/>
+          <path class="map-attack" d="M492 444Q340 565 205 444" marker-end="url(#portfolioAttackArrow)"/>
         </g>
 
-        <g>
-          <circle class="map-pulse" cx="450" cy="130" r="34"/>
-          <circle cx="450" cy="130" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
-          <g class="map-ring" style="transform-box:fill-box"><circle cx="450" cy="130" r="41" fill="none" stroke="#3d1f24" stroke-width="1" stroke-dasharray="8 10"/></g>
-          <rect x="437" y="132" width="6" height="12" fill="#e63946"/><rect x="447" y="122" width="6" height="22" fill="#e63946"/><rect x="457" y="114" width="6" height="30" fill="#e63946"/>
-          <text x="450" y="192" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">SPLUNK</text>
-          <text x="450" y="207" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.102 | TCP 9997</text>
+        <line x1="44" y1="286" x2="636" y2="286" stroke="#3d1f24" stroke-width="2"/>
+        <line x1="44" y1="286" x2="636" y2="286" stroke="#f4c430" stroke-width="1" opacity=".45" stroke-dasharray="2 8"/>
+        <rect x="248" y="273" width="184" height="27" rx="4" fill="#0c0708" stroke="#f4c430" stroke-opacity=".42"/>
+        <text class="map-glow" x="340" y="291" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" letter-spacing="1" fill="#f4c430">192.168.56.0/24</text>
+
+        <g font-family="Space Mono,monospace">
+          <g>
+            <circle class="map-pulse" cx="150" cy="130" r="30"/>
+            <circle cx="150" cy="130" r="30" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioTopoGlow)"/>
+            <path d="M135 130Q150 119 165 130Q150 141 135 130Z" fill="none" stroke="#e63946" stroke-width="1.5"/><circle cx="150" cy="130" r="4" fill="#e63946"/>
+            <text x="150" y="184" text-anchor="middle" font-size="11" font-weight="700" fill="#e63946">ELASTIC SIEM</text>
+            <text x="150" y="200" text-anchor="middle" font-size="9.5" fill="#b08a8f">.101 · SURICATA</text>
+          </g>
+          <g>
+            <circle class="map-pulse" cx="340" cy="130" r="30" style="animation-delay:.9s"/>
+            <circle cx="340" cy="130" r="30" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioTopoGlow)"/>
+            <rect class="map-blink" x="332" y="121" width="4" height="14" fill="#e63946"/><rect class="map-blink" x="338" y="116" width="4" height="19" fill="#e63946" style="animation-delay:.4s"/><rect class="map-blink" x="344" y="124" width="4" height="11" fill="#e63946" style="animation-delay:.8s"/>
+            <text x="340" y="184" text-anchor="middle" font-size="11" font-weight="700" fill="#e63946">SPLUNK</text>
+            <text x="340" y="200" text-anchor="middle" font-size="9.5" fill="#b08a8f">.102 · TCP 9997</text>
+          </g>
+          <g>
+            <circle class="map-pulse" cx="530" cy="130" r="30" style="animation-delay:1.6s"/>
+            <circle cx="530" cy="130" r="30" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioTopoGlow)"/>
+            <path d="M530 116L541 121V132Q541 141 530 146Q519 141 519 132V121Z" fill="none" stroke="#e63946" stroke-width="1.5"/><path d="M525 131L529 135L536 126" fill="none" stroke="#e63946" stroke-width="1.5"/>
+            <text x="530" y="184" text-anchor="middle" font-size="11" font-weight="700" fill="#e63946">WAZUH XDR</text>
+            <text x="530" y="200" text-anchor="middle" font-size="9.5" fill="#b08a8f">.105 · FIM</text>
+          </g>
+          <g>
+            <circle cx="180" cy="420" r="30" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioTopoGlow)"/>
+            <circle cx="176" cy="416" r="6" fill="none" stroke="#e63946" stroke-width="1.5"/><path d="M180 420L188 428M185 425L189 421M188 428L192 424" stroke="#e63946" stroke-width="1.5"/>
+            <text x="180" y="478" text-anchor="middle" font-size="11" font-weight="700" fill="#e63946">DC01 · AD</text>
+            <text x="180" y="494" text-anchor="middle" font-size="9.5" fill="#b08a8f">.10 · MAJEED.LOCAL</text>
+          </g>
+          <g>
+            <circle cx="340" cy="420" r="30" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioTopoGlow)"/>
+            <rect x="326" y="410" width="28" height="18" rx="2" fill="none" stroke="#e63946" stroke-width="1.5"/><path d="M336 428H344M340 428V434M334 435H346" stroke="#e63946" stroke-width="1.5"/>
+            <text x="340" y="478" text-anchor="middle" font-size="11" font-weight="700" fill="#e63946">WIN10 VICTIM</text>
+            <text x="340" y="494" text-anchor="middle" font-size="9.5" fill="#b08a8f">.104 · SYSMON + AGENTS</text>
+          </g>
+          <g>
+            <circle class="map-pulse attack" cx="510" cy="420" r="30" style="animation-delay:.5s"/>
+            <circle cx="510" cy="420" r="30" fill="#1a1305" stroke="#ff9e1b" stroke-width="1.5" filter="url(#portfolioTopoGlow)"/>
+            <circle cx="510" cy="420" r="11" fill="none" stroke="#ff9e1b" stroke-width="1.5"/><circle cx="510" cy="420" r="3" fill="#ff9e1b"/><path d="M510 405V413M510 427V435M495 420H503M517 420H525" stroke="#ff9e1b" stroke-width="1.5"/>
+            <text x="510" y="478" text-anchor="middle" font-size="11" font-weight="700" fill="#ff9e1b">KALI ATTACKER</text>
+            <text x="510" y="494" text-anchor="middle" font-size="9.5" fill="#c9943d">SCRIPTED ATTACK LOOPS</text>
+          </g>
         </g>
-
-        <g>
-          <circle class="map-pulse" cx="730" cy="130" r="34"/>
-          <circle cx="730" cy="130" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
-          <g class="map-ring" style="transform-box:fill-box"><circle cx="730" cy="130" r="41" fill="none" stroke="#3d1f24" stroke-width="1" stroke-dasharray="8 10"/></g>
-          <path d="M730,112 L746,119 V132 Q746,146 730,151 Q714,146 714,132 V119 Z" fill="none" stroke="#e63946" stroke-width="1.6"/>
-          <path d="M723,131 L728,137 L738,124" fill="none" stroke="#e63946" stroke-width="1.8"/>
-          <text x="730" y="192" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">WAZUH XDR</text>
-          <text x="730" y="207" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.105 | FIM</text>
-        </g>
-
-        <line x1="36" y1="290" x2="864" y2="290" stroke="#3d1f24" stroke-width="2"/>
-        <line x1="36" y1="290" x2="864" y2="290" stroke="#f4c430" stroke-width="1" opacity=".42" stroke-dasharray="2 8"/>
-        <rect x="352" y="277" width="196" height="26" fill="#0c0708" stroke="#3d1f24"/>
-        <text x="450" y="294" text-anchor="middle" font-family="Space Mono,monospace" font-size="10.5" fill="#f4c430" filter="url(#portfolioGlow)">192.168.56.0/24</text>
-
-        <g>
-          <circle class="map-pulse" cx="170" cy="430" r="34"/>
-          <circle cx="170" cy="430" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
-          <circle cx="161" cy="423" r="7" fill="none" stroke="#e63946" stroke-width="1.6"/>
-          <path d="M166,428 L184,444 M177,438 L173,443 M182,442 L178,447" stroke="#e63946" stroke-width="1.6" fill="none"/>
-          <text x="170" y="492" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">DC01 | AD</text>
-          <text x="170" y="507" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.10 | MAJEED.LOCAL</text>
-        </g>
-
-        <g>
-          <circle class="map-pulse" cx="450" cy="430" r="34"/>
-          <circle cx="450" cy="430" r="34" fill="#1a0e10" stroke="#e63946" stroke-width="1.5" filter="url(#portfolioGlow)"/>
-          <rect x="436" y="416" width="28" height="19" rx="1.5" fill="none" stroke="#e63946" stroke-width="1.6"/>
-          <path d="M444,442 H456 M450,435 V442" stroke="#e63946" stroke-width="1.6"/>
-          <text x="450" y="492" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#e63946">WIN10 VICTIM</text>
-          <text x="450" y="507" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">.104 | SYSMON + AGENTS</text>
-        </g>
-
-        <g>
-          <circle class="map-pulse attack" cx="730" cy="430" r="34"/>
-          <circle cx="730" cy="430" r="34" fill="#1a0e10" stroke="#ff9e1b" stroke-width="1.5" filter="url(#portfolioGlow)"/>
-          <circle cx="730" cy="430" r="12" fill="none" stroke="#ff9e1b" stroke-width="1.6"/>
-          <path d="M730,412 V422 M730,438 V448 M712,430 H722 M738,430 H748" stroke="#ff9e1b" stroke-width="1.6"/>
-          <circle cx="730" cy="430" r="2.5" fill="#ff9e1b"/>
-          <text x="730" y="492" text-anchor="middle" font-family="Space Mono,monospace" font-size="11" font-weight="700" fill="#ff9e1b">KALI ATTACKER</text>
-          <text x="730" y="507" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="#b08a8f">SCRIPTED ATTACK LOOPS</text>
-        </g>
-
-        <path class="map-tele" d="M432,398 C380,340 240,250 196,166"/>
-        <path class="map-tele" d="M450,396 L450,168" marker-end="url(#portfolioTelemetryArrow)"/>
-        <path class="map-tele" d="M468,398 C520,340 660,250 704,166"/>
-        <path class="map-tele" d="M186,400 C250,320 360,230 426,162" marker-end="url(#portfolioTelemetryArrow)"/>
-        <path class="map-attack" d="M696,430 L488,430" marker-end="url(#portfolioAttackArrow)"/>
-        <path class="map-attack" d="M700,456 C600,565 304,565 204,460" marker-end="url(#portfolioAttackArrow)"/>
       </svg>
     </div>
     <div class="architecture-legend">
