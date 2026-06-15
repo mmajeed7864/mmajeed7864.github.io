@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mohammed H. Majeed — SOC Analyst Console</title>
-<meta name="description" content="Mohammed H. Majeed's SOC analyst portfolio: interactive alert triage, SIEM investigations, phishing analysis, detection engineering, and documented home-lab evidence.">
+<meta name="description" content="Mohammed H. Majeed's SOC analyst portfolio: interactive alert triage, SIEM investigations, phishing analysis, detection engineering, and documented home-lab work.">
 <link rel="canonical" href="https://mmajeed7864.github.io/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://mmajeed7864.github.io/">
 <meta property="og:title" content="Mohammed H. Majeed | SOC Analyst Portfolio">
-<meta property="og:description" content="Explore interactive SOC triage, security operations experience, certifications, and hands-on investigation evidence.">
+<meta property="og:description" content="Explore interactive SOC triage, security operations experience, certifications, and hands-on lab investigations.">
 <meta property="og:image" content="https://mmajeed7864.github.io/assets/portfolio-social-preview.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Mohammed H. Majeed SOC analyst portfolio console">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Mohammed H. Majeed | SOC Analyst Portfolio">
-<meta name="twitter:description" content="Interactive SOC triage, security operations experience, and documented hands-on investigations.">
+<meta name="twitter:description" content="Interactive SOC triage, security operations experience, and documented hands-on lab work.">
 <meta name="twitter:image" content="https://mmajeed7864.github.io/assets/portfolio-social-preview.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,7 +163,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .architecture-legend i{display:inline-block;width:22px;height:0;border-top:2px dashed var(--accent);vertical-align:middle;margin-right:6px}
 .architecture-legend i.attack{border-color:var(--accent4)}
 .architecture-legend i.network{border-color:var(--accent2)}
-.map-tele{stroke:var(--accent);stroke-width:1.55;stroke-dasharray:6 8;fill:none;animation:mapFlow 14s linear infinite;filter:drop-shadow(0 0 3px rgba(230,57,70,.85))}
+.map-tele{stroke:var(--accent);stroke-width:1.55;stroke-dasharray:6 8;fill:none;animation:mapFlow 5s linear infinite;filter:drop-shadow(0 0 3px rgba(230,57,70,.85))}
 .map-attack{stroke:var(--accent4);stroke-width:1.65;stroke-dasharray:3 7;fill:none;animation:mapFlow 5s linear infinite;filter:drop-shadow(0 0 3px rgba(255,158,27,.85))}
 .map-pulse{fill:none;stroke:var(--accent);stroke-width:1;animation:mapPulse 2.8s ease-out infinite}
 .map-pulse.attack{stroke:var(--accent4)}
@@ -421,9 +421,9 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 <section id="architecture">
   <div class="architecture-head">
     <div>
-      <div class="sec-tag reveal">System Architecture · Home SOC</div>
-      <h2 class="sec-title reveal">The Lab Behind the Evidence</h2>
-      <p class="sec-sub reveal">This is the six-VM environment feeding the investigations and build logs. Red paths carry endpoint telemetry into the collection stack; gold paths show controlled attack traffic from Kali.</p>
+      <div class="sec-tag reveal">Home SOC Lab · Six Virtual Machines</div>
+      <h2 class="sec-title reveal">How My Lab Is Connected</h2>
+      <p class="sec-sub reveal">I use this six-VM lab for the investigations and write-ups on this site. Red lines show Windows and Linux security logs being sent to Elastic, Splunk, and Wazuh. Gold lines show safe attack simulations from Kali.</p>
     </div>
     <div class="architecture-actions reveal">
       <div class="architecture-state">[ 192.168.56.0/24 · ONLINE ]</div>
@@ -436,7 +436,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
     <div class="architecture-shell">
       <svg viewBox="0 0 680 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated home SOC topology with Elastic SIEM, Splunk, Wazuh XDR, Active Directory, Windows 10, and Kali Linux.">
         <title>Six-VM home SOC lab topology</title>
-        <desc>Red dashed paths carry endpoint telemetry into the collection stack. Gold dashed paths carry controlled attack traffic from Kali to the Windows victim and domain controller.</desc>
+        <desc>Red dashed paths show security logs sent to Elastic, Splunk, and Wazuh. Gold dashed paths show safe attack simulations from Kali to the Windows victim and domain controller.</desc>
         <defs>
           <radialGradient id="portfolioTopoRadar" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e63946" stop-opacity=".17"/><stop offset="72%" stop-color="#e63946" stop-opacity=".04"/><stop offset="100%" stop-color="#e63946" stop-opacity="0"/></radialGradient>
           <linearGradient id="portfolioTopoSweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e63946" stop-opacity="0"/><stop offset="100%" stop-color="#e63946" stop-opacity=".21"/></linearGradient>
@@ -451,6 +451,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 
         <g stroke-linecap="round" fill="none">
           <path class="map-tele" d="M180 420L150 164" marker-end="url(#portfolioTeleArrow)"/>
+          <path class="map-tele" d="M180 420Q245 285 340 164" opacity=".82" marker-end="url(#portfolioTeleArrow)"/>
           <path class="map-tele" d="M340 420L340 164" marker-end="url(#portfolioTeleArrow)"/>
           <path class="map-tele" d="M340 420L166 164" opacity=".62" marker-end="url(#portfolioTeleArrow)"/>
           <path class="map-tele" d="M340 420L514 164" opacity=".62" marker-end="url(#portfolioTeleArrow)"/>
@@ -460,6 +461,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 
         <g aria-hidden="true">
           <circle class="map-packet" r="2.8"><animateMotion dur="4.6s" repeatCount="indefinite" path="M180 420L150 164"/></circle>
+          <circle class="map-packet" r="2.7"><animateMotion dur="4.8s" begin="-2.4s" repeatCount="indefinite" path="M180 420Q245 285 340 164"/></circle>
           <circle class="map-packet" r="2.8"><animateMotion dur="4.2s" begin="-1.8s" repeatCount="indefinite" path="M340 420L340 164"/></circle>
           <circle class="map-packet" r="2.5"><animateMotion dur="5.2s" begin="-3.1s" repeatCount="indefinite" path="M340 420L514 164"/></circle>
           <circle class="map-packet attack" r="2.9"><animateMotion dur="2.6s" repeatCount="indefinite" path="M480 420L374 420"/></circle>
@@ -518,8 +520,8 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
       </svg>
     </div>
     <div class="architecture-legend">
-      <span><i></i>TELEMETRY</span>
-      <span><i class="attack"></i>CONTROLLED ATTACK TRAFFIC</span>
+      <span><i></i>SECURITY LOGS</span>
+      <span><i class="attack"></i>SAFE TEST ATTACKS</span>
       <span><i class="network"></i>HOST-ONLY NETWORK</span>
     </div>
   </div>
@@ -553,7 +555,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 <section id="skills">
   <div class="sec-tag reveal">Capability Map</div>
   <h2 class="sec-title reveal">Skills &amp; Tooling</h2>
-  <p class="sec-sub reveal">These are the skills I use at work and keep sharpening in my lab. Some tools are daily drivers, some are lab reps, but none of this is just resume filler.</p>
+  <p class="sec-sub reveal">Tools I use for alert triage, investigations, and hands-on lab work. The links below show where I have used them and what I built.</p>
   <div class="skills-grid">
     <div class="skill-cat reveal">
       <h4>// Core SOC Competencies — Click for Evidence</h4>
