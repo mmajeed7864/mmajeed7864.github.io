@@ -157,8 +157,9 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .architecture-actions .btn{padding:10px 15px;font-size:11px;border-color:rgba(244,196,48,.35);color:var(--accent2);background:rgba(244,196,48,.05)}
 .architecture-actions .btn:hover{border-color:var(--accent2);color:var(--accent2);box-shadow:0 0 20px rgba(244,196,48,.12)}
 .architecture-state{font-family:var(--mono);font-size:10px;color:var(--accent2);letter-spacing:.1em;white-space:nowrap}
-.architecture-shell{padding:8px;background:radial-gradient(circle at 50% 48%,rgba(230,57,70,.055),transparent 52%),rgba(7,3,4,.72);overflow-x:auto}
-.architecture-shell svg{display:block;width:100%;max-width:900px;min-width:680px;height:auto;margin:0 auto}
+.architecture-shell{padding:14px;background:radial-gradient(circle at 50% 48%,rgba(230,57,70,.075),transparent 58%),linear-gradient(145deg,rgba(230,57,70,.045),rgba(244,196,48,.03),rgba(7,3,4,.82));overflow-x:auto}
+.architecture-shell svg{display:block;width:100%;max-width:1080px;min-width:760px;height:auto;margin:0 auto}
+.old-portfolio-topology{display:none!important}
 .architecture-legend{display:flex;flex-wrap:wrap;gap:18px;padding:12px 16px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--soft);letter-spacing:.05em}
 .architecture-legend i{display:inline-block;width:22px;height:0;border-top:2px dashed var(--accent);vertical-align:middle;margin-right:6px}
 .architecture-legend i.attack{border-color:var(--accent4)}
@@ -173,6 +174,24 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 .map-packet{fill:var(--accent);filter:drop-shadow(0 0 5px rgba(230,57,70,1));animation:mapPacketLive 1.35s ease-in-out infinite}
 .map-packet.attack{fill:var(--accent4);filter:drop-shadow(0 0 5px rgba(255,158,27,1))}
 .map-network{animation:mapNetworkLive 3.6s ease-in-out infinite}
+.portfolio-board-grid{opacity:.5}
+.portfolio-fabric-line{stroke:var(--accent);stroke-width:1.95;stroke-dasharray:8 11;fill:none;stroke-linecap:round;animation:mapFlow 5.4s linear infinite;filter:drop-shadow(0 0 5px rgba(230,57,70,.78))}
+.portfolio-fabric-line.gold{stroke:var(--accent2);filter:drop-shadow(0 0 5px rgba(244,196,48,.56))}
+.portfolio-attack-line{stroke:var(--accent4);stroke-width:2.05;stroke-dasharray:4 9;fill:none;stroke-linecap:round;animation:mapFlow 4.2s linear infinite;filter:drop-shadow(0 0 5px rgba(255,158,27,.78))}
+.portfolio-node-card{fill:rgba(12,7,8,.92);stroke:rgba(230,57,70,.46);stroke-width:1.2;filter:drop-shadow(0 0 12px rgba(230,57,70,.16))}
+.portfolio-node-card.gold{stroke:rgba(244,196,48,.46);filter:drop-shadow(0 0 12px rgba(244,196,48,.12))}
+.portfolio-node-card.orange{stroke:rgba(255,158,27,.58);filter:drop-shadow(0 0 14px rgba(255,158,27,.16))}
+.portfolio-node-accent{fill:rgba(230,57,70,.12);stroke:var(--accent);stroke-width:1.5;filter:drop-shadow(0 0 8px rgba(230,57,70,.6))}
+.portfolio-node-accent.gold{fill:rgba(244,196,48,.1);stroke:var(--accent2);filter:drop-shadow(0 0 8px rgba(244,196,48,.45))}
+.portfolio-node-accent.orange{fill:rgba(255,158,27,.11);stroke:var(--accent4);filter:drop-shadow(0 0 9px rgba(255,158,27,.55))}
+.portfolio-orbit{fill:none;stroke:rgba(230,57,70,.28);stroke-width:1;stroke-dasharray:3 8;animation:mapSpin 18s linear infinite;transform-box:fill-box;transform-origin:center}
+.portfolio-orbit.gold{stroke:rgba(244,196,48,.34);animation-duration:16s}
+.portfolio-orbit.orange{stroke:rgba(255,158,27,.35);animation-duration:14s}
+.portfolio-core{animation:portfolioCorePulse 3s ease-in-out infinite}
+.portfolio-scan{animation:portfolioScan 5.5s ease-in-out infinite}
+.portfolio-packet{fill:var(--accent);filter:drop-shadow(0 0 6px rgba(230,57,70,1));animation:mapPacketLive 1.35s ease-in-out infinite}
+.portfolio-packet.gold{fill:var(--accent2);filter:drop-shadow(0 0 6px rgba(244,196,48,.9))}
+.portfolio-packet.attack{fill:var(--accent4);filter:drop-shadow(0 0 6px rgba(255,158,27,.95))}
 @keyframes mapFlow{to{stroke-dashoffset:-18}}
 @keyframes mapPulse{0%{r:30;opacity:.5}100%{r:46;opacity:0}}
 @keyframes mapSpin{to{transform:rotate(360deg)}}
@@ -180,14 +199,16 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
 @keyframes mapBlink{0%,100%{opacity:1}50%{opacity:.42}}
 @keyframes mapPacketLive{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes mapNetworkLive{0%,100%{opacity:.28}50%{opacity:.68}}
+@keyframes portfolioCorePulse{0%,100%{filter:drop-shadow(0 0 8px rgba(244,196,48,.35));opacity:.88}50%{filter:drop-shadow(0 0 22px rgba(244,196,48,.68));opacity:1}}
+@keyframes portfolioScan{0%,100%{opacity:.1;transform:translateX(-18px)}50%{opacity:.5;transform:translateX(18px)}}
 @media(max-width:720px){
   .architecture-head{align-items:flex-start;flex-direction:column}
   .architecture-actions{justify-content:flex-start}
   .architecture-state{white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){
-  .map-tele,.map-attack,.map-pulse,.map-sweep,.map-glow,.map-blink,.map-network{animation:none!important}
-  .map-packet{display:none}
+  .map-tele,.map-attack,.portfolio-fabric-line,.portfolio-attack-line,.map-pulse,.map-sweep,.portfolio-orbit,.portfolio-core,.portfolio-scan,.map-glow,.map-blink,.map-network{animation:none!important}
+  .map-packet,.portfolio-packet{display:none}
 }
 
 /* reveal */
@@ -423,7 +444,7 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
     <div>
       <div class="sec-tag reveal">Home SOC Lab · Six Virtual Machines</div>
       <h2 class="sec-title reveal">How My Lab Is Connected</h2>
-      <p class="sec-sub reveal">I use this six-VM lab for the investigations and write-ups on this site. Red lines show Windows and Linux security logs being sent to Elastic, Splunk, and Wazuh. Gold lines show safe attack simulations from Kali.</p>
+      <p class="sec-sub reveal">I use this six-VM lab for the investigations and write-ups on this site. Red lines show telemetry moving into the monitoring stack, gold highlights DC01 forwarding to Splunk, and orange shows safe attack simulation traffic from Kali.</p>
     </div>
     <div class="architecture-actions reveal">
       <div class="architecture-state">[ 192.168.56.0/24 · ONLINE ]</div>
@@ -434,7 +455,143 @@ section{max-width:1100px;margin:0 auto;padding:60px 22px}
   <div class="architecture-panel reveal">
     <span class="architecture-corners"></span>
     <div class="architecture-shell">
-      <svg viewBox="0 0 680 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated home SOC topology with Elastic SIEM, Splunk, Wazuh XDR, Active Directory, Windows 10, and Kali Linux.">
+      <svg class="portfolio-topology-modern" viewBox="0 0 980 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Modern home SOC lab fabric diagram showing Elastic SIEM, Splunk, Wazuh XDR, Active Directory, Windows 10, and Kali Linux.">
+        <title>Six-VM home SOC lab fabric</title>
+        <desc>Red paths show telemetry moving through the lab. Gold shows domain controller logs sent to Splunk. Orange shows safe attack simulation traffic from Kali.</desc>
+        <defs>
+          <pattern id="portfolioGridNew" width="38" height="38" patternUnits="userSpaceOnUse">
+            <path d="M38 0H0V38" fill="none" stroke="#3d1f24" stroke-width=".65" opacity=".62"/>
+            <path d="M19 0V38M0 19H38" fill="none" stroke="#291316" stroke-width=".45" opacity=".5"/>
+          </pattern>
+          <radialGradient id="portfolioCoreGlowNew" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#f4c430" stop-opacity=".34"/>
+            <stop offset="42%" stop-color="#e63946" stop-opacity=".13"/>
+            <stop offset="100%" stop-color="#e63946" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="portfolioGlassNew" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#e63946" stop-opacity=".14"/>
+            <stop offset="48%" stop-color="#f4c430" stop-opacity=".045"/>
+            <stop offset="100%" stop-color="#0c0708" stop-opacity=".92"/>
+          </linearGradient>
+          <linearGradient id="portfolioScanNew" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#e63946" stop-opacity="0"/>
+            <stop offset="45%" stop-color="#e63946" stop-opacity=".28"/>
+            <stop offset="100%" stop-color="#f4c430" stop-opacity="0"/>
+          </linearGradient>
+          <marker id="portfolioTeleArrowNew" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#e63946" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="portfolioGoldArrowNew" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#f4c430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="portfolioAttackArrowNew" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#ff9e1b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <rect x="18" y="18" width="944" height="584" rx="26" fill="#0c0708" stroke="#3d1f24" stroke-width="1.5"/>
+        <rect x="18" y="18" width="944" height="584" rx="26" fill="url(#portfolioGridNew)" opacity=".72"/>
+        <rect x="42" y="42" width="896" height="536" rx="20" fill="url(#portfolioGlassNew)" stroke="#3d1f24" stroke-width="1"/>
+        <circle class="portfolio-core" cx="490" cy="316" r="192" fill="url(#portfolioCoreGlowNew)"/>
+        <path class="portfolio-scan" d="M112 104H868V532H112Z" fill="url(#portfolioScanNew)" opacity=".22"/>
+
+        <g font-family="Space Mono, monospace">
+          <text x="62" y="70" font-size="11" letter-spacing="2.6" fill="#e63946">SOC LAB FABRIC</text>
+          <text x="62" y="91" font-size="9" letter-spacing="1.8" fill="#b08a8f">host-only network / controlled telemetry / safe attack traffic</text>
+          <text x="870" y="70" font-size="9.5" text-anchor="end" letter-spacing="1.6" fill="#f4c430">LAB STATUS: ONLINE</text>
+        </g>
+
+        <g class="portfolio-board-grid" fill="none">
+          <path d="M95 316H885" stroke="#3d1f24" stroke-width="2"/>
+          <path d="M95 316H885" stroke="#f4c430" stroke-width="1" stroke-dasharray="4 14" opacity=".58"/>
+          <circle cx="490" cy="316" r="178" stroke="#3d1f24" stroke-dasharray="4 9"/>
+          <circle cx="490" cy="316" r="236" stroke="#281316" stroke-dasharray="3 12"/>
+        </g>
+
+        <g fill="none">
+          <path class="portfolio-fabric-line" d="M242 415C255 330 230 245 186 187" marker-end="url(#portfolioTeleArrowNew)"/>
+          <path class="portfolio-fabric-line gold" d="M255 415C350 330 430 260 490 187" marker-end="url(#portfolioGoldArrowNew)"/>
+          <path class="portfolio-fabric-line" d="M490 415L490 187" marker-end="url(#portfolioTeleArrowNew)"/>
+          <path class="portfolio-fabric-line" d="M520 415C390 322 285 240 190 187" opacity=".72" marker-end="url(#portfolioTeleArrowNew)"/>
+          <path class="portfolio-fabric-line" d="M548 415C660 330 735 252 795 187" opacity=".78" marker-end="url(#portfolioTeleArrowNew)"/>
+          <path class="portfolio-attack-line" d="M770 423C700 395 620 394 559 426" marker-end="url(#portfolioAttackArrowNew)"/>
+          <path class="portfolio-attack-line" d="M775 457C600 562 390 560 267 466" marker-end="url(#portfolioAttackArrowNew)"/>
+        </g>
+
+        <g aria-hidden="true">
+          <circle class="portfolio-packet" r="3.7"><animateMotion dur="4.4s" repeatCount="indefinite" path="M242 415C255 330 230 245 186 187"/></circle>
+          <circle class="portfolio-packet gold" r="3.8"><animateMotion dur="4.8s" begin="-2s" repeatCount="indefinite" path="M255 415C350 330 430 260 490 187"/></circle>
+          <circle class="portfolio-packet" r="3.6"><animateMotion dur="4.2s" begin="-1.2s" repeatCount="indefinite" path="M490 415L490 187"/></circle>
+          <circle class="portfolio-packet" r="3.4"><animateMotion dur="5s" begin="-2.7s" repeatCount="indefinite" path="M520 415C390 322 285 240 190 187"/></circle>
+          <circle class="portfolio-packet" r="3.4"><animateMotion dur="5.2s" begin="-3.1s" repeatCount="indefinite" path="M548 415C660 330 735 252 795 187"/></circle>
+          <circle class="portfolio-packet attack" r="4"><animateMotion dur="2.8s" repeatCount="indefinite" path="M770 423C700 395 620 394 559 426"/></circle>
+          <circle class="portfolio-packet attack" r="4"><animateMotion dur="4.4s" begin="-2.1s" repeatCount="indefinite" path="M775 457C600 562 390 560 267 466"/></circle>
+        </g>
+
+        <g font-family="Space Mono, monospace">
+          <rect class="portfolio-node-card" x="112" y="104" width="150" height="104" rx="16"/>
+          <circle class="portfolio-orbit" cx="187" cy="145" r="42"/>
+          <circle class="portfolio-node-accent" cx="187" cy="145" r="31"/>
+          <path d="M169 145Q187 133 205 145Q187 157 169 145Z" fill="none" stroke="#e63946" stroke-width="2"/>
+          <circle cx="187" cy="145" r="4" fill="#e63946"/>
+          <text x="187" y="235" text-anchor="middle" font-size="13" font-weight="700" fill="#e63946">ELASTIC SIEM</text>
+          <text x="187" y="255" text-anchor="middle" font-size="10" fill="#b08a8f">.101 / Suricata IDS</text>
+
+          <rect class="portfolio-node-card gold" x="415" y="104" width="150" height="104" rx="16"/>
+          <circle class="portfolio-orbit gold" cx="490" cy="145" r="42"/>
+          <circle class="portfolio-node-accent gold" cx="490" cy="145" r="31"/>
+          <rect x="478" y="134" width="5" height="24" fill="#f4c430"/>
+          <rect x="488" y="126" width="5" height="32" fill="#f4c430"/>
+          <rect x="498" y="140" width="5" height="18" fill="#f4c430"/>
+          <text x="490" y="235" text-anchor="middle" font-size="13" font-weight="700" fill="#f4c430">SPLUNK</text>
+          <text x="490" y="255" text-anchor="middle" font-size="10" fill="#b08a8f">.102 / TCP 9997</text>
+
+          <rect class="portfolio-node-card" x="718" y="104" width="150" height="104" rx="16"/>
+          <circle class="portfolio-orbit" cx="793" cy="145" r="42"/>
+          <circle class="portfolio-node-accent" cx="793" cy="145" r="31"/>
+          <path d="M793 127L808 134V149C808 161 793 168 793 168S778 161 778 149V134Z" fill="none" stroke="#e63946" stroke-width="2"/>
+          <path d="M785 148L791 154L802 140" fill="none" stroke="#e63946" stroke-width="2"/>
+          <text x="793" y="235" text-anchor="middle" font-size="13" font-weight="700" fill="#e63946">WAZUH XDR</text>
+          <text x="793" y="255" text-anchor="middle" font-size="10" fill="#b08a8f">.105 / FIM + SCA</text>
+        </g>
+
+        <g font-family="Space Mono, monospace">
+          <rect x="347" y="297" width="286" height="38" rx="8" fill="#0c0708" stroke="#f4c430" stroke-opacity=".58"/>
+          <text class="portfolio-core" x="490" y="321" text-anchor="middle" font-size="18" font-weight="700" letter-spacing="1.5" fill="#f4c430">192.168.56.0/24</text>
+          <text x="490" y="354" text-anchor="middle" font-size="9" letter-spacing="2" fill="#b08a8f">HOST-ONLY SUBNET</text>
+        </g>
+
+        <g font-family="Space Mono, monospace">
+          <rect class="portfolio-node-card gold" x="132" y="386" width="206" height="122" rx="18"/>
+          <circle class="portfolio-orbit gold" cx="235" cy="435" r="45"/>
+          <circle class="portfolio-node-accent gold" cx="235" cy="435" r="33"/>
+          <circle cx="229" cy="430" r="8" fill="none" stroke="#f4c430" stroke-width="2"/>
+          <path d="M235 436L247 448M242 443L249 436M247 448L254 441" stroke="#f4c430" stroke-width="2" fill="none"/>
+          <text x="235" y="530" text-anchor="middle" font-size="13" font-weight="700" fill="#f4c430">DC01 / AD</text>
+          <text x="235" y="550" text-anchor="middle" font-size="10" fill="#b08a8f">.10 / MAJEED.LOCAL</text>
+          <text x="235" y="566" text-anchor="middle" font-size="8.5" fill="#d8b449">Security logs to Splunk</text>
+
+          <rect class="portfolio-node-card" x="386" y="386" width="206" height="122" rx="18"/>
+          <circle class="portfolio-orbit" cx="489" cy="435" r="45"/>
+          <circle class="portfolio-node-accent" cx="489" cy="435" r="33"/>
+          <rect x="470" y="422" width="38" height="24" rx="3" fill="none" stroke="#e63946" stroke-width="2"/>
+          <path d="M484 446H494M489 446V455M479 456H499" stroke="#e63946" stroke-width="2"/>
+          <text x="489" y="530" text-anchor="middle" font-size="13" font-weight="700" fill="#e63946">WIN10 VICTIM</text>
+          <text x="489" y="550" text-anchor="middle" font-size="10" fill="#b08a8f">.104 / Sysmon + Agents</text>
+          <text x="489" y="566" text-anchor="middle" font-size="8.5" fill="#c98288">Telemetry fan-out</text>
+
+          <rect class="portfolio-node-card orange" x="640" y="386" width="206" height="122" rx="18"/>
+          <circle class="portfolio-orbit orange" cx="743" cy="435" r="45"/>
+          <circle class="portfolio-node-accent orange" cx="743" cy="435" r="33"/>
+          <circle cx="743" cy="435" r="14" fill="none" stroke="#ff9e1b" stroke-width="2"/>
+          <circle cx="743" cy="435" r="3.5" fill="#ff9e1b"/>
+          <path d="M743 412V423M743 447V458M720 435H731M755 435H766" stroke="#ff9e1b" stroke-width="2"/>
+          <text x="743" y="530" text-anchor="middle" font-size="13" font-weight="700" fill="#ff9e1b">KALI ATTACKER</text>
+          <text x="743" y="550" text-anchor="middle" font-size="10" fill="#c9943d">Scripted attack loops</text>
+        </g>
+
+      </svg>
+      <svg class="old-portfolio-topology" viewBox="0 0 680 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated home SOC topology with Elastic SIEM, Splunk, Wazuh XDR, Active Directory, Windows 10, and Kali Linux.">
         <title>Six-VM home SOC lab topology</title>
         <desc>Red dashed paths show security logs sent to Elastic, Splunk, and Wazuh. Gold dashed paths show safe attack simulations from Kali to the Windows victim and domain controller.</desc>
         <defs>
