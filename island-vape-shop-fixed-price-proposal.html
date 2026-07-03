@@ -1,0 +1,247 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixed-Price Proposal - Island Vape Shop</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --ink:#0d1b2a;
+    --muted:#5b6b73;
+    --teal:#0e9aa7;
+    --deep:#123c4a;
+    --orange:#ff7b3d;
+    --cream:#f6f4ee;
+    --line:#e6e2d8;
+    --soft:#eefaf3;
+    --gold:#f7c948;
+  }
+  body{font-family:Inter,system-ui,sans-serif;color:var(--ink);line-height:1.62;background:var(--cream)}
+  h1,h2,h3{font-family:Poppins,Inter,sans-serif;line-height:1.12}
+  .hero{background:
+    radial-gradient(circle at 18% 12%,rgba(255,123,61,.22),transparent 26%),
+    linear-gradient(150deg,#0e9aa7,#123c4a 72%);
+    color:#fff;padding:58px 22px 50px;text-align:center}
+  .badge{display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 15px;font-size:13px;font-weight:800;margin-bottom:12px}
+  .hero h1{font-size:clamp(31px,5vw,52px);letter-spacing:-.03em;max-width:980px;margin:0 auto}
+  .hero p{opacity:.92;margin:12px auto 0;max-width:780px;font-size:18px}
+  .demo{display:block;background:var(--orange);color:#fff;text-align:center;padding:16px 20px;font-weight:900;font-size:17px;text-decoration:none;letter-spacing:.01em}
+  .demo:hover{background:#e85f22}
+  .wrap{max-width:900px;margin:0 auto;padding:42px 22px 52px}
+  .lead{font-size:19px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 12px 30px rgba(13,27,42,.05)}
+  h2{font-size:25px;margin:34px 0 13px;color:#0a7680}
+  h3{font-size:18px}
+  p{margin:8px 0}
+  ul{margin:8px 0 8px 21px}
+  li{margin:7px 0}
+  .callout{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin:18px 0}
+  .callout.strong{border:2px solid var(--teal);box-shadow:0 16px 38px rgba(14,154,167,.13)}
+  .flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
+  .flow .s{background:var(--soft);border:1px solid #bfe8d0;border-radius:14px;padding:15px;font-size:14px}
+  .flow .s b{display:block;color:#0a7680;margin-bottom:3px}
+  .pricing{width:min(1120px,96vw);position:relative;left:50%;transform:translateX(-50%);margin:20px 0 8px}
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:stretch}
+  .tier{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px 22px;display:flex;flex-direction:column;box-shadow:0 10px 28px rgba(13,27,42,.06)}
+  .tier.recommended{border:2px solid var(--teal);box-shadow:0 18px 44px rgba(14,154,167,.18)}
+  .flag{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--orange);color:#351300;font-weight:900;font-size:12px;border-radius:999px;padding:5px 14px;white-space:nowrap}
+  .tier h3{font-size:20px;margin-bottom:4px;color:var(--ink)}
+  .who{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:10px}
+  .amt{font-family:Poppins;font-size:39px;font-weight:900;color:#0a7680;letter-spacing:-.03em}
+  .amt small{font-size:15px;color:var(--muted);font-weight:700}
+  .terms{font-size:13.5px;color:#8a4b1f;font-weight:800;margin:4px 0 13px}
+  .tier ul{font-size:14.5px;margin-left:19px}
+  .fit{margin-top:auto;background:#f6f4ee;border-radius:12px;padding:11px 12px;font-size:13.5px;color:#123c4a;font-style:italic}
+  .fixed-note{text-align:center;font-size:13.5px;color:var(--muted);margin-top:14px}
+  .phase{border-left:5px solid var(--teal);background:#fff;border-radius:0 14px 14px 0;padding:14px 18px;margin:14px 0;box-shadow:0 8px 24px rgba(13,27,42,.04)}
+  .phase.two{border-color:var(--orange)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:13px}
+  .card{border:1px solid var(--line);background:#fff;border-radius:15px;padding:18px}
+  .card h3{color:#0a7680;font-size:16px;margin-bottom:5px}
+  .money{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px}
+  .pay{background:#0d1b2a;color:#fff;border-radius:16px;padding:18px}
+  .pay b{display:block;color:#4fd1c5;font-family:Poppins;font-size:23px}
+  .pay span{font-size:13.5px;color:#d7e8eb}
+  .muted{color:var(--muted);font-size:13.5px}
+  .cta-wrap{text-align:center;margin:32px 0}
+  .cta{display:inline-block;background:var(--teal);color:#fff;padding:15px 38px;border-radius:30px;text-decoration:none;font-weight:900;font-size:18px;box-shadow:0 8px 22px #0e9aa733}
+  .footer{text-align:center;color:var(--muted);font-size:13px;margin-top:28px}
+  @media(max-width:680px){
+    .hero{padding:42px 18px}
+    .wrap{padding:28px 16px 42px}
+    .lead{font-size:17px;padding:19px}
+    .amt{font-size:34px}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="badge">Prepared by Symbio AI - fixed-price version</div>
+  <h1>Fixed-Price Website Proposal for Island Vape Shop</h1>
+  <p>A clean storefront, pickup ordering, and age-verification workflow without a required monthly Symbio payment.</p>
+</div>
+
+<a class="demo" href="https://ravikus1457.github.io/symbio-mockups/island-vape-shop.html">See your working sample store</a>
+
+<main class="wrap">
+  <p class="lead">
+    You asked for a fixed-price option instead of monthly payments. This version keeps it simple:
+    Island Vape Shop pays one project price for the build, owns the finished site, and pays any outside software vendors directly.
+    Symbio is not charging a required monthly maintenance fee.
+  </p>
+
+  <h2>The recommended build</h2>
+  <div class="callout strong">
+    <h3>Best fit: Pickup Storefront Build - $3,000 fixed</h3>
+    <p>
+      This is the practical version of the demo: customers can browse products, reserve for pickup,
+      pass the online age/ID check, and come into the store to pay or pick up. It gives the shop a real website
+      without forcing a monthly support contract.
+    </p>
+  </div>
+
+  <h2>Fixed-price options</h2>
+  <div class="pricing">
+    <div class="tiers">
+      <section class="tier">
+        <h3>Presence Site</h3>
+        <div class="who">Professional website, no online ordering</div>
+        <div class="amt">$1,850</div>
+        <div class="terms">Fixed one-time build price</div>
+        <ul>
+          <li>Modern mobile-friendly website</li>
+          <li>Home, About, Products/Categories, FAQ, Contact</li>
+          <li>21+ age gate</li>
+          <li>Google map, click-to-call, hours, social links</li>
+          <li>Basic local SEO setup</li>
+          <li>30 days of bug fixes after launch</li>
+        </ul>
+        <div class="fit">Fits: "I just need a clean website so customers trust us and find us."</div>
+      </section>
+
+      <section class="tier recommended">
+        <span class="flag">Recommended</span>
+        <h3>Pickup Storefront</h3>
+        <div class="who">The working demo turned into a real shop site</div>
+        <div class="amt">$3,000</div>
+        <div class="terms">Fixed one-time build price</div>
+        <ul>
+          <li><b>Everything in Presence Site</b></li>
+          <li>Product catalog with categories, photos, and prices</li>
+          <li>Owner/admin panel to update items and pricing</li>
+          <li>Reserve-online, pickup-in-store checkout</li>
+          <li>Third-party age/ID verification integration</li>
+          <li>Order management view for the shop</li>
+          <li>COA/product detail links where needed</li>
+          <li>45 days of bug fixes after launch</li>
+        </ul>
+        <div class="fit">Fits: "I want customers browsing and reserving online, but no monthly Symbio bill."</div>
+      </section>
+
+      <section class="tier">
+        <h3>Premium Storefront</h3>
+        <div class="who">More automation, more polish, more handoff</div>
+        <div class="amt">$5,000 <small>fixed</small></div>
+        <div class="terms">Fixed one-time build price</div>
+        <ul>
+          <li><b>Everything in Pickup Storefront</b></li>
+          <li>AI shop assistant for common questions</li>
+          <li>SMS order-ready notifications</li>
+          <li>Google reviews displayed on the site</li>
+          <li>Payment-ready checkout for future high-risk merchant approval</li>
+          <li>Launch training video for owner/staff</li>
+          <li>60 days of bug fixes after launch</li>
+        </ul>
+        <div class="fit">Fits: "I want the site to feel like a serious digital storefront."</div>
+      </section>
+    </div>
+    <p class="fixed-note">
+      No required Symbio monthly payment. Future updates after the included bug-fix window are optional and billed only if requested.
+    </p>
+  </div>
+
+  <h2>Payment schedule</h2>
+  <div class="money">
+    <div class="pay"><b>40%</b><span>Deposit to start the build and reserve the project slot.</span></div>
+    <div class="pay"><b>40%</b><span>Due when the first working version is ready for review.</span></div>
+    <div class="pay"><b>20%</b><span>Due before final launch, transfer, or production access.</span></div>
+  </div>
+  <p class="muted">
+    For the recommended $3,000 build, that means $1,200 to start, $1,200 at working preview, and $600 before launch.
+  </p>
+
+  <h2>What is not included in the fixed price</h2>
+  <div class="callout">
+    <p>
+      Fixed price means Symbio's build labor is fixed. It does not mean outside vendors are free.
+      To avoid monthly Symbio invoices, Island Vape Shop should own and pay these accounts directly:
+    </p>
+    <ul>
+      <li><b>Domain:</b> usually about $15-$25/year.</li>
+      <li><b>Hosting:</b> usually $0-$30/month depending on setup and traffic.</li>
+      <li><b>Age/ID verification:</b> AgeChecker.net currently lists $25/month plus $0.50 per accepted verification; other vendors may price differently.</li>
+      <li><b>SMS texting:</b> usage-based if order-ready texts are enabled.</li>
+      <li><b>High-risk merchant processing:</b> only needed if online payment is activated later.</li>
+      <li><b>Legal/compliance review:</b> optional but recommended for smoke-shop/tobacco/hemp rules.</li>
+    </ul>
+    <p class="muted">
+      Symbio can help connect these tools, but the accounts should stay in the client's name so the client is not locked into a monthly Symbio plan.
+    </p>
+  </div>
+
+  <h2>Compliance-first setup</h2>
+  <p>The safest launch path is pickup-only, not shipping. The website is built around three checks:</p>
+  <div class="flow">
+    <div class="s"><b>1. Browse gate</b>21+ date-of-birth check before entering the site.</div>
+    <div class="s"><b>2. Checkout verification</b>Third-party ID/age verification before reservation is accepted.</div>
+    <div class="s"><b>3. Store pickup check</b>Staff verifies valid 21+ ID in person before handing over product.</div>
+  </div>
+  <p class="muted">
+    Symbio builds the workflow. Island Vape Shop remains responsible for final legal compliance, product rules, and staff procedures.
+  </p>
+
+  <h2>Rollout plan</h2>
+  <div class="phase">
+    <b>Phase 1 - Fixed-price launch:</b><br>
+    Website, catalog, pickup reservation, ID verification setup, and admin controls. This gets the shop live without waiting on online payment approval.
+  </div>
+  <div class="phase two">
+    <b>Phase 2 - Optional later upgrade:</b><br>
+    Online payment, SMS loyalty, AI assistant, POS/inventory sync, or campaign automation can be added later by separate quote.
+  </div>
+
+  <h2>Future updates after launch</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Included</h3>
+      <p>Bug fixes during the included post-launch window for the selected package.</p>
+    </div>
+    <div class="card">
+      <h3>Optional hourly</h3>
+      <p>After the included window, changes can be billed at $85/hour only when requested.</p>
+    </div>
+    <div class="card">
+      <h3>Optional project quote</h3>
+      <p>Major new features get a separate fixed quote before work begins.</p>
+    </div>
+  </div>
+
+  <h2>To start</h2>
+  <ul>
+    <li>Choose the package.</li>
+    <li>Pay the 40% deposit.</li>
+    <li>Send product categories, sample products, photos, pricing, hours, logo, and license/compliance details.</li>
+    <li>Approve vendor accounts for age verification, hosting, domain, and any optional SMS/payment tools.</li>
+  </ul>
+
+  <div class="cta-wrap">
+    <a class="cta" href="https://cal.com/ravi-kumar-dwed2m">Book the kickoff call</a>
+    <p class="footer">Prepared for Island Vape Shop, Charlotte NC - Symbio AI - symbioai.dev</p>
+  </div>
+</main>
+
+</body>
+</html>
+
