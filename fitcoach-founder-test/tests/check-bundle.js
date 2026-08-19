@@ -9,9 +9,11 @@
  * of failure impossible to ship again.
  *
  * It asserts:
- *   1. Every script index.html loads exists, parses, and contains no corruption bytes.
- *   2. The service-worker precache and index.html script tags agree in both directions.
- *   3. The v0.3.3 override contract loads before v033-pages.js and makes its legacy override
+ *   1. Every JavaScript artifact in this app tree parses and contains no corruption bytes,
+ *      even when the file is not currently loaded by index.html.
+ *   2. Every script index.html loads exists.
+ *   3. The service-worker precache and index.html script tags agree in both directions.
+ *   4. The v0.3.3 override contract loads before v033-pages.js and makes its legacy override
  *      names assignable from strict-mode code instead of relying on sloppy implicit globals.
  *
  * Usage: node tests/check-bundle.js     (exit 0 = pass, 1 = fail)
@@ -21,37 +23,48 @@ const path = require('path');
 const vm = require('vm');
 
 const DIR = path.resolve(__dirname, '..');
-const read = f => fs.readFileSync(path.join(DIR, f), 'utf8');
+const read = file => fs.readFileSync(path.join(DIR, file), 'utf8');
+const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 
 const failures = [];
 const ok = message => console.log(`  ok    ${message}`);
 const bad = message => { failures.push(message); console.log(`  FAIL  ${message}`); };
 
+function listFiles(directory, prefix = '') {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const relative = path.posix.join(prefix, entry.name);
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) return listFiles(absolute, relative);
+    return [relative];
+  });
+}
+
 const html = read('index.html');
 const loaded = [...html.matchAll(/<script src="\.\/([^"?]+)(\?[^"]*)?"/g)].map(match => match[1]);
-console.log(`\nindex.html loads ${loaded.length} script(s)\n`);
+const allJavaScript = listFiles(DIR).filter(file => file.endsWith('.js')).sort();
 
-// 1. Every loaded script exists and parses.
-for (const file of loaded) {
-  const filePath = path.join(DIR, file);
-  if (!fs.existsSync(filePath)) {
-    bad(`${file} is referenced by index.html but MISSING on disk`);
-    continue;
-  }
+console.log(`\nScanning ${allJavaScript.length} JavaScript artifact(s); index.html loads ${loaded.length}\n`);
 
-  const source = fs.readFileSync(filePath, 'utf8');
-  const nonPrintable = (source.match(/[\x00-\x08\x0E-\x1F�]/g) || []).length;
+// 1. Every JavaScript artifact in the app tree must parse and contain no corruption bytes.
+for (const file of allJavaScript) {
+  const source = read(file);
+  const nonPrintable = (source.match(corruptionPattern) || []).length;
 
   try {
     new vm.Script(source, { filename: file });
     if (nonPrintable > 0) bad(`${file} parses but contains ${nonPrintable} non-printable byte(s) — likely corrupted`);
     else ok(`${file} parses`);
   } catch (error) {
-    bad(`${file} DOES NOT PARSE: ${String(error.message).slice(0, 90)}`);
+    bad(`${file} DOES NOT PARSE: ${String(error.message).slice(0, 100)}`);
   }
 }
 
-// 2. Precache versus script tags.
+// 2. Every loaded script must exist.
+const missingLoaded = loaded.filter(file => !fs.existsSync(path.join(DIR, file)));
+if (missingLoaded.length) bad(`referenced by index.html but MISSING on disk: ${missingLoaded.join(', ')}`);
+else ok('every script referenced by index.html exists');
+
+// 3. Precache versus script tags.
 let serviceWorker;
 try { serviceWorker = read('sw.js'); } catch { serviceWorker = null; }
 if (serviceWorker) {
@@ -67,7 +80,7 @@ if (serviceWorker) {
   else ok('no stale entries in the precache list');
 }
 
-// 3. The legacy v0.3.3 page overrides must no longer depend on sloppy-mode implicit globals.
+// 4. The legacy v0.3.3 page overrides must no longer depend on sloppy-mode implicit globals.
 const contractName = 'v033-global-contract.js';
 const pagesName = 'v033-pages.js';
 const contractIndex = loaded.indexOf(contractName);
