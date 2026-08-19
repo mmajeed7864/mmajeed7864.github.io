@@ -1,7 +1,7 @@
-const CACHE = "fitcoach-symbio-v0310";
+const CACHE = "fitcoach-symbio-v0320";
 const ASSETS = [
   "./",
-  "./index.html?v=0310",
+  "./index.html?v=0320",
   "./v031-style-01.css?v=0310",
   "./v031-style-02.css?v=0310",
   "./v031-style-03.css?v=0310",
@@ -20,24 +20,39 @@ const ASSETS = [
   "./v031-part-11.js?v=0310",
   "./v031-part-12.js?v=0310",
   "./v031-part-13.js?v=0310",
-  "./manifest.webmanifest?v=0310",
-  "./assets/icon-symbio.svg?v=0310"
+  "./v032-ai-voice.js?v=0320",
+  "./manifest.webmanifest?v=0320",
+  "./assets/icon-symbio.svg?v=0320"
 ];
+
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
+
 self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
+
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
   event.respondWith(
-    fetch(event.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put(event.request, copy));
-      return response;
-    }).catch(() => caches.match(event.request).then(hit => hit || caches.match("./")))
+    fetch(event.request)
+      .then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(hit => hit || caches.match("./")))
   );
 });
