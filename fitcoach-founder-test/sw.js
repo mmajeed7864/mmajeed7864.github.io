@@ -1,8 +1,6 @@
-// Bumped 2026-08-19 with the v031-part-06.js precache removal. The activate handler below
-// deletes every cache whose key !== CACHE, so changing this name is what actually evicts
-// the old bucket — leaving it at v0330 would keep serving the stale asset list to every
-// client that already installed it.
-const CACHE = "fitcoach-symbio-v0331";
+// Bumped 2026-08-19 after adding the v0.3.3 global override contract. The activate handler
+// deletes every cache whose key !== CACHE, so changing this name evicts the prior asset list.
+const CACHE = "fitcoach-symbio-v0332";
 const ASSETS = [
   "./",
   "./index.html?v=0330",
@@ -25,6 +23,7 @@ const ASSETS = [
   "./v031-part-12.js?v=0310",
   "./v031-part-13.js?v=0310",
   "./v032-ai-voice.js?v=0320",
+  "./v033-global-contract.js?v=0331",
   "./v033-pages.js?v=0330",
   "./manifest.webmanifest?v=0330",
   "./assets/icon-symbio.svg?v=0330"
