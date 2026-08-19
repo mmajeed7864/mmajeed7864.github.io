@@ -1,4 +1,8 @@
-const CACHE = "fitcoach-symbio-v0330";
+// Bumped 2026-08-19 with the v031-part-06.js precache removal. The activate handler below
+// deletes every cache whose key !== CACHE, so changing this name is what actually evicts
+// the old bucket — leaving it at v0330 would keep serving the stale asset list to every
+// client that already installed it.
+const CACHE = "fitcoach-symbio-v0331";
 const ASSETS = [
   "./",
   "./index.html?v=0330",
@@ -13,7 +17,6 @@ const ASSETS = [
   "./v031-part-03.js?v=0310",
   "./v031-part-04.js?v=0310",
   "./v031-part-05.js?v=0310",
-  "./v031-part-06.js?v=0310",
   "./v031-part-07.js?v=0310",
   "./v031-part-08.js?v=0310",
   "./v031-part-09.js?v=0310",
