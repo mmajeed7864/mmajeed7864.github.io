@@ -1,14 +1,15 @@
 {
-  "name": "FitCoach Founder Test",
+  "name": "FitCoach Founder Build",
   "short_name": "FitCoach",
-  "description": "Private low-sensitivity founder test for the FitCoach AI trainer experience.",
-  "start_url": "./",
+  "description": "A private AI personal trainer founder test.",
+  "start_url": "./?v=0310",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#07130d",
-  "theme_color": "#0b1710",
-  "orientation": "portrait-primary",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
   "icons": [
-    {"src":"./assets/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {"src":"./assets/icon-symbio.svg?v=0310","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
 }
