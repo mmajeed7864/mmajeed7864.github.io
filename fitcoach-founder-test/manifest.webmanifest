@@ -2,7 +2,7 @@
   "name": "FitCoach Founder Build",
   "short_name": "FitCoach",
   "description": "A private AI personal trainer founder test with distinct training, progress, and profile experiences.",
-  "start_url": "./?v=0330",
+  "start_url": "./?v=0340",
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
@@ -10,6 +10,6 @@
   "background_color": "#090d16",
   "theme_color": "#090d16",
   "icons": [
-    {"src":"./assets/icon-symbio.svg?v=0330","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {"src":"./assets/icon-symbio.svg?v=0340","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
 }
