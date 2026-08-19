@@ -24,6 +24,7 @@ const vm = require('vm');
 
 const DIR = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(DIR, file), 'utf8');
+const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 
 const failures = [];
 const ok = message => console.log(`  ok    ${message}`);
@@ -47,7 +48,7 @@ console.log(`\nScanning ${allJavaScript.length} JavaScript artifact(s); index.ht
 // 1. Every JavaScript artifact in the app tree must parse and contain no corruption bytes.
 for (const file of allJavaScript) {
   const source = read(file);
-  const nonPrintable = (source.match(/[\x00-\x08\x0E-\x1F�]/g) || []).length;
+  const nonPrintable = (source.match(corruptionPattern) || []).length;
 
   try {
     new vm.Script(source, { filename: file });
