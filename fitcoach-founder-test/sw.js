@@ -1,9 +1,8 @@
-// Bumped 2026-08-19 after adding the v0.3.3 global override contract. The activate handler
-// deletes every cache whose key !== CACHE, so changing this name evicts the prior asset list.
-const CACHE = "fitcoach-symbio-v0332";
+// FitCoach founder PWA cache. Bump this identifier whenever the active asset graph changes.
+const CACHE = "fitcoach-symbio-v0340";
 const ASSETS = [
   "./",
-  "./index.html?v=0330",
+  "./index.html?v=0340",
   "./v031-style-01.css?v=0310",
   "./v031-style-02.css?v=0310",
   "./v031-style-03.css?v=0310",
@@ -22,28 +21,50 @@ const ASSETS = [
   "./v031-part-11.js?v=0310",
   "./v031-part-12.js?v=0310",
   "./v031-part-13.js?v=0310",
+  "./v034-pwa-refresh.js?v=0340",
   "./v032-ai-voice.js?v=0320",
   "./v033-global-contract.js?v=0331",
   "./v033-pages.js?v=0330",
-  "./manifest.webmanifest?v=0330",
-  "./assets/icon-symbio.svg?v=0330"
+  "./manifest.webmanifest?v=0340",
+  "./assets/icon-symbio.svg?v=0340"
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key.startsWith("fitcoach-") && key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
-  event.respondWith(fetch(event.request).then(response => {
-    const copy = response.clone();
-    caches.open(CACHE).then(cache => cache.put(event.request, copy));
-    return response;
-  }).catch(() => caches.match(event.request).then(hit => hit || caches.match("./"))));
+
+  event.respondWith(
+    fetch(event.request)
+      .then(async response => {
+        if (response.ok) {
+          const cache = await caches.open(CACHE);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === "navigate") return caches.match("./");
+        return Response.error();
+      })
+  );
 });
