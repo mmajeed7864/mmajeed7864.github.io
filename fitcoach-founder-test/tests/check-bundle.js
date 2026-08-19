@@ -8,12 +8,11 @@
  * v033-pages.js — so nothing surfaced it except reading the repo. This check makes that class
  * of failure impossible to ship again.
  *
- * It asserts three things:
- *   1. Every script index.html loads actually parses.
- *   2. The service-worker precache list and index.html's script tags agree — a precached file
- *      that 404s fails the whole SW install, and a loaded file that is not precached breaks
- *      offline.
- *   3. No file is loaded that does not exist on disk.
+ * It asserts:
+ *   1. Every script index.html loads exists, parses, and contains no corruption bytes.
+ *   2. The service-worker precache and index.html script tags agree in both directions.
+ *   3. The v0.3.3 override contract loads before v033-pages.js and makes its legacy override
+ *      names assignable from strict-mode code instead of relying on sloppy implicit globals.
  *
  * Usage: node tests/check-bundle.js     (exit 0 = pass, 1 = fail)
  */
@@ -24,42 +23,84 @@ const vm = require('vm');
 const DIR = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(DIR, f), 'utf8');
 
-let failures = [];
-const ok = m => console.log(`  ok    ${m}`);
-const bad = m => { failures.push(m); console.log(`  FAIL  ${m}`); };
+const failures = [];
+const ok = message => console.log(`  ok    ${message}`);
+const bad = message => { failures.push(message); console.log(`  FAIL  ${message}`); };
 
 const html = read('index.html');
-const loaded = [...html.matchAll(/<script src="\.\/([^"?]+)(\?[^"]*)?"/g)].map(m => m[1]);
+const loaded = [...html.matchAll(/<script src="\.\/([^"?]+)(\?[^"]*)?"/g)].map(match => match[1]);
 console.log(`\nindex.html loads ${loaded.length} script(s)\n`);
 
-// 1. every loaded script exists and parses
-for (const f of loaded) {
-  const p = path.join(DIR, f);
-  if (!fs.existsSync(p)) { bad(`${f} is referenced by index.html but MISSING on disk`); continue; }
-  const src = fs.readFileSync(p, 'utf8');
-  // catch the exact corruption signature too: unexpected control/replacement bytes
-  const nonPrintable = (src.match(/[\x00-\x08\x0E-\x1F�]/g) || []).length;
+// 1. Every loaded script exists and parses.
+for (const file of loaded) {
+  const filePath = path.join(DIR, file);
+  if (!fs.existsSync(filePath)) {
+    bad(`${file} is referenced by index.html but MISSING on disk`);
+    continue;
+  }
+
+  const source = fs.readFileSync(filePath, 'utf8');
+  const nonPrintable = (source.match(/[\x00-\x08\x0E-\x1F�]/g) || []).length;
+
   try {
-    new vm.Script(src, { filename: f });
-    if (nonPrintable > 0) bad(`${f} parses but contains ${nonPrintable} non-printable byte(s) — likely corrupted`);
-    else ok(`${f} parses`);
-  } catch (e) {
-    bad(`${f} DOES NOT PARSE: ${String(e.message).slice(0, 90)}`);
+    new vm.Script(source, { filename: file });
+    if (nonPrintable > 0) bad(`${file} parses but contains ${nonPrintable} non-printable byte(s) — likely corrupted`);
+    else ok(`${file} parses`);
+  } catch (error) {
+    bad(`${file} DOES NOT PARSE: ${String(error.message).slice(0, 90)}`);
   }
 }
 
-// 2. precache vs script tags
-let sw;
-try { sw = read('sw.js'); } catch { sw = null; }
-if (sw) {
-  const pre = [...sw.matchAll(/"\.\/([^"?]+)(\?[^"]*)?"/g)].map(m => m[1]);
-  const preJs = pre.filter(f => f.endsWith('.js'));
-  const missingFromPre = loaded.filter(f => !preJs.includes(f));
-  const staleInPre = preJs.filter(f => !fs.existsSync(path.join(DIR, f)));
-  if (missingFromPre.length) bad(`loaded but NOT precached (breaks offline): ${missingFromPre.join(', ')}`);
+// 2. Precache versus script tags.
+let serviceWorker;
+try { serviceWorker = read('sw.js'); } catch { serviceWorker = null; }
+if (serviceWorker) {
+  const precached = [...serviceWorker.matchAll(/"\.\/([^"?]+)(\?[^"]*)?"/g)].map(match => match[1]);
+  const precachedScripts = precached.filter(file => file.endsWith('.js'));
+  const missingFromPrecache = loaded.filter(file => !precachedScripts.includes(file));
+  const staleInPrecache = precachedScripts.filter(file => !fs.existsSync(path.join(DIR, file)));
+
+  if (missingFromPrecache.length) bad(`loaded but NOT precached (breaks offline): ${missingFromPrecache.join(', ')}`);
   else ok('every loaded script is precached');
-  if (staleInPre.length) bad(`precached but MISSING on disk (fails SW install): ${staleInPre.join(', ')}`);
+
+  if (staleInPrecache.length) bad(`precached but MISSING on disk (fails SW install): ${staleInPrecache.join(', ')}`);
   else ok('no stale entries in the precache list');
+}
+
+// 3. The legacy v0.3.3 page overrides must no longer depend on sloppy-mode implicit globals.
+const contractName = 'v033-global-contract.js';
+const pagesName = 'v033-pages.js';
+const contractIndex = loaded.indexOf(contractName);
+const pagesIndex = loaded.indexOf(pagesName);
+
+if (contractIndex === -1) bad(`${contractName} is not loaded`);
+else if (pagesIndex === -1) bad(`${pagesName} is not loaded`);
+else if (contractIndex > pagesIndex) bad(`${contractName} must load before ${pagesName}`);
+else ok(`${contractName} loads before ${pagesName}`);
+
+if (contractIndex !== -1) {
+  const expectedGlobals = [
+    'renderToday',
+    'renderTrain',
+    'startWorkout',
+    'renderProgress',
+    'renderProfile',
+    'render',
+    'navigate'
+  ];
+
+  try {
+    const context = vm.createContext({});
+    new vm.Script(read(contractName), { filename: contractName }).runInContext(context);
+    const strictAssignments = `"use strict";\n${expectedGlobals.map(name => `${name} = function ${name}ContractProbe() {};`).join('\n')}`;
+    new vm.Script(strictAssignments, { filename: 'strict-global-contract-probe.js' }).runInContext(context);
+
+    const missing = expectedGlobals.filter(name => typeof context[name] !== 'function');
+    if (missing.length) bad(`global contract did not expose: ${missing.join(', ')}`);
+    else ok('v0.3.3 override names are strict-mode assignable');
+  } catch (error) {
+    bad(`global override contract failed strict-mode probe: ${String(error.message).slice(0, 120)}`);
+  }
 }
 
 console.log(`\n${failures.length ? `${failures.length} FAILURE(S)` : 'bundle integrity OK'}\n`);
