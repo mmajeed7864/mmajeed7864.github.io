@@ -7,6 +7,10 @@ import {
   VOICE_PERSONAS,
 } from "./constants.mjs";
 import {
+  createInitialNutritionState,
+  normalizeNutritionState,
+} from "../domain/nutrition.mjs";
+import {
   clamp,
   deepClone,
   hashText,
@@ -30,7 +34,7 @@ const cleanString = (value, fallback = "", max = 2_000) => (
   typeof value === "string" ? value.trim().slice(0, max) : fallback
 );
 const oneOf = (value, allowed, fallback) => allowed.includes(value) ? value : fallback;
-const TRAINER_ACTION_KINDS = ["open_exercise", "open_workout", "propose_minutes", "open_progress", "open_voice"];
+const TRAINER_ACTION_KINDS = ["open_exercise", "open_workout", "propose_minutes", "open_progress", "open_voice", "open_nutrition", "nutrition_draft"];
 const normalizeTrainerAction = value => {
   if (!isObject(value) || !TRAINER_ACTION_KINDS.includes(value.kind)) return null;
   const normalized = {
@@ -103,6 +107,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
     lastWorkoutSummary: null,
     lastApi: null,
     feedback: [],
+    nutrition: createInitialNutritionState(),
     migration: {
       source: "fresh-v040",
       migratedAt: createdAt,
@@ -300,6 +305,9 @@ function normalizeState(raw, founder, migration = null) {
     lastWorkoutSummary: isObject(raw?.lastWorkoutSummary) ? deepClone(raw.lastWorkoutSummary) : null,
     lastApi: isObject(raw?.lastApi) ? deepClone(raw.lastApi) : null,
     feedback: Array.isArray(raw?.feedback) ? raw.feedback.filter(isObject).slice(-200) : [],
+    // Fail-closed nutrition normalization: corrupted nutrition entries are
+    // dropped individually and can never reset the rest of the app state.
+    nutrition: normalizeNutritionState(raw?.nutrition),
     migration: migration || (isObject(raw?.migration) ? raw.migration : base.migration),
     createdAt: cleanString(raw?.createdAt, base.createdAt, 40),
     updatedAt: cleanString(raw?.updatedAt, base.updatedAt, 40),
