@@ -1,8 +1,8 @@
 // FitCoach founder PWA cache. Bump this identifier whenever the active asset graph changes.
-const CACHE = "fitcoach-symbio-v0340";
+const CACHE = "fitcoach-symbio-v0360";
 const ASSETS = [
   "./",
-  "./index.html?v=0340",
+  "./index.html?v=0360",
   "./v031-style-01.css?v=0310",
   "./v031-style-02.css?v=0310",
   "./v031-style-03.css?v=0310",
@@ -10,23 +10,22 @@ const ASSETS = [
   "./v031-style-05.css?v=0310",
   "./v033-pages.css?v=0330",
   "./v031-part-01.js?v=0310",
-  "./v031-part-02.js?v=0310",
+  "./v031-part-02.js?v=0360",
   "./v031-part-03.js?v=0310",
   "./v031-part-04.js?v=0310",
   "./v031-part-05.js?v=0310",
-  "./v031-part-07.js?v=0310",
+  "./v031-part-07.js?v=0360",
   "./v031-part-08.js?v=0310",
-  "./v031-part-09.js?v=0310",
-  "./v031-part-10.js?v=0310",
+  "./v031-part-10.js?v=0360",
   "./v031-part-11.js?v=0310",
   "./v031-part-12.js?v=0310",
-  "./v031-part-13.js?v=0310",
-  "./v034-pwa-refresh.js?v=0340",
-  "./v032-ai-voice.js?v=0320",
-  "./v033-global-contract.js?v=0331",
+  "./v031-part-13.js?v=0360",
+  "./v034-pwa-refresh.js?v=0360",
+  "./v033-global-contract.js?v=0360",
   "./v033-pages.js?v=0330",
-  "./manifest.webmanifest?v=0340",
-  "./assets/icon-symbio.svg?v=0340"
+  "./v035-trainer-chat-voice.js?v=0360",
+  "./manifest.webmanifest?v=0360",
+  "./assets/icon-symbio.svg?v=0360"
 ];
 
 self.addEventListener("install", event => {

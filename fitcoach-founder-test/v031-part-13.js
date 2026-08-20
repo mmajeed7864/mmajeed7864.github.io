@@ -95,10 +95,10 @@ async function forceRefresh() {
     const registrations = await navigator.serviceWorker?.getRegistrations?.();
     await Promise.all((registrations || []).map(registration => registration.update()));
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => !key.includes("v0310")).map(key => caches.delete(key)));
+    await Promise.all(keys.filter(key => key !== "fitcoach-symbio-v0360").map(key => caches.delete(key)));
   } catch {}
   const url = new URL(location.href);
-  url.searchParams.set("v", `0310-${Date.now()}`);
+  url.searchParams.set("v", `0360-${Date.now()}`);
   location.replace(url);
 }
 

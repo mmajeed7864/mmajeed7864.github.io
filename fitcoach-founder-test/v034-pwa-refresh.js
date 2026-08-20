@@ -7,7 +7,7 @@
  * containing `v0310` while deleting newer caches. That could keep an installed phone app on an
  * obsolete bundle. This script supersedes that behavior without touching workout or coach code.
  */
-const FITCOACH_PWA_VERSION = "0340";
+const FITCOACH_PWA_VERSION = "0360";
 const FITCOACH_SW_URL = `./sw.js?v=${FITCOACH_PWA_VERSION}`;
 
 async function updateFitCoachServiceWorker() {

@@ -13,14 +13,13 @@ The current founder build loads these JavaScript files, in order:
 5. `v031-part-05.js`
 6. `v031-part-07.js`
 7. `v031-part-08.js`
-8. `v031-part-09.js`
-9. `v031-part-10.js`
-10. `v031-part-11.js`
-11. `v031-part-12.js`
-12. `v031-part-13.js`
-13. `v032-ai-voice.js`
-14. `v033-global-contract.js`
-15. `v033-pages.js`
+8. `v031-part-10.js` (progress helpers only; legacy audio upload removed)
+9. `v031-part-11.js`
+10. `v031-part-12.js`
+11. `v031-part-13.js`
+12. `v033-global-contract.js`
+13. `v033-pages.js`
+14. `v035-trainer-chat-voice.js` (v0.3.6 runtime)
 
 The active visual bundle is the five `v031-style-*.css` files plus `v033-pages.css`.
 
@@ -36,6 +35,11 @@ The active visual bundle is the five `v031-style-*.css` files plus `v033-pages.c
 - `render`
 - `navigate`
 
+`v035-trainer-chat-voice.js` then replaces the legacy chat and voice adapters. It sends only
+the strict synthetic/low-sensitivity v3 request contract, never accepts model-authored memory or
+plan mutations, uses browser dictation without uploading raw audio, and changes spoken prosody
+without changing deterministic actions or safety behavior.
+
 `v033-global-contract.js` declares those global bindings before the override script loads. This prevents the current page layer from depending on sloppy-mode implicit globals.
 
 ## Historical / unreferenced prototypes
@@ -45,6 +49,7 @@ The following are not loaded by the current `index.html` and must not be treated
 - `app.js`
 - `v03-01-core.js`
 - `v03-02-workouts.js`
+- `v032-ai-voice.js`
 - `js/*.js`
 - `styles.css`
 - `css/*.css`

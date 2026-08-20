@@ -15,6 +15,10 @@
  *   3. The service-worker precache and index.html script tags agree in both directions.
  *   4. The v0.3.3 override contract loads before v033-pages.js and makes its legacy override
  *      names assignable from strict-mode code instead of relying on sloppy implicit globals.
+ *   5. The v0.3.6 trainer adapter is the only active AI/voice patch, loads last, and cannot
+ *      silently re-enable the retired raw-audio upload path.
+ *   6. No loaded script can route FitCoach through a retired provider, endpoint, or raw-audio
+ *      primitive if the final adapter fails to initialize.
  *
  * Usage: node tests/check-bundle.js     (exit 0 = pass, 1 = fail)
  */
@@ -99,7 +103,13 @@ if (contractIndex !== -1) {
     'renderProgress',
     'renderProfile',
     'render',
-    'navigate'
+    'navigate',
+    'setApiState',
+    'sendChat',
+    'speak',
+    'startVoice',
+    'stopVoiceAndSend',
+    'cancelVoice'
   ];
 
   try {
@@ -115,6 +125,69 @@ if (contractIndex !== -1) {
     bad(`global override contract failed strict-mode probe: ${String(error.message).slice(0, 120)}`);
   }
 }
+
+// 5. One authoritative chat/voice patch, with no raw-audio upload in the active adapter.
+const trainerName = 'v035-trainer-chat-voice.js';
+const retiredVoiceName = 'v032-ai-voice.js';
+const trainerIndex = loaded.indexOf(trainerName);
+if (trainerIndex === -1) bad(`${trainerName} is not loaded`);
+else if (trainerIndex !== loaded.length - 1) bad(`${trainerName} must be the final active script`);
+else ok(`${trainerName} is the final active script`);
+
+if (loaded.includes(retiredVoiceName)) bad(`${retiredVoiceName} is historical and must not be loaded`);
+else ok(`${retiredVoiceName} is not active`);
+
+if (trainerIndex !== -1) {
+  const trainerSource = read(trainerName);
+  const forbiddenActiveVoicePrimitives = [
+    ['MediaRecorder', /\bMediaRecorder\b/],
+    ['raw transcription endpoint', /fitcoach-transcribe/],
+    ['base64 audio encoder', /blobToBase64/],
+  ];
+  const present = forbiddenActiveVoicePrimitives
+    .filter(([, pattern]) => pattern.test(trainerSource))
+    .map(([label]) => label);
+  if (present.length) bad(`${trainerName} reintroduced raw-audio upload primitives: ${present.join(', ')}`);
+  else ok(`${trainerName} contains no FitCoach raw-audio upload path`);
+
+  for (const marker of [
+    'synthetic_low_sensitivity',
+    'DeepSeek primary',
+    'Direct Qwen backup',
+    'No plan auto-changes',
+    'payload.safety_intercepted',
+    'payload.approved_action',
+  ]) {
+    if (!trainerSource.includes(marker)) bad(`${trainerName} is missing contract marker: ${marker}`);
+    else ok(`${trainerName} contains contract marker: ${marker}`);
+  }
+
+  for (const forbiddenProvider of ['Kimi', 'Moonshot', 'OpenRouter']) {
+    if (trainerSource.includes(forbiddenProvider)) bad(`${trainerName} exposes forbidden provider: ${forbiddenProvider}`);
+    else ok(`${trainerName} does not expose forbidden provider: ${forbiddenProvider}`);
+  }
+}
+
+// 6. The complete loaded graph, not just the final patch, must preserve the two-provider boundary.
+const loadedSource = loaded.map(file => read(file)).join('\n');
+const forbiddenLoadedGraph = [
+  ['Kimi', /\bkimi\b/i],
+  ['Moonshot', /\bmoonshot\b/i],
+  ['OpenRouter', /\bopenrouter\b/i],
+  ['legacy FitCoach chat endpoint', /https:\/\/symbioai\.dev\/api\/fitcoach-chat(?:["'`]|\b(?!-v3))/i],
+  ['raw transcription endpoint', /fitcoach-transcribe/i],
+  ['retired speech endpoint', /fitcoach-speech/i],
+  ['MediaRecorder', /\bMediaRecorder\b/],
+  ['base64 audio encoder', /\bblobToBase64\b/],
+];
+const loadedViolations = forbiddenLoadedGraph
+  .filter(([, pattern]) => pattern.test(loadedSource))
+  .map(([label]) => label);
+if (loadedViolations.length) bad(`loaded script graph exposes retired FitCoach paths: ${loadedViolations.join(', ')}`);
+else ok('loaded script graph is DeepSeek + direct Qwen only and has no raw-audio upload path');
+
+if (loaded.includes('v031-part-09.js')) bad('legacy raw-audio capture module must not be loaded');
+else ok('legacy raw-audio capture module is not active');
 
 console.log(`\n${failures.length ? `${failures.length} FAILURE(S)` : 'bundle integrity OK'}\n`);
 process.exit(failures.length ? 1 : 0);

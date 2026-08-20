@@ -31,7 +31,7 @@ function init() {
   updateOnlineState();
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=0310").then(registration => registration.update()).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=0360").then(registration => registration.update()).catch(() => {});
   }
 
   const session = getFounderSession();
@@ -119,4 +119,3 @@ const blockerOptions = [
   ["all-or-nothing", "All or nothing", "One miss turns into a lost week", "↺"],
   ["uncertainty", "I second-guess the plan", "I keep changing what I am doing", "?"]
 ];
-

@@ -1,73 +1,3 @@
-async function stopVoiceAndSend() {
-  if (app.voiceFallbackRecognition) {
-    app.voiceFallbackRecognition.stop();
-    app.voiceFallbackRecognition = null;
-    return;
-  }
-  const recorder = app.voiceRecorder;
-  if (!recorder) {
-    cancelVoice();
-    return;
-  }
-  $("#voice-title").textContent = "Transcribing…";
-  $("#voice-copy").textContent = "Nova is turning your voice into a message.";
-  $("#voice-stop").disabled = true;
-
-  const stopped = new Promise(resolve => {
-    recorder.onstop = resolve;
-  });
-  if (recorder.state !== "inactive") recorder.stop();
-  await stopped;
-  app.voiceStream?.getTracks().forEach(track => track.stop());
-
-  const blob = new Blob(app.voiceChunks, { type: recorder.mimeType || "audio/webm" });
-  const format = (recorder.mimeType || "audio/webm").includes("mp4") ? "mp4" : (recorder.mimeType || "audio/webm").includes("ogg") ? "ogg" : "webm";
-  app.voiceRecorder = null;
-  app.voiceStream = null;
-  app.voiceChunks = [];
-
-  try {
-    const audio = await blobToBase64(blob);
-    const response = await fetch(TRANSCRIBE_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-FitCoach-Build": BUILD },
-      body: JSON.stringify({ audio, format })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.ok || !payload.text) throw new Error(payload.error || "TRANSCRIPTION_FAILED");
-    $("#voice-title").textContent = "Got it";
-    $("#voice-copy").textContent = payload.text;
-    setTimeout(() => {
-      $("#voice-overlay").hidden = true;
-      sendChat(payload.text);
-    }, 500);
-  } catch {
-    $("#voice-overlay").hidden = true;
-    toast("Voice transcription failed. Try the keyboard microphone.");
-  }
-}
-
-function cancelVoice() {
-  try { app.voiceRecorder?.stop(); } catch {}
-  try { app.voiceFallbackRecognition?.abort(); } catch {}
-  app.voiceStream?.getTracks().forEach(track => track.stop());
-  app.voiceRecorder = null;
-  app.voiceFallbackRecognition = null;
-  app.voiceStream = null;
-  app.voiceChunks = [];
-  $("#voice-overlay").hidden = true;
-}
-
-async function blobToBase64(blob) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  const chunk = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
-  }
-  return btoa(binary);
-}
-
 function renderProgress(data) {
   const totalVolume = data.sessions.reduce((sum, session) => sum + sessionVolume(session), 0);
   const week = weekStats(data);
@@ -111,4 +41,3 @@ function compactNumber(value) {
   if (value >= 1000) return `${(value/1000).toFixed(1)}k`;
   return Math.round(value).toString();
 }
-

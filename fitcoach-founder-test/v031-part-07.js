@@ -111,8 +111,7 @@ function buildChatPayload(data, message, model, mode) {
       current_deterministic_action: computeDecision(data).type
     },
     conversation,
-    mode: mode === "deep" && model === "moonshotai/kimi-k3" ? "deep" : "normal",
+    mode: mode === "deep" ? "deep" : "normal",
     model
   };
 }
-

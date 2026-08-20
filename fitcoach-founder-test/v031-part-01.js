@@ -2,8 +2,6 @@
 
 const BUILD = "0.3.1-symbio";
 const ACCESS_CODE = "LIFT26";
-const CHAT_API = "https://symbioai.dev/api/fitcoach-chat";
-const TRANSCRIBE_API = "https://symbioai.dev/api/fitcoach-transcribe";
 const ROUTES = ["today", "train", "coach", "progress", "profile"];
 const ACTIONS = [
   "SAY_NOTHING", "CHECK_IN", "RECOVER_MISSED_SESSION", "OFFER_PLAN_B",
@@ -11,19 +9,19 @@ const ACTIONS = [
 ];
 const MODEL_MODES = {
   fast: {
-    label: "Fast",
-    detail: "DeepSeek Flash",
-    sequence: ["deepseek/deepseek-v4-flash"]
+    label: "Quick",
+    detail: "Concise answer · same safety rules",
+    sequence: []
   },
   smart: {
-    label: "Smart",
-    detail: "Qwen Plus · DeepSeek fallback",
-    sequence: ["qwen/qwen3.7-plus", "deepseek/deepseek-v4-flash"]
+    label: "Balanced",
+    detail: "Useful context · one clear next move",
+    sequence: []
   },
   deep: {
     label: "Deep",
-    detail: "Kimi K3 · Qwen fallback",
-    sequence: ["moonshotai/kimi-k3", "qwen/qwen3.7-plus", "deepseek/deepseek-v4-flash"]
+    detail: "More explanation · no extra authority",
+    sequence: []
   }
 };
 
@@ -203,4 +201,3 @@ function load() {
     return base;
   }
 }
-
