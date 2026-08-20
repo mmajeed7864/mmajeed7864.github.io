@@ -1,193 +1,141 @@
 #!/usr/bin/env node
-/**
- * FitCoach bundle integrity check.
- *
- * Why this exists: `v031-part-06.js` was committed CORRUPTED (valid JS for 432 bytes, then
- * binary garbage) in 8298f4e and shipped that way. Because these are classic scripts, the
- * browser silently dropped just that file and the app limped along on redefinitions from
- * v033-pages.js — so nothing surfaced it except reading the repo. This check makes that class
- * of failure impossible to ship again.
- *
- * It asserts:
- *   1. Every JavaScript artifact in this app tree parses and contains no corruption bytes,
- *      even when the file is not currently loaded by index.html.
- *   2. Every script index.html loads exists.
- *   3. The service-worker precache and index.html script tags agree in both directions.
- *   4. The v0.3.3 override contract loads before v033-pages.js and makes its legacy override
- *      names assignable from strict-mode code instead of relying on sloppy implicit globals.
- *   5. The v0.3.6 trainer adapter is the only active AI/voice patch, loads last, and cannot
- *      silently re-enable the retired raw-audio upload path.
- *   6. No loaded script can route FitCoach through a retired provider, endpoint, or raw-audio
- *      primitive if the final adapter fails to initialize.
- *
- * Usage: node tests/check-bundle.js     (exit 0 = pass, 1 = fail)
- */
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+const fs = require("node:fs");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
+const { pathToFileURL } = require("node:url");
 
-const DIR = path.resolve(__dirname, '..');
-const read = file => fs.readFileSync(path.join(DIR, file), 'utf8');
+const APP_ROOT = path.resolve(__dirname, "..");
+const GENERATION = "0401";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
-
 const failures = [];
+
+const read = file => fs.readFileSync(path.join(APP_ROOT, file), "utf8");
+const exists = file => fs.existsSync(path.join(APP_ROOT, file));
 const ok = message => console.log(`  ok    ${message}`);
 const bad = message => { failures.push(message); console.log(`  FAIL  ${message}`); };
 
-function listFiles(directory, prefix = '') {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const relative = path.posix.join(prefix, entry.name);
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) return listFiles(absolute, relative);
-    return [relative];
-  });
+function normalizeRelative(fromFile, specifier) {
+  if (!specifier.startsWith(".")) return null;
+  return path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier.split("?")[0]));
 }
 
-const html = read('index.html');
-const loaded = [...html.matchAll(/<script src="\.\/([^"?]+)(\?[^"]*)?"/g)].map(match => match[1]);
-const allJavaScript = listFiles(DIR).filter(file => file.endsWith('.js')).sort();
-
-console.log(`\nScanning ${allJavaScript.length} JavaScript artifact(s); index.html loads ${loaded.length}\n`);
-
-// 1. Every JavaScript artifact in the app tree must parse and contain no corruption bytes.
-for (const file of allJavaScript) {
+function staticImports(file) {
   const source = read(file);
-  const nonPrintable = (source.match(corruptionPattern) || []).length;
-
-  try {
-    new vm.Script(source, { filename: file });
-    if (nonPrintable > 0) bad(`${file} parses but contains ${nonPrintable} non-printable byte(s) — likely corrupted`);
-    else ok(`${file} parses`);
-  } catch (error) {
-    bad(`${file} DOES NOT PARSE: ${String(error.message).slice(0, 100)}`);
-  }
-}
-
-// 2. Every loaded script must exist.
-const missingLoaded = loaded.filter(file => !fs.existsSync(path.join(DIR, file)));
-if (missingLoaded.length) bad(`referenced by index.html but MISSING on disk: ${missingLoaded.join(', ')}`);
-else ok('every script referenced by index.html exists');
-
-// 3. Precache versus script tags.
-let serviceWorker;
-try { serviceWorker = read('sw.js'); } catch { serviceWorker = null; }
-if (serviceWorker) {
-  const precached = [...serviceWorker.matchAll(/"\.\/([^"?]+)(\?[^"]*)?"/g)].map(match => match[1]);
-  const precachedScripts = precached.filter(file => file.endsWith('.js'));
-  const missingFromPrecache = loaded.filter(file => !precachedScripts.includes(file));
-  const staleInPrecache = precachedScripts.filter(file => !fs.existsSync(path.join(DIR, file)));
-
-  if (missingFromPrecache.length) bad(`loaded but NOT precached (breaks offline): ${missingFromPrecache.join(', ')}`);
-  else ok('every loaded script is precached');
-
-  if (staleInPrecache.length) bad(`precached but MISSING on disk (fails SW install): ${staleInPrecache.join(', ')}`);
-  else ok('no stale entries in the precache list');
-}
-
-// 4. The legacy v0.3.3 page overrides must no longer depend on sloppy-mode implicit globals.
-const contractName = 'v033-global-contract.js';
-const pagesName = 'v033-pages.js';
-const contractIndex = loaded.indexOf(contractName);
-const pagesIndex = loaded.indexOf(pagesName);
-
-if (contractIndex === -1) bad(`${contractName} is not loaded`);
-else if (pagesIndex === -1) bad(`${pagesName} is not loaded`);
-else if (contractIndex > pagesIndex) bad(`${contractName} must load before ${pagesName}`);
-else ok(`${contractName} loads before ${pagesName}`);
-
-if (contractIndex !== -1) {
-  const expectedGlobals = [
-    'renderToday',
-    'renderTrain',
-    'startWorkout',
-    'renderProgress',
-    'renderProfile',
-    'render',
-    'navigate',
-    'setApiState',
-    'sendChat',
-    'speak',
-    'startVoice',
-    'stopVoiceAndSend',
-    'cancelVoice'
+  const matches = [
+    ...source.matchAll(/import\s+(?:[^"'()]+?\s+from\s+)?["']([^"']+)["']/g),
+    ...source.matchAll(/export\s+[^"'()]+?\s+from\s+["']([^"']+)["']/g),
   ];
+  return matches.map(match => normalizeRelative(file, match[1])).filter(Boolean);
+}
 
+function moduleGraph(entry) {
+  const seen = new Set();
+  const visit = file => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    if (!exists(file)) return;
+    for (const child of staticImports(file)) visit(child);
+  };
+  visit(entry);
+  return [...seen].sort();
+}
+
+function swAssets(source) {
+  return [...source.matchAll(/["'](\.\/[^"']+\?v=0401|\.[^"']+)["']/g)]
+    .map(match => match[1].replace(/^\.\//, "").replace(/\?v=0401$/, ""))
+    .filter(value => value && !value.includes("${"));
+}
+
+function syntaxCheck(file) {
   try {
-    const context = vm.createContext({});
-    new vm.Script(read(contractName), { filename: contractName }).runInContext(context);
-    const strictAssignments = `"use strict";\n${expectedGlobals.map(name => `${name} = function ${name}ContractProbe() {};`).join('\n')}`;
-    new vm.Script(strictAssignments, { filename: 'strict-global-contract-probe.js' }).runInContext(context);
-
-    const missing = expectedGlobals.filter(name => typeof context[name] !== 'function');
-    if (missing.length) bad(`global contract did not expose: ${missing.join(', ')}`);
-    else ok('v0.3.3 override names are strict-mode assignable');
+    execFileSync(process.execPath, ["--check", path.join(APP_ROOT, file)], { stdio: "pipe" });
+    ok(`${file} syntax-checks`);
   } catch (error) {
-    bad(`global override contract failed strict-mode probe: ${String(error.message).slice(0, 120)}`);
+    bad(`${file} does not syntax-check: ${String(error.stderr || error.message).slice(0, 180)}`);
   }
 }
 
-// 5. One authoritative chat/voice patch, with no raw-audio upload in the active adapter.
-const trainerName = 'v035-trainer-chat-voice.js';
-const retiredVoiceName = 'v032-ai-voice.js';
-const trainerIndex = loaded.indexOf(trainerName);
-if (trainerIndex === -1) bad(`${trainerName} is not loaded`);
-else if (trainerIndex !== loaded.length - 1) bad(`${trainerName} must be the final active script`);
-else ok(`${trainerName} is the final active script`);
+(async () => {
+  const html = read("index.html");
+  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0401["']/);
+  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0401 as a module");
+  else ok("index.html loads the v0.4 module entry");
 
-if (loaded.includes(retiredVoiceName)) bad(`${retiredVoiceName} is historical and must not be loaded`);
-else ok(`${retiredVoiceName} is not active`);
+  const entry = moduleMatch?.[1] || "v040/app.js";
+  const graph = moduleGraph(entry);
+  const missing = graph.filter(file => !exists(file));
+  if (missing.length) bad(`module graph has missing imports: ${missing.join(", ")}`);
+  else ok(`module graph resolves ${graph.length} file(s)`);
 
-if (trainerIndex !== -1) {
-  const trainerSource = read(trainerName);
-  const forbiddenActiveVoicePrimitives = [
-    ['MediaRecorder', /\bMediaRecorder\b/],
-    ['raw transcription endpoint', /fitcoach-transcribe/],
-    ['base64 audio encoder', /blobToBase64/],
+  for (const file of graph) syntaxCheck(file);
+
+  const corrupted = graph.filter(file => (read(file).match(corruptionPattern) || []).length);
+  if (corrupted.length) bad(`module graph contains corruption bytes: ${corrupted.join(", ")}`);
+  else ok("module graph contains no corruption bytes");
+
+  if (!exists("v040/styles.css") || read("v040/styles.css").trim().length < 1_000) bad("v040/styles.css must exist and be nonempty");
+  else ok("v040/styles.css exists and is nonempty");
+
+  const manifest = JSON.parse(read("manifest.webmanifest"));
+  const constants = read("v040/core/constants.mjs");
+  const sw = read("sw.js");
+  if (!html.includes(`v=${GENERATION}`) || !manifest.start_url.includes(`v=${GENERATION}`) || !sw.includes(`v${GENERATION}`) || !constants.includes(`CACHE_GENERATION = "${GENERATION}"`)) {
+    bad("index, manifest, service worker, and constants must agree on 0401");
+  } else ok("document, manifest, service worker, and constants agree on 0401");
+
+  const precached = new Set(swAssets(sw));
+  const graphMissingFromSw = graph.filter(file => !precached.has(file));
+  if (graphMissingFromSw.length) bad(`service worker missing module graph file(s): ${graphMissingFromSw.join(", ")}`);
+  else ok("service-worker required graph contains complete module graph");
+
+  if (!precached.has("v040/styles.css")) bad("service worker must precache v040/styles.css");
+  else ok("service worker precaches v040/styles.css");
+
+  const { EXERCISE_MEDIA_MANIFEST } = await import(pathToFileURL(path.join(APP_ROOT, "v040/data/exercise-media-manifest.mjs")).href);
+  if (EXERCISE_MEDIA_MANIFEST.length !== 16) bad("media manifest must contain sixteen local exercise guides");
+  for (const media of EXERCISE_MEDIA_MANIFEST) {
+    const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
+    if (!exists(file)) bad(`missing exercise media file: ${file}`);
+    if (!precached.has(file)) bad(`service worker does not precache exercise media: ${file}`);
+    if (media.type !== "png-two-position-guide" || !file.endsWith("-premium-v1.png")) {
+      bad(`${media.id} must use an approved premium two-position PNG`);
+    }
+  }
+  if (!failures.some(value => value.includes("exercise media") || value.includes("local guide") || value.includes("premium two-position"))) ok("all sixteen premium exercise guides exist and are precached");
+
+  const activeSource = graph.map(read).join("\n");
+  const forbiddenActive = [
+    ["MediaRecorder", /\bMediaRecorder\b/],
+    ["raw transcription route", /fitcoach-transcribe/i],
+    ["raw audio encoder", /\bblobToBase64\b|\bAudioContext\b.*\bencode/i],
+    ["retired speech route", /fitcoach-speech(?!-v2)/i],
+    ["Kimi", /\bkimi\b/i],
+    ["Moonshot", /\bmoonshot\b/i],
+    ["OpenRouter", /\bopenrouter\b/i],
+    ["legacy FitCoach chat endpoint", /\/api\/fitcoach-chat(?:["'`]|\b(?!-v3))/i],
   ];
-  const present = forbiddenActiveVoicePrimitives
-    .filter(([, pattern]) => pattern.test(trainerSource))
-    .map(([label]) => label);
-  if (present.length) bad(`${trainerName} reintroduced raw-audio upload primitives: ${present.join(', ')}`);
-  else ok(`${trainerName} contains no FitCoach raw-audio upload path`);
+  const activeViolations = forbiddenActive.filter(([, pattern]) => pattern.test(activeSource)).map(([label]) => label);
+  if (activeViolations.length) bad(`active module graph exposes forbidden path(s): ${activeViolations.join(", ")}`);
+  else ok("active graph has no raw-audio, retired endpoint, Kimi, Moonshot, or OpenRouter path");
 
-  for (const marker of [
-    'synthetic_low_sensitivity',
-    'DeepSeek primary',
-    'Direct Qwen backup',
-    'No plan auto-changes',
-    'payload.safety_intercepted',
-    'payload.approved_action',
-  ]) {
-    if (!trainerSource.includes(marker)) bad(`${trainerName} is missing contract marker: ${marker}`);
-    else ok(`${trainerName} contains contract marker: ${marker}`);
-  }
+  if (!activeSource.includes("/api/fitcoach-chat-v3")) bad("active graph must use only /api/fitcoach-chat-v3");
+  else ok("active graph uses /api/fitcoach-chat-v3");
 
-  for (const forbiddenProvider of ['Kimi', 'Moonshot', 'OpenRouter']) {
-    if (trainerSource.includes(forbiddenProvider)) bad(`${trainerName} exposes forbidden provider: ${forbiddenProvider}`);
-    else ok(`${trainerName} does not expose forbidden provider: ${forbiddenProvider}`);
-  }
-}
+  if (!activeSource.includes("/api/fitcoach-speech-v2")) bad("active graph must use only /api/fitcoach-speech-v2 for premium spoken replies");
+  else ok("active graph uses /api/fitcoach-speech-v2 with no microphone-audio upload path");
 
-// 6. The complete loaded graph, not just the final patch, must preserve the two-provider boundary.
-const loadedSource = loaded.map(file => read(file)).join('\n');
-const forbiddenLoadedGraph = [
-  ['Kimi', /\bkimi\b/i],
-  ['Moonshot', /\bmoonshot\b/i],
-  ['OpenRouter', /\bopenrouter\b/i],
-  ['legacy FitCoach chat endpoint', /https:\/\/symbioai\.dev\/api\/fitcoach-chat(?:["'`]|\b(?!-v3))/i],
-  ['raw transcription endpoint', /fitcoach-transcribe/i],
-  ['retired speech endpoint', /fitcoach-speech/i],
-  ['MediaRecorder', /\bMediaRecorder\b/],
-  ['base64 audio encoder', /\bblobToBase64\b/],
-];
-const loadedViolations = forbiddenLoadedGraph
-  .filter(([, pattern]) => pattern.test(loadedSource))
-  .map(([label]) => label);
-if (loadedViolations.length) bad(`loaded script graph exposes retired FitCoach paths: ${loadedViolations.join(', ')}`);
-else ok('loaded script graph is DeepSeek + direct Qwen only and has no raw-audio upload path');
+  if (/v03[0-9]|v031|v032|v033|v034|v035/.test(html)) bad("index.html must not load historical v0.3 files");
+  else ok("index.html does not load historical v0.3 files");
 
-if (loaded.includes('v031-part-09.js')) bad('legacy raw-audio capture module must not be loaded');
-else ok('legacy raw-audio capture module is not active');
+  const providerClient = read("v040/services/trainer-client.mjs");
+  const authorityHits = [/approvePlanProposal/, /activePlan\s*=/, /pendingPlanProposal\s*=/, /memories\s*\.push/, /draft\.memories/].filter(pattern => pattern.test(providerClient));
+  if (authorityHits.length) bad("provider client contains plan/memory mutation authority");
+  else ok("provider client cannot apply plans, write memory, or choose actions");
 
-console.log(`\n${failures.length ? `${failures.length} FAILURE(S)` : 'bundle integrity OK'}\n`);
-process.exit(failures.length ? 1 : 0);
+  const remoteMedia = JSON.stringify(EXERCISE_MEDIA_MANIFEST).match(/https?:\/\/|fitbod|myfitnesspal|freeletics|nike|runna/i);
+  if (remoteMedia) bad("exercise media manifest contains competitor or remote hotlink");
+  else ok("exercise media manifest contains no competitor-domain hotlinks");
+
+  console.log(`\n${failures.length ? `${failures.length} FAILURE(S)` : "bundle integrity OK"}\n`);
+  process.exit(failures.length ? 1 : 0);
+})();

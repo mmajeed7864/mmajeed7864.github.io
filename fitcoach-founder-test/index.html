@@ -1,30 +1,52 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-theme-preference="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#090d16">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#F6F9FB">
+  <meta name="color-scheme" content="light dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="FitCoach">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta name="description" content="FitCoach private founder phone test">
-  <link rel="manifest" href="./manifest.webmanifest?v=0360">
-  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0360">
-  <link rel="icon" href="./assets/icon-symbio.svg?v=0360" type="image/svg+xml">
+  <meta name="description" content="FitCoach private founder research build">
+  <script>
+    (() => {
+      let preference = "light";
+      try {
+        const saved = localStorage.getItem("fitcoach-theme");
+        if (["light", "dark", "system"].includes(saved)) preference = saved;
+      } catch {}
+      const resolved = preference === "system" && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : preference === "dark" ? "dark" : "light";
+      document.documentElement.dataset.themePreference = preference;
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.style.colorScheme = resolved;
+      document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#071116" : "#F6F9FB";
+    })();
+  </script>
+  <link rel="manifest" href="./manifest.webmanifest?v=0401">
+  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0401">
+  <link rel="icon" href="./assets/icon-symbio.svg?v=0401" type="image/svg+xml">
+  <link rel="stylesheet" href="./v040/styles.css?v=0401">
   <title>FitCoach — Founder Build</title>
-  <link rel="stylesheet" href="./v031-style-01.css?v=0310"><link rel="stylesheet" href="./v031-style-02.css?v=0310"><link rel="stylesheet" href="./v031-style-03.css?v=0310"><link rel="stylesheet" href="./v031-style-04.css?v=0310"><link rel="stylesheet" href="./v031-style-05.css?v=0310"><link rel="stylesheet" href="./v033-pages.css?v=0330">
 </head>
 <body>
-  <div class="ambient" aria-hidden="true"><span class="aurora aurora-a"></span><span class="aurora aurora-b"></span><span class="grid-glow"></span></div>
-  <div id="offline" class="offline" hidden>Offline mode · workouts still save on this device</div>
-  <section id="gate" class="gate-screen"><div class="gate-shell"><div class="brand-mark" aria-label="FitCoach"><span>F</span><i></i></div><p class="overline">SYMBIO LABS · PRIVATE FOUNDER BUILD</p><h1>Training that<br><em>talks back.</em></h1><p class="gate-copy">A persistent AI trainer that remembers the work, adapts the plan, and earns the right to interrupt.</p><div class="access-card glass-card"><div class="privacy-note"><span class="privacy-icon">!</span><p><b>Low-sensitivity test.</b> Do not enter diagnoses, medication details, credentials, or private medical records.</p></div><div class="founder-switch" role="group" aria-label="Choose founder"><button class="founder active" data-founder="mo"><span class="founder-avatar">M</span><span><b>Mohammed</b><small>Product + trainer feel</small></span></button><button class="founder" data-founder="ravi"><span class="founder-avatar">R</span><span><b>Ravi</b><small>Systems + safety</small></span></button></div><label class="access-field"><span>Founder access code</span><input id="code" type="password" inputmode="text" autocomplete="off" placeholder="Enter code"></label><p id="gate-error" class="field-error" hidden>That code is not correct.</p><button id="enter" class="button button-primary button-wide">Enter FitCoach <span>↗</span></button><small class="fineprint">Convenience gate only. Production authentication is not active yet.</small></div></div></section>
-  <section id="onboarding" class="onboarding-screen" hidden><header class="onboarding-top"><button id="ob-exit" class="icon-button" aria-label="Exit onboarding">×</button><div class="onboarding-progress"><span id="ob-progress"></span></div><span id="ob-label">Step 1 of 4</span></header><main id="ob-body" class="onboarding-body"></main><footer class="onboarding-actions"><button id="ob-back" class="button button-ghost">Back</button><button id="ob-next" class="button button-primary">Continue</button></footer></section>
-  <section id="shell" class="app-shell" hidden><header class="app-header"><div><p id="head-kicker" class="overline">TODAY</p><h2 id="head-title">FitCoach</h2></div><div class="header-actions"><button id="api-state" class="api-state" title="Coach connection status"><span></span>AI ready</button><button id="avatar" class="profile-avatar" aria-label="Open profile">M</button></div></header><main id="view" class="view" aria-live="polite"></main><button id="feedback" class="floating-feedback" aria-label="Send founder feedback">✦</button><nav class="bottom-nav" aria-label="Primary navigation"><button class="nav-btn active" data-route="today" aria-label="Today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>Today</span></button><button class="nav-btn" data-route="train" aria-label="Train"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6m3-9v12m10-12v12m3-9v6M7 12h10"/></svg><span>Train</span></button><button class="nav-btn coach-nav" data-route="coach" aria-label="Coach"><span class="coach-nav-orb"><i></i></span><span>Coach</span></button><button class="nav-btn" data-route="progress" aria-label="Progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7V7"/></svg><span>Progress</span></button><button class="nav-btn" data-route="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg><span>Profile</span></button></nav></section>
-  <div id="backdrop" class="backdrop" hidden></div><section id="sheet" class="sheet" role="dialog" aria-modal="true" hidden><div class="sheet-handle"></div><div id="sheet-content"></div></section>
-  <section id="voice-overlay" class="voice-overlay" hidden><button id="voice-close" class="voice-close" aria-label="Close voice mode">×</button><div class="voice-orb" aria-hidden="true"><i></i><i></i><i></i></div><p class="overline">VOICE TO COACH</p><h2 id="voice-title">Listening…</h2><p id="voice-copy">Tap stop when you are finished.</p><div class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><button id="voice-stop" class="button button-primary">Stop & send</button></section>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div id="offline-banner" class="offline-banner" role="status" hidden>Live Coach is offline · workout tools still save on this device</div>
+  <div id="app-frame">
+    <div id="app-stage"></div>
+    <div id="mini-workout" hidden></div>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" hidden>
+      <button data-action="route" data-value="today" data-route="today" aria-label="Today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>Today</span></button>
+      <button data-action="route" data-value="train" data-route="train" aria-label="Train"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6m3-9v12m10-12v12m3-9v6M7 12h10"/></svg><span>Train</span></button>
+      <button class="coach-nav" data-action="route" data-value="coach" data-route="coach" aria-label="Coach"><i><b></b></i><span>Coach</span></button>
+      <button data-action="route" data-value="progress" data-route="progress" aria-label="Progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7V7"/></svg><span>Progress</span></button>
+      <button data-action="route" data-value="profile" data-route="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg><span>Profile</span></button>
+    </nav>
+  </div>
+  <div id="modal-root" hidden></div>
+  <div id="voice-root" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./v031-part-01.js?v=0310"></script><script src="./v031-part-02.js?v=0360"></script><script src="./v031-part-03.js?v=0310"></script><script src="./v031-part-04.js?v=0310"></script><script src="./v031-part-05.js?v=0310"></script><script src="./v031-part-07.js?v=0360"></script><script src="./v031-part-08.js?v=0310"></script><script src="./v031-part-10.js?v=0360"></script><script src="./v031-part-11.js?v=0310"></script><script src="./v031-part-12.js?v=0310"></script><script src="./v031-part-13.js?v=0360"></script><script src="./v034-pwa-refresh.js?v=0360"></script><script src="./v033-global-contract.js?v=0360"></script><script src="./v033-pages.js?v=0330"></script><script src="./v035-trainer-chat-voice.js?v=0360"></script>
+  <script type="module" src="./v040/app.js?v=0401"></script>
 </body>
 </html>

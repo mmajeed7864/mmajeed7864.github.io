@@ -25,5 +25,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify FitCoach loaded scripts and PWA precache
+      - name: Run FitCoach v0.4 focused tests
+        run: node --test fitcoach-founder-test/tests/v040-*.test.mjs
+      - name: Verify FitCoach module graph and PWA precache
         run: node fitcoach-founder-test/tests/check-bundle.js
+      - name: Syntax-check v0.4 modules
+        run: |
+          node --check fitcoach-founder-test/v040/app.js
+          find fitcoach-founder-test/v040 -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Check diff whitespace
+        run: git diff --check

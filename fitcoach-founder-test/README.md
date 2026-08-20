@@ -1,70 +1,62 @@
-# FitCoach founder build — runtime map
+# FitCoach founder build runtime map
 
-This directory contains several historical prototypes. **`index.html` and `sw.js` are the authoritative runtime manifests.** Do not choose an implementation merely because a similarly named function appears first in search results.
+This directory contains historical prototypes plus the current v0.4 founder runtime. `index.html` and `sw.js` are the authoritative runtime manifests.
 
 ## Active browser runtime
 
-The current founder build loads these JavaScript files, in order:
+FitCoach v0.4.0 is the active runtime:
 
-1. `v031-part-01.js`
-2. `v031-part-02.js`
-3. `v031-part-03.js`
-4. `v031-part-04.js`
-5. `v031-part-05.js`
-6. `v031-part-07.js`
-7. `v031-part-08.js`
-8. `v031-part-10.js` (progress helpers only; legacy audio upload removed)
-9. `v031-part-11.js`
-10. `v031-part-12.js`
-11. `v031-part-13.js`
-12. `v033-global-contract.js`
-13. `v033-pages.js`
-14. `v035-trainer-chat-voice.js` (v0.3.6 runtime)
+- document shell: `index.html?v=0401`
+- stylesheet: `v040/styles.css?v=0401`
+- ES-module entry: `v040/app.js?v=0401`
+- service worker cache: `fitcoach-symbio-v0401`
+- local storage envelope: `fitcoach-v040:<founder>`
 
-The active visual bundle is the five `v031-style-*.css` files plus `v033-pages.css`.
+The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
 
-## Intentional override boundary
+- `core/`: constants, storage, migration, unit helpers, stable utility functions
+- `data/`: exercise library, local premium two-position guide manifest, schema validators
+- `domain/`: deterministic workout planning and intervention decisions
+- `services/`: bounded trainer text and spoken-reply API payload mapping
+- `ui/`: five-tab browser UI, modals, exercise detail, active workout, progress, profile
+- `voice/`: foreground half-duplex voice-room state and controller
 
-`v033-pages.js` replaces the legacy implementations of:
+## Historical prototypes
 
-- `renderToday`
-- `renderTrain`
-- `startWorkout`
-- `renderProgress`
-- `renderProfile`
-- `render`
-- `navigate`
+The v0.3 files remain for rollback/reference only and must not be treated as active without a deliberate migration:
 
-`v035-trainer-chat-voice.js` then replaces the legacy chat and voice adapters. It sends only
-the strict synthetic/low-sensitivity v3 request contract, never accepts model-authored memory or
-plan mutations, uses browser dictation without uploading raw audio, and changes spoken prosody
-without changing deterministic actions or safety behavior.
-
-`v033-global-contract.js` declares those global bindings before the override script loads. This prevents the current page layer from depending on sloppy-mode implicit globals.
-
-## Historical / unreferenced prototypes
-
-The following are not loaded by the current `index.html` and must not be treated as the active implementation without an explicit migration plan:
-
-- `app.js`
-- `v03-01-core.js`
-- `v03-02-workouts.js`
+- `v031-part-*.js`
+- `v031-style-*.css`
 - `v032-ai-voice.js`
-- `js/*.js`
-- `styles.css`
-- `css/*.css`
-- legacy root/icon variants not named by the current manifest
+- `v033-*`
+- `v034-*`
+- `v035-trainer-chat-voice.js`
+- root `app.js`, `styles.css`, `js/*.js`, and `css/*.css`
 
-They remain only as historical prototypes until the planned frontend consolidation. Git history is the source for retired code; do not reconnect these files to production casually.
+The v0.4 service worker must not precache those historical scripts or styles.
 
-## Required check
+## Provider boundary
 
-Run before merging any FitCoach browser change:
+The browser sends ordinary low-sensitivity trainer text only to `/api/fitcoach-chat-v3` through Symbio's server. DeepSeek remains the primary server-side provider, direct Qwen US may be used only as a server-configured backup, and deterministic local fallback remains available.
+
+When spoken replies are enabled, the browser may send only the bounded coach reply text to `/api/fitcoach-speech-v2`. That server-only route uses ElevenLabs when configured, offers Nova (female) and Atlas (male) delivery profiles, and falls back to device speech. FitCoach does not create, store, or upload microphone audio.
+
+The model may render conversational wording only. It cannot choose safety outcomes, apply plans, write memory, activate actions, or access raw workout logs, identifiers, measurements, medication details, or raw audio.
+
+## Exercise media
+
+The current exercise visuals are sixteen local, original, static premium PNG two-position guides. They show start and finish positions with illustrated human athletes—never stick figures. They are not animations, videos, form analysis, medical assessment, or competitor media.
+
+## Required checks
+
+Run before opening or updating a FitCoach PR:
 
 ```bash
+node --test fitcoach-founder-test/tests/v040-*.test.mjs
 node fitcoach-founder-test/tests/check-bundle.js
+node --check fitcoach-founder-test/v040/app.js
+find fitcoach-founder-test/v040 -name '*.mjs' -print0 | xargs -0 -n1 node --check
+git diff --check
 ```
 
-The check scans every JavaScript artifact for parse/corruption errors, validates the active script list against the PWA precache, and verifies the strict-safe override contract.
-
-The same check runs in GitHub Actions for FitCoach pull requests and pushes to `main`.
+The same checks run in GitHub Actions for FitCoach pull requests and pushes to `main`.

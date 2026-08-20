@@ -1,0 +1,85 @@
+import { escapeHtml, formatDate, formatTime, sessionVolume } from "../core/utils.mjs";
+
+const ICONS = Object.freeze({
+  today: '<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/>',
+  train: '<path d="M4 9v6m3-9v12m10-12v12m3-9v6M7 12h10"/>',
+  progress: '<path d="M4 20V10m6 10V4m6 16v-7m4 7V7"/>',
+  profile: '<circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m16.2 16.2 4 4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  equipment: '<path d="M3 9v6m4-9v12m10-12v12m4-9v6M7 12h10"/>',
+  spark: '<path d="m12 3 1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6z"/>',
+  chevron: '<path d="m9 5 7 7-7 7"/>',
+  close: '<path d="m6 6 12 12M18 6 6 18"/>',
+  play: '<path d="m8 5 11 7-11 7z"/>',
+  pause: '<path d="M9 5v14M15 5v14"/>',
+  mic: '<rect x="8" y="3" width="8" height="12" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/>',
+  send: '<path d="m4 12 16-8-5 16-3-6zM12 14l8-10"/>',
+  swap: '<path d="M7 7h12l-3-3m3 3-3 3M17 17H5l3 3m-3-3 3-3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>',
+  heart: '<path d="M20.8 5.8a5.4 5.4 0 0 0-7.6 0L12 7l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 22l8.8-8.6a5.4 5.4 0 0 0 0-7.6z"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
+  volume: '<path d="M4 10v4h4l5 4V6L8 10zM17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+});
+
+export function icon(name, className = "") {
+  return `<svg class="icon ${escapeHtml(className)}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.info}</svg>`;
+}
+
+export function button({ label, action, value = "", variant = "secondary", iconName = "", disabled = false, extra = "" }) {
+  return `<button class="button button-${escapeHtml(variant)}" data-action="${escapeHtml(action)}" data-value="${escapeHtml(value)}" ${disabled ? "disabled" : ""} ${extra}>${iconName ? icon(iconName) : ""}<span>${escapeHtml(label)}</span></button>`;
+}
+
+export function exercisePoster(exercise, { className = "", eager = false, label = true } = {}) {
+  const media = exercise?.media?.[0];
+  const poster = media?.path || exercise?.snapshot?.mediaPoster || "";
+  const name = exercise?.name || exercise?.snapshot?.name || "Exercise";
+  if (!poster) {
+    return `<div class="exercise-poster media-fallback ${escapeHtml(className)}" role="img" aria-label="${escapeHtml(name)} visual unavailable"><span>${escapeHtml(name.slice(0, 1))}</span></div>`;
+  }
+  return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${media?.width || 320}" height="${media?.height || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
+}
+
+export function renderExerciseCard(exercise, preferences, { action = "open-exercise", compact = false } = {}) {
+  const favorite = (preferences?.favorites || []).includes(exercise.id);
+  return `<article class="exercise-card ${compact ? "compact" : ""}" data-exercise-id="${escapeHtml(exercise.id)}">
+    <button class="exercise-card-open" data-action="${escapeHtml(action)}" data-value="${escapeHtml(exercise.id)}" aria-label="Open ${escapeHtml(exercise.name)}">
+      ${exercisePoster(exercise)}
+      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml((exercise.equipment || []).join(" · "))}</em></span>
+    </button>
+    <button class="favorite-button ${favorite ? "active" : ""}" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="${favorite ? "Remove from" : "Add to"} favorites" aria-pressed="${favorite}">${icon("heart")}</button>
+  </article>`;
+}
+
+export function planExerciseRow(item, index, exercise, units = "lb", { editable = true } = {}) {
+  const name = item.snapshot?.name || exercise?.name || "Exercise";
+  const muscles = item.snapshot?.primaryMuscles || exercise?.primaryMuscles || [];
+  const suggested = item.target?.suggestedWeight || 0;
+  return `<article class="plan-exercise-row" data-plan-exercise="${index}">
+    ${editable ? `<button class="grip-button" data-action="reorder-exercise" data-value="${index}" aria-label="Move ${escapeHtml(name)}">${icon("grip")}</button>` : ""}
+    ${exercisePoster(exercise || item, { className: "thumb" })}
+    <button class="plan-exercise-copy" data-action="open-exercise" data-value="${escapeHtml(item.exerciseId)}"><small>${escapeHtml(muscles.join(" · ") || "Full body")}</small><b>${escapeHtml(name)}</b><span>${item.target?.sets || 0} × ${item.target?.reps || 0}${suggested ? ` · ${suggested}${escapeHtml(units)}` : ""} · ${item.target?.restSeconds || 90}s rest</span></button>
+    ${editable ? `<span class="plan-row-actions"><button class="icon-only" data-action="swap-plan-exercise" data-value="${index}" aria-label="Swap ${escapeHtml(name)}">${icon("swap")}</button><button class="icon-only" data-action="remove-plan-exercise" data-value="${index}" aria-label="Remove ${escapeHtml(name)}">${icon("close")}</button></span>` : ""}
+  </article>`;
+}
+
+export function renderMessage(message, speakingId = null) {
+  const coach = message.role !== "user";
+  const meta = coach ? (message.provider === "deterministic-copy" ? "Local coach" : message.provider ? "Live trainer" : "Coach") : formatTime(message.at);
+  return `<article class="chat-message ${coach ? "coach" : "user"}" data-message-id="${escapeHtml(message.id)}">
+    <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
+    ${coach && message.action ? `<button class="trainer-action-card" data-action="coach-message-action" data-kind="${escapeHtml(message.action.kind)}" data-value="${escapeHtml(message.action.value)}"><span>${icon(message.action.kind === "open_exercise" ? "play" : message.action.kind === "open_voice" ? "mic" : message.action.kind === "open_progress" ? "progress" : "chevron")}</span><span><b>${escapeHtml(message.action.label)}</b><small>${escapeHtml(message.action.detail || "Open in FitCoach")}</small></span>${icon("chevron")}</button>` : ""}
+    <footer><span>${escapeHtml(meta)}</span>${coach && message.speakAllowed !== false ? `<button data-action="speak-message" data-value="${escapeHtml(message.id)}" aria-label="${speakingId === message.id ? "Stop" : "Play"} trainer reply">${icon(speakingId === message.id ? "pause" : "volume")}</button>` : ""}</footer>
+  </article>`;
+}
+
+export function emptyState(title, copy, action = "", label = "") {
+  return `<div class="empty-state"><span>${icon("spark")}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(copy)}</p>${action ? button({ label, action, variant: "primary" }) : ""}</div>`;
+}
+
+export function sessionHistoryRow(session, units) {
+  const setCount = session.exercises?.reduce((sum, exercise) => sum + (exercise.sets?.length || 0), 0) || 0;
+  return `<article class="history-row"><time>${escapeHtml(formatDate(session.completedAt || session.date))}</time><span><b>${escapeHtml(session.planLabel || "Workout")}</b><small>${session.durationMinutes || 0} min · ${setCount} sets · logged in ${escapeHtml(session.units || units)}</small></span><strong>${Math.round(sessionVolume(session, units)).toLocaleString()}<small>${escapeHtml(units)} volume</small></strong></article>`;
+}
