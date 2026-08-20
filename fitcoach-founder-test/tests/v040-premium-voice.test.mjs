@@ -8,7 +8,7 @@ import {
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-test("premium voice payload is exact, bounded, and maps Nova/Atlas to female/male", () => {
+test("premium voice payload is exact, bounded, and maps reviewed personas to gender and profile", () => {
   assert.deepEqual(createSpeechPayload({
     text: "  One   honest set.  ",
     sessionId: "fitcoach-mo-voice-v040",
@@ -20,6 +20,7 @@ test("premium voice payload is exact, bounded, and maps Nova/Atlas to female/mal
     data_classification: "synthetic_low_sensitivity",
     tone: "supportive",
     voice_gender: "female",
+    voice_profile: "nova",
   });
   assert.equal(createSpeechPayload({
     text: "Stay exact.",
@@ -27,6 +28,12 @@ test("premium voice payload is exact, bounded, and maps Nova/Atlas to female/mal
     tone: "Strict",
     voicePersona: "atlas",
   }).voice_gender, "male");
+  assert.deepEqual(createSpeechPayload({
+    text: "Clear and calm.",
+    sessionId: "fitcoach-mo-voice-v040",
+    tone: "Direct",
+    voicePersona: "bennett",
+  }).voice_profile, "bennett");
   assert.equal(createSpeechPayload({ text: "", sessionId: "valid-session", tone: "Direct", voicePersona: "nova" }), null);
   assert.equal(createSpeechPayload({ text: "Ready", sessionId: "short", tone: "Direct", voicePersona: "nova" }), null);
 });
@@ -73,7 +80,7 @@ test("ElevenLabs audio plays once and releases the object URL", async () => {
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, "https://symbioai.dev/api/fitcoach-speech-v2");
   assert.equal(requests[0].options.method, "POST");
-  assert.deepEqual(Object.keys(JSON.parse(requests[0].options.body)).sort(), ["data_classification", "session_id", "text", "tone", "voice_gender"]);
+  assert.deepEqual(Object.keys(JSON.parse(requests[0].options.body)).sort(), ["data_classification", "session_id", "text", "tone", "voice_gender", "voice_profile"]);
   assert.equal(audio.plays, 1);
   assert.deepEqual(metadata, [{ provider: "elevenlabs", profile: "nova-supportive", fallbackUsed: false }]);
 

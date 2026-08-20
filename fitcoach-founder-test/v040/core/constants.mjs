@@ -1,14 +1,22 @@
 export const BUILD = "0.4.0";
-export const CACHE_GENERATION = "0401";
+export const CACHE_GENERATION = "0402";
 export const ACCESS_CODE = "LIFT26";
 export const ROUTES = ["today", "train", "coach", "progress", "profile"];
 export const TRAIN_SEGMENTS = ["workout", "exercises"];
 export const THEMES = ["light", "dark", "system"];
 export const TRAINER_TONES = ["Supportive", "Direct", "Strict", "Competitive"];
-export const VOICE_PERSONAS = ["nova", "atlas"];
+export const VOICE_PERSONAS = ["nova", "atlas", "bennett", "mira"];
 export const VOICE_PERSONA_LABELS = Object.freeze({
-  nova: "Nova · female",
-  atlas: "Atlas · male",
+  nova: "Nova · supportive woman",
+  atlas: "Atlas · strong male",
+  bennett: "Bennett · British male",
+  mira: "Mira · calm woman",
+});
+export const DEFAULT_VOICE_BY_TONE = Object.freeze({
+  Supportive: "nova",
+  Direct: "bennett",
+  Strict: "atlas",
+  Competitive: "atlas",
 });
 export const ANSWER_DEPTHS = ["fast", "smart", "deep"];
 export const SESSION_MINUTES = [12, 20, 30, 45, 60];

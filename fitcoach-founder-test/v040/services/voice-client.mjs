@@ -1,4 +1,4 @@
-import { SPEECH_API, TRAINER_TONES, VOICE_PERSONAS } from "../core/constants.mjs";
+import { CACHE_GENERATION, SPEECH_API, TRAINER_TONES, VOICE_PERSONAS } from "../core/constants.mjs";
 
 export const SPEECH_DATA_CLASSIFICATION = "synthetic_low_sensitivity";
 export const MAX_SPEECH_TEXT_CHARS = 1_200;
@@ -7,6 +7,8 @@ export const MAX_SPEECH_AUDIO_BYTES = 5_000_000;
 const GENDER_BY_PERSONA = Object.freeze({
   nova: "female",
   atlas: "male",
+  bennett: "male",
+  mira: "female",
 });
 
 function cleanText(value) {
@@ -45,6 +47,7 @@ export function createSpeechPayload({ text, sessionId, tone, voicePersona }) {
     data_classification: SPEECH_DATA_CLASSIFICATION,
     tone: normalizedTone(tone),
     voice_gender: GENDER_BY_PERSONA[persona],
+    voice_profile: persona,
   });
 }
 
@@ -161,7 +164,7 @@ export function createPremiumVoiceClient({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-FitCoach-Build": "0401",
+            "X-FitCoach-Build": CACHE_GENERATION,
           },
           body: JSON.stringify(payload),
           signal: controller.signal,

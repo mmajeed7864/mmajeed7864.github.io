@@ -204,6 +204,19 @@ test("theme defaults to light and only accepts light, dark, or system", () => {
   assert.equal(normalizeStateForTest({ settings: { theme: "system" } }).settings.theme, "system");
 });
 
+test("tutorial dismissal is local settings state and defaults to showing the tutorial", () => {
+  assert.equal(createInitialState("mo", FIXED_NOW).settings.tutorialDismissed, false);
+  assert.equal(normalizeStateForTest({ settings: { tutorialDismissed: true } }).settings.tutorialDismissed, true);
+  assert.equal(normalizeStateForTest({ settings: { tutorialDismissed: false } }).settings.tutorialDismissed, false);
+});
+
+test("new founder profiles start with a voice that matches the trainer tone", () => {
+  assert.equal(createInitialState("mo", FIXED_NOW).profile.tone, "Strict");
+  assert.equal(createInitialState("mo", FIXED_NOW).settings.voicePersona, "atlas");
+  assert.equal(createInitialState("ravi", FIXED_NOW).profile.tone, "Direct");
+  assert.equal(createInitialState("ravi", FIXED_NOW).settings.voicePersona, "bennett");
+});
+
 test("daily trainer action is deterministic and an existing valid decision is reused", () => {
   const state = createInitialState("mo", FIXED_NOW);
   assert.equal(selectAction(state, FIXED_NOW), "CHECK_IN");

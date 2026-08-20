@@ -2,6 +2,7 @@ import {
   ACCESS_CODE,
   BUILD,
   CACHE_GENERATION,
+  DEFAULT_VOICE_BY_TONE,
   FOUNDERS,
   ROUTES,
 } from "./core/constants.mjs";
@@ -107,9 +108,21 @@ function saveSession() {
 function createStore(founder) {
   store = createFitCoachStore({ founder });
   state = store.load();
+  migrateLegacyVoiceDefault();
   ensurePlan();
   ensureDecision();
   applyTheme(state.settings.theme);
+}
+
+function migrateLegacyVoiceDefault() {
+  if (state.settings.voiceProfileMigrated0402) return;
+  state = store.update(draft => {
+    const recommended = DEFAULT_VOICE_BY_TONE[draft.profile.tone];
+    if (recommended && (draft.settings.voicePersona === "nova" || draft.settings.voicePersona === "atlas")) {
+      draft.settings.voicePersona = recommended;
+    }
+    draft.settings.voiceProfileMigrated0402 = true;
+  });
 }
 
 function ensurePlan() {
@@ -258,6 +271,11 @@ function renderModalRoot() {
   if (ui.modal) requestAnimationFrame(() => dom.modal.querySelector("button:not([disabled]),input,select,textarea")?.focus());
 }
 
+function maybeOpenTutorial() {
+  if (ui.mode !== "app" || ui.modal || state?.settings?.tutorialDismissed) return;
+  ui.modal = { type: "tutorial", step: 0 };
+}
+
 function renderVoiceRoot() {
   const voiceState = voiceController.getState();
   dom.voice.innerHTML = renderVoiceRoom(voiceState, state);
@@ -299,6 +317,17 @@ function navigate(route) {
   history.replaceState({}, "", url);
   render();
   requestAnimationFrame(() => window.scrollTo({ top: route === "train" && state.activeWorkout ? state.activeWorkout.scrollTop || 0 : 0, behavior: "instant" }));
+}
+
+function applyTonePreference(draft, tone) {
+  draft.profile.tone = tone;
+  draft.settings.voicePersona = DEFAULT_VOICE_BY_TONE[tone] || draft.settings.voicePersona;
+  draft.memories = [...draft.memories.filter(item => !/^Tone:/i.test(item)), `Tone: ${tone}`].slice(-24);
+}
+
+function applyOnboardingTone(tone) {
+  ui.onboardingDraft.profile.tone = tone;
+  ui.onboardingDraft.settings.voicePersona = DEFAULT_VOICE_BY_TONE[tone] || ui.onboardingDraft.settings.voicePersona;
 }
 
 function stageProposal(proposal) {
@@ -732,6 +761,7 @@ function handleClick(event) {
     createStore(ui.founder);
     ui.mode = state.profile.onboarded ? "app" : "onboarding";
     ui.onboardingDraft = { profile:deepClone(state.profile),settings:deepClone(state.settings),consent:false };
+    maybeOpenTutorial();
     render();
     return;
   }
@@ -745,7 +775,7 @@ function handleClick(event) {
     if (ui.onboardingStep<3) { ui.onboardingStep+=1; render(); return; }
     if (!ui.onboardingDraft.consent) return;
     state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile}},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
-    applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();render();return;
+    applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();maybeOpenTutorial();render();return;
   }
   if (action === "route") { closeModal(); navigate(value); return; }
   if (action === "train-segment") { ui.trainSegment=value;ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
@@ -798,7 +828,7 @@ function handleClick(event) {
   if (action === "open-library") { ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
   if (action === "set-theme") { state=store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
   if (action === "cycle-theme") { const order=["light","dark","system"];const next=order[(order.indexOf(state.settings.theme)+1)%order.length];state=store.update(draft=>{draft.settings.theme=next;});applyTheme(next);render();toast(`${next[0].toUpperCase()+next.slice(1)} theme selected.`);return; }
-  if (action === "set-tone" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.profile.tone=value;draft.memories=[...draft.memories.filter(item=>!/^Tone:/i.test(item)),`Tone: ${value}`].slice(-24);});stopSpeech({renderCoach:false});render();return; }
+  if (action === "set-tone" && target.tagName === "BUTTON") { state=store.update(draft=>applyTonePreference(draft,value));stopSpeech({renderCoach:false});render();return; }
   if (action === "quick-prompt") { if(value==="I only have 20 minutes."){proposePlan("minutes",20);ui.chatNotice={kind:"info",title:"20-minute option is ready for review",message:"FitCoach opened a deterministic proposal. Approve it before today’s plan changes."};render();return;}void sendChat(value);return; }
   if (action === "send-chat") { void sendChat();return; }
   if (action === "coach-message-action") {
@@ -821,6 +851,10 @@ function handleClick(event) {
   if (action === "voice-mute") { voiceController.setMuted(!voiceController.getState().muted);return; }
   if (action === "voice-replay") { if(!voiceController.replayLast())toast("Replay is unavailable in this voice state.");return; }
   if (action === "connection-info") { if(!navigator.onLine)openModal({type:"offline"});else toast("Live text uses DeepSeek first, configured Qwen backup second, then local safe copy.");return; }
+  if (action === "open-tutorial") { ui.modal={type:"tutorial",step:0};renderModalRoot();return; }
+  if (action === "tutorial-next") { ui.modal={type:"tutorial",step:Math.min(2,Number(target.dataset.step || 0)+1)};renderModalRoot();return; }
+  if (action === "tutorial-back") { ui.modal={type:"tutorial",step:Math.max(0,Number(target.dataset.step || 0)-1)};renderModalRoot();return; }
+  if (action === "skip-tutorial" || action === "finish-tutorial") { state=store.update(draft=>{draft.settings.tutorialDismissed=true;});closeModal();render();return; }
   if (action === "clear-chat") { openModal({type:"confirm-clear-chat"});return; }
   if (action === "confirm-clear-chat") { state=store.update(draft=>{draft.chat=[];});closeModal();render();return; }
   if (action === "reset-profile") { openModal({type:"confirm-reset"});return; }
@@ -833,7 +867,11 @@ function handleClick(event) {
 function handleChange(event) {
   const target=event.target;
   const action=target.dataset.action;
-  if (action === "onboarding-profile-field") { ui.onboardingDraft.profile[target.dataset.field]=target.value;render(); }
+  if (action === "onboarding-profile-field") {
+    if (target.dataset.field === "tone") applyOnboardingTone(target.value);
+    else ui.onboardingDraft.profile[target.dataset.field]=target.value;
+    render();
+  }
   if (action === "onboarding-number") { ui.onboardingDraft.profile[target.dataset.field]=Number(target.value);render(); }
   if (action === "onboarding-setting") { ui.onboardingDraft.settings[target.dataset.field]=target.value;if(target.dataset.field==="theme")applyTheme(target.value);render(); }
   if (action === "profile-field") { state=store.update(draft=>{draft.profile[target.dataset.field]=target.value;});render();toast("Profile saved. Review a proposal before changing today’s plan."); }
@@ -841,7 +879,7 @@ function handleChange(event) {
   if (action === "setting-field") { state=store.update(draft=>{draft.settings[target.dataset.field]=target.value;});render(); }
   if (action === "setting-toggle") { state=store.update(draft=>{draft.settings[target.dataset.field]=target.checked;});render(); }
   if (action === "profile-toggle") { state=store.update(draft=>{draft.profile[target.dataset.field]=target.checked;});render(); }
-  if (action === "set-tone") { state=store.update(draft=>{draft.profile.tone=target.value;});stopSpeech({renderCoach:false});render(); }
+  if (action === "set-tone") { state=store.update(draft=>applyTonePreference(draft,target.value));stopSpeech({renderCoach:false});render(); }
   if (action === "set-answer-depth") { state=store.update(draft=>{draft.settings.coachMode=target.value;});render(); }
   if (action === "set-voice-persona") { state=store.update(draft=>{draft.settings.voicePersona=target.value;});stopSpeech({renderCoach:false});render(); }
   if (action === "filter-favorites") { ui.exerciseFilters.favorites=target.checked;render(); }
@@ -895,6 +933,7 @@ function bootstrap() {
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(state?.settings.theme==="system")applyTheme("system");});
   if("serviceWorker" in navigator)navigator.serviceWorker.register(`./sw.js?v=${CACHE_GENERATION}`).then(registration=>registration.update()).catch(()=>{});
   beginRestTicker();
+  maybeOpenTutorial();
   render();
 }
 

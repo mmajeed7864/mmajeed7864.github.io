@@ -1,6 +1,7 @@
 import {
   ANSWER_DEPTHS,
   BUILD,
+  DEFAULT_VOICE_BY_TONE,
   THEMES,
   TRAINER_TONES,
   VOICE_PERSONAS,
@@ -48,6 +49,7 @@ const historyProviderEligible = message => (
 
 export function createInitialState(founder = "mo", now = new Date()) {
   const createdAt = now.toISOString();
+  const initialTone = founder === "ravi" ? "Direct" : "Strict";
   return {
     schemaVersion: V040_SCHEMA_VERSION,
     build: BUILD,
@@ -61,7 +63,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
       equipment: "full gym",
       location: "gym",
       blocker: "time",
-      tone: founder === "ravi" ? "Direct" : "Strict",
+      tone: initialTone,
       quietStart: "21:30",
       quietEnd: "08:00",
       proactive: true,
@@ -75,10 +77,12 @@ export function createInitialState(founder = "mo", now = new Date()) {
       units: "lb",
       coachMode: "smart",
       speakReplies: true,
-      voicePersona: "nova",
+      voicePersona: DEFAULT_VOICE_BY_TONE[initialTone] || "nova",
       voiceConsent: false,
       workoutCues: true,
       autoRestTimer: true,
+      tutorialDismissed: false,
+      voiceProfileMigrated0402: false,
     },
     sessions: [],
     chat: [],
@@ -250,6 +254,8 @@ function normalizeState(raw, founder, migration = null) {
     voiceConsent: Boolean(settings.voiceConsent),
     workoutCues: settings.workoutCues !== false,
     autoRestTimer: settings.autoRestTimer !== false,
+    tutorialDismissed: Boolean(settings.tutorialDismissed),
+    voiceProfileMigrated0402: Boolean(settings.voiceProfileMigrated0402),
   };
   const sessionsById = new Map();
   (Array.isArray(raw?.sessions) ? raw.sessions : []).forEach((session, index) => {

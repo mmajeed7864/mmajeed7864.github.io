@@ -6,6 +6,27 @@ function shell(title, body, actions = "", { eyebrow = "FITCOACH", wide = false }
   return `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-sheet ${wide ? "wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close icon-only" data-action="close-modal" aria-label="Close dialog">${icon("close")}</button><span class="eyebrow">${escapeHtml(eyebrow)}</span><h2 id="modal-title">${escapeHtml(title)}</h2>${body}<footer>${actions}</footer></section>`;
 }
 
+const TUTORIAL_STEPS = Object.freeze([
+  Object.freeze({
+    eyebrow: "START HERE",
+    title: "Today is your command center",
+    copy: "Pick Full, Reduced, or Minimum, then start the workout. The trainer can explain the choice, but plan changes still wait for your approval.",
+    points: ["Use Today for the current session", "Use Train for movement guides and set logging", "Use Progress for receipts and trends"],
+  }),
+  Object.freeze({
+    eyebrow: "TRAIN",
+    title: "Every exercise has a guide",
+    copy: "Open the movement, check setup and common mistakes, then log only the sets you actually complete.",
+    points: ["No stick-figure media in the active guide path", "Rest timers and active workout state stay local", "Swap or reduce only through visible controls"],
+  }),
+  Object.freeze({
+    eyebrow: "COACH",
+    title: "Your voice trainer stays in one thread",
+    copy: "Use Voice Room when you want to talk. Supportive uses Nova by default, Strict uses Atlas, and Direct can use Bennett.",
+    points: ["DeepSeek text first, Qwen backup when configured", "ElevenLabs speaks bounded reply text only", "No microphone audio upload from FitCoach"],
+  }),
+]);
+
 export function renderModal(modal, context) {
   if (!modal) return "";
   if (modal.type === "proposal") {
@@ -13,6 +34,13 @@ export function renderModal(modal, context) {
     if (!proposal) return "";
     const body = `<p>${escapeHtml(proposal.reason)}</p><div class="proposal-diff"><span><small>CURRENT</small><b>${escapeHtml(context.state.activePlan?.label || "Plan A")}</b><em>${context.state.activePlan?.minutes || 45} min · ${escapeHtml(context.state.activePlan?.location || context.state.profile.location)}</em></span>${icon("chevron")}<span><small>PROPOSED</small><b>${escapeHtml(proposal.candidate.label)}</b><em>${proposal.candidate.minutes} min · ${escapeHtml(proposal.candidate.location)}</em></span></div><ul class="change-list">${proposal.changes.length ? proposal.changes.map(change => `<li>${icon("check")}${escapeHtml(change)}</li>`).join("") : `<li>${icon("check")}No semantic difference detected</li>`}</ul><div class="approval-boundary">${icon("info")}<p>The candidate is inert until you approve it. The language model cannot press this button or activate the plan.</p></div>`;
     return shell("Review the exact plan change",body,button({label:"Keep current plan",action:"reject-proposal",value:proposal.id,variant:"quiet"})+button({label:"Approve change",action:"approve-proposal",value:proposal.id,variant:"primary"}),{eyebrow:"PLAN VERSION PREVIEW"});
+  }
+  if (modal.type === "tutorial") {
+    const stepIndex = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, Number(modal.step || 0)));
+    const step = TUTORIAL_STEPS[stepIndex];
+    const body = `<div class="tutorial-progress" aria-label="Tutorial progress">${TUTORIAL_STEPS.map((_, index) => `<span class="${index <= stepIndex ? "active" : ""}"></span>`).join("")}</div><p>${escapeHtml(step.copy)}</p><div class="tutorial-points">${step.points.map(point => `<article>${icon("check")}<span>${escapeHtml(point)}</span></article>`).join("")}</div><button class="text-button tutorial-skip" data-action="skip-tutorial">Skip tutorial</button>`;
+    const actions = `${stepIndex > 0 ? button({ label: "Back", action: "tutorial-back", variant: "quiet", extra: `data-step="${stepIndex}"` }) : ""}${stepIndex < TUTORIAL_STEPS.length - 1 ? button({ label: "Continue", action: "tutorial-next", variant: "primary", extra: `data-step="${stepIndex}"` }) : button({ label: "Start using FitCoach", action: "finish-tutorial", variant: "primary" })}`;
+    return shell(step.title, body, actions, { eyebrow: step.eyebrow });
   }
   if (modal.type === "decision") {
     const decision = context.decision;

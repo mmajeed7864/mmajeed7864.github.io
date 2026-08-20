@@ -94,6 +94,19 @@
     color: var(--text);
     padding: .72rem .8rem;
     font-size: 1rem;
+    letter-spacing: 0;
+  }
+  select {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.05rem) 51%,
+      calc(100% - .72rem) 51%;
+    background-size: .34rem .34rem, .34rem .34rem;
+    background-repeat: no-repeat;
+    padding-right: 2.1rem;
   }
   textarea { resize: vertical; }
   :focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 60%, transparent); outline-offset: 3px; }
@@ -414,6 +427,34 @@
     align-items: center;
     text-align: left;
   }
+  .founder-switch button > b,
+  .option-card > span,
+  .theme-picker button,
+  .settings-list label > span,
+  .boundary-list article > span,
+  .theme-onboarding > span,
+  .schedule-preview p,
+  .tone-preview p,
+  .consent-row > span {
+    min-width: 0;
+    display: grid;
+    gap: .18rem;
+    line-height: 1.28;
+  }
+  .option-card b,
+  .option-card small,
+  .theme-onboarding b,
+  .theme-onboarding small,
+  .boundary-list b,
+  .boundary-list small,
+  .consent-row b,
+  .consent-row small {
+    display: block;
+  }
+  .option-card .selected-mark {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
   .option-card.active, .theme-picker button.active, .founder-switch button.active {
     border-color: var(--primary);
     background: var(--mint-2);
@@ -451,6 +492,25 @@
     padding: .85rem;
   }
   .theme-onboarding span, .schedule-preview p, .tone-preview p, .consent-row span { flex: 1; }
+  .theme-onboarding [role="radiogroup"] {
+    display: inline-grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .35rem;
+  }
+  .theme-onboarding button {
+    min-height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 800;
+    text-transform: capitalize;
+  }
+  .theme-onboarding button.active {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--mint-2);
+  }
 
   .today-intro {
     display: grid;
@@ -699,7 +759,7 @@
   .exercise-detail-nav strong {
     justify-self: center;
     font-size: 1.02rem;
-    letter-spacing: -.03em;
+    letter-spacing: 0;
   }
   .exercise-detail-visual { display: grid; gap: .75rem; padding: .7rem; }
   .exercise-detail-header { display: grid; gap: .55rem; }
@@ -780,7 +840,7 @@
   }
   .active-workout-top.concept-nav b {
     font-size: 1.02rem;
-    letter-spacing: -.03em;
+    letter-spacing: 0;
   }
   .active-workout-top.concept-nav small {
     margin-top: .12rem;
@@ -811,7 +871,7 @@
   }
   .active-exercise-copy h1 {
     font-size: clamp(1.65rem, 6.7vw, 2.15rem);
-    letter-spacing: -.04em;
+    letter-spacing: 0;
   }
   .active-exercise-copy p { font-size: .95rem; }
   .active-exercise-copy > div { display: flex; gap: .6rem; flex-wrap: wrap; }
@@ -960,17 +1020,47 @@
   .trainer-orb.small { width: 42px; height: 42px; }
   .coach-status, .provider-boundary, .coach-setting-group, .chat-surface, .coach-context { display: grid; gap: .75rem; }
   .coach-status { display: flex; align-items: center; }
+  .provider-boundary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .55rem;
+    margin: .15rem 0;
+  }
+  .provider-boundary span {
+    min-height: 42px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px;
+    padding: .52rem .65rem;
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.92);
+    font-size: .82rem;
+    font-weight: 850;
+    line-height: 1.18;
+  }
   .tone-choice {
     flex: 1 1 8rem;
-    flex-direction: column;
-    align-items: start;
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: .14rem;
     border: 1px solid rgba(255,255,255,.18);
     background: rgba(255,255,255,.08);
     color: white;
     padding: .7rem;
+    line-height: 1.2;
   }
+  .tone-choice small { color: rgba(255,255,255,.72); }
   .coach-setting-group > div { display: flex; flex-wrap: wrap; gap: .5rem; }
   .coach-setting-row label { display: grid; flex: 1 1 12rem; gap: .35rem; }
+  .chat-surface header > span {
+    min-width: 0;
+    display: grid;
+    gap: .12rem;
+    line-height: 1.28;
+  }
+  .chat-surface header b,
+  .chat-surface header small {
+    display: block;
+  }
   .chat-log {
     display: grid;
     gap: .7rem;
@@ -1087,6 +1177,34 @@
     color: var(--muted);
     font-size: .82rem;
   }
+  .coach-context > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .55rem;
+  }
+  .coach-context > div > span {
+    min-width: 0;
+    display: grid;
+    gap: .08rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    padding: .68rem;
+  }
+  .coach-context > div small,
+  .coach-context > div b {
+    display: block;
+    min-width: 0;
+  }
+  .coach-context > div b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-transform: capitalize;
+  }
+  .coach-context .text-button {
+    justify-self: start;
+  }
 
   .progress-hero { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; }
   .metric-grid { grid-template-columns: repeat(4, 1fr); }
@@ -1147,6 +1265,11 @@
     grid-template-columns: 1fr auto;
   }
   .settings-list label > span { display: flex; gap: .6rem; align-items: center; }
+  .settings-list b small {
+    display: block;
+    margin-top: .08rem;
+    font-weight: 650;
+  }
   .settings-list select, .settings-list input[type="checkbox"] { justify-self: end; }
   .preference-summary {
     display: grid;
@@ -1192,6 +1315,40 @@
     gap: .8rem;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
+  .tutorial-progress {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .4rem;
+  }
+  .tutorial-progress span {
+    height: .45rem;
+    border-radius: 999px;
+    background: var(--border);
+  }
+  .tutorial-progress span.active { background: var(--primary); }
+  .tutorial-points {
+    display: grid;
+    gap: .55rem;
+  }
+  .tutorial-points article {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .55rem;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    padding: .75rem;
+    line-height: 1.34;
+  }
+  .tutorial-points .icon { color: var(--primary); }
+  .tutorial-skip {
+    justify-self: start;
+    min-height: 44px;
+    padding: 0;
+    color: var(--muted);
+    font-weight: 800;
+  }
   .modal-close { position: absolute; right: .8rem; top: .8rem; }
   .modal-sheet footer { display: flex; flex-wrap: wrap; justify-content: end; gap: .6rem; }
   .proposal-diff, .completion-grid, .evidence-grid {
@@ -1224,7 +1381,7 @@
     display: grid;
     grid-template-rows: auto 1fr auto auto;
     gap: 1rem;
-    letter-spacing: -.008em;
+    letter-spacing: 0;
   }
   .voice-room header, .voice-room footer {
     display: flex;
@@ -1354,6 +1511,52 @@
     .set-grid { grid-template-columns: 2.2rem 1fr 1fr 1fr 2.75rem; gap: .25rem; }
     .coach-setting-row label { line-height: 1.35; }
     .coach-setting-row select { min-height: 48px; padding-inline: .8rem; }
+    .onboarding-screen {
+      padding-inline: 1.05rem;
+    }
+    .onboarding-step {
+      gap: 1.05rem;
+    }
+    .option-card {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      display: grid;
+      align-items: center;
+      padding: .92rem;
+    }
+    .option-card b {
+      font-size: 1.02rem;
+    }
+    .option-card small {
+      font-size: .92rem;
+      line-height: 1.34;
+    }
+    .theme-onboarding, .schedule-preview, .tone-preview, .consent-row {
+      align-items: flex-start;
+    }
+    .theme-onboarding {
+      display: grid;
+    }
+    .theme-onboarding [role="radiogroup"] {
+      width: 100%;
+    }
+    .onboarding-form label {
+      gap: .42rem;
+    }
+    .onboarding-form label > span {
+      font-weight: 700;
+    }
+    .onboarding-form label small {
+      line-height: 1.35;
+    }
+    .coach-identity h1 {
+      font-size: clamp(2.35rem, 12vw, 3.25rem);
+    }
+    .tone-choice {
+      min-height: 74px;
+    }
+    .chat-surface header {
+      align-items: start;
+    }
     .voice-room { padding-inline: .85rem; gap: .85rem; }
     .voice-room header button { min-width: 72px; }
     .voice-room button, .voice-room select { font-size: 1rem; }
