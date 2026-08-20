@@ -1,5 +1,5 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
-import { convertWeight, deepClone, elapsedMinutes, normalizeUnit, safeNumber, sessionVolume, uid, unique } from "../core/utils.mjs";
+import { convertWeight, deepClone, elapsedMinutes, hashText, normalizeUnit, safeNumber, sessionVolume, uid, unique } from "../core/utils.mjs";
 
 const PLAN_SPECS = Object.freeze({
   A: { label: "Plan A", detail: "Full session", volumeFactor: 1 },
@@ -31,6 +31,19 @@ const PLAN_BUDGETS = Object.freeze({
   45: { exercises: 5, totalWorkSets: 13, warmupMinutes: 5, cooldownMinutes: 4 },
   60: { exercises: 6, totalWorkSets: 18, warmupMinutes: 6, cooldownMinutes: 5 },
 });
+
+const DAY_LABELS = Object.freeze(["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]);
+const SHORT_DAY_LABELS = Object.freeze(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+const SCHEDULE_LABELS = Object.freeze(["Strength A", "Strength B", "Full-body C", "Strength D", "Full-body E", "Strength F", "Recovery G"]);
+const SCHEDULE_FOCUS = Object.freeze([
+  "Lower-body strength with balanced upper-body work",
+  "Hinge, pull, and controlled pressing",
+  "Full-body continuity for the end of the week",
+  "Strength practice with a conservative progression",
+  "Full-body repeat with familiar movements",
+  "Quality reps and logged proof",
+  "Easy movement and habit continuity",
+]);
 
 const EQUIPMENT_CAPABILITIES = Object.freeze({
   bodyweight: new Set(["bodyweight", "mat", "stable-surface"]),
@@ -108,6 +121,86 @@ function selectExercises(state, library, count) {
     })
     .filter((exercise, index, all) => all.findIndex(item => item.movementPattern === exercise.movementPattern) === index)
     .slice(0, count);
+}
+
+function normalizedPreferredDays(state) {
+  const seen = new Set();
+  const preferred = Array.isArray(state?.profile?.preferredDays) ? state.profile.preferredDays : [];
+  const normalized = preferred
+    .map(value => Number(value))
+    .filter(value => Number.isInteger(value) && value >= 0 && value <= 6)
+    .filter(value => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+  const requested = safeNumber(state?.profile?.days, normalized.length || 3, 1, 7);
+  const fallback = [1, 3, 5, 0, 2, 4, 6].filter(value => !seen.has(value));
+  return [...normalized, ...fallback].slice(0, requested);
+}
+
+function rotatePlanExercises(exercises, offset) {
+  if (!exercises.length) return [];
+  const normalizedOffset = offset % exercises.length;
+  return [...exercises.slice(normalizedOffset), ...exercises.slice(0, normalizedOffset)].map(deepClone);
+}
+
+function planVersionForSchedule(slotSeed, plan) {
+  return `schedule-${hashText(JSON.stringify({
+    slotSeed,
+    id: plan.id,
+    label: plan.label,
+    minutes: plan.minutes,
+    units: plan.units,
+    exercises: plan.exercises.map(item => ({
+      exerciseId: item.exerciseId,
+      sets: item.target.sets,
+      reps: item.target.reps,
+      restSeconds: item.target.restSeconds,
+      suggestedWeight: item.target.suggestedWeight,
+    })),
+  }))}`;
+}
+
+function bestCompletedSet(state, exerciseId) {
+  const sets = [];
+  for (const session of state?.sessions || []) {
+    for (const exercise of session.exercises || []) {
+      if (exercise.exerciseId !== exerciseId && exercise.snapshot?.id !== exerciseId) continue;
+      for (const set of exercise.sets || []) {
+        if (!isValidCompletedSet(set)) continue;
+        const unit = normalizeUnit(set.unit || exercise.units || session.units || state.settings?.units, "lb");
+        sets.push({
+          date: session.completedAt || session.date || "",
+          weight: safeNumber(set.weight, 0, 0, 5_000),
+          reps: safeNumber(set.reps, 0, 0, 1_000),
+          unit,
+          volume: convertWeight(set.weight, unit, normalizeUnit(state.settings?.units, "lb")) * safeNumber(set.reps, 0, 0, 1_000),
+        });
+      }
+    }
+  }
+  return sets.sort((left, right) => {
+    const volumeDelta = right.volume - left.volume;
+    if (volumeDelta) return volumeDelta;
+    return String(right.date).localeCompare(String(left.date), "en");
+  })[0] || null;
+}
+
+function lastCompletedSet(state, exerciseId) {
+  for (const session of [...(state?.sessions || [])].sort((left, right) => String(right.completedAt || right.date).localeCompare(String(left.completedAt || left.date), "en"))) {
+    const exercise = (session.exercises || []).find(item => item.exerciseId === exerciseId || item.snapshot?.id === exerciseId);
+    const set = [...(exercise?.sets || [])].reverse().find(isValidCompletedSet);
+    if (!set) continue;
+    const unit = normalizeUnit(set.unit || exercise.units || session.units || state.settings?.units, "lb");
+    return {
+      date: session.completedAt || session.date || "",
+      weight: safeNumber(set.weight, 0, 0, 5_000),
+      reps: safeNumber(set.reps, 0, 0, 1_000),
+      unit,
+    };
+  }
+  return null;
 }
 
 function startingWeight(state, exerciseId, targetUnit = "lb") {
@@ -212,6 +305,80 @@ export function buildPlan(state, library, { planId = "A", minutes = state.profil
     exercises,
     createdAt: new Date().toISOString(),
   };
+}
+
+export function buildWorkoutSchedule(state, library) {
+  const days = normalizedPreferredDays(state);
+  const basePlan = state.activePlan?.exercises?.length
+    ? deepClone(state.activePlan)
+    : buildPlan(state, library, { planId: "A", minutes: state.profile.duration });
+  return days.map((day, index) => {
+    const label = SCHEDULE_LABELS[index] || `Workout ${index + 1}`;
+    const slotSeed = `${state.founder || "founder"}:${day}:${index}:${state.profile.goal}:${state.profile.duration}:${state.profile.equipment}`;
+    const plan = {
+      ...deepClone(basePlan),
+      id: `schedule-${index + 1}`,
+      label,
+      detail: `${DAY_LABELS[day]} training slot`,
+      exercises: rotatePlanExercises(basePlan.exercises, index % Math.max(1, basePlan.exercises.length)),
+      createdAt: state.activePlan?.createdAt || basePlan.createdAt,
+      scheduledDay: day,
+    };
+    plan.versionId = planVersionForSchedule(slotSeed, plan);
+    return {
+      id: `slot-${day}-${index + 1}`,
+      day,
+      dayLabel: DAY_LABELS[day],
+      shortDayLabel: SHORT_DAY_LABELS[day],
+      label,
+      focus: SCHEDULE_FOCUS[index] || "Planned training session",
+      minutes: plan.minutes,
+      equipment: plan.equipment,
+      exerciseCount: plan.exercises.length,
+      exerciseNames: plan.exercises.slice(0, 3).map(item => item.snapshot.name),
+      muscles: unique(plan.exercises.flatMap(item => item.snapshot.primaryMuscles || [])).slice(0, 4),
+      plan,
+    };
+  });
+}
+
+export function buildProgressionTracker(state, library, { limit = 6 } = {}) {
+  const plan = state.activePlan?.exercises?.length
+    ? state.activePlan
+    : buildPlan(state, library, { planId: "A", minutes: state.profile.duration });
+  const unit = normalizeUnit(state.settings?.units, plan.units || "lb");
+  const loadStep = unit === "kg" ? 2.5 : 5;
+  return plan.exercises.slice(0, limit).map(item => {
+    const exercise = library.find(candidate => candidate.id === item.exerciseId) || item.snapshot;
+    const last = lastCompletedSet(state, item.exerciseId);
+    const best = bestCompletedSet(state, item.exerciseId);
+    const targetWeight = safeNumber(item.target.suggestedWeight, 0, 0, 5_000);
+    const targetReps = safeNumber(item.target.reps, 8, 1, 1_000);
+    const comparableLastWeight = last ? convertWeight(last.weight, last.unit, unit) : 0;
+    const hitTarget = last && last.reps >= targetReps && comparableLastWeight >= targetWeight;
+    const nextWeight = hitTarget && comparableLastWeight > 0 ? Math.round((comparableLastWeight + loadStep) * 10) / 10 : Math.max(targetWeight, comparableLastWeight);
+    return {
+      exerciseId: item.exerciseId,
+      exerciseName: item.snapshot.name,
+      movementPattern: item.snapshot.movementPattern || exercise.movementPattern || "movement",
+      muscles: (item.snapshot.primaryMuscles || exercise.primaryMuscles || []).slice(0, 2),
+      target: {
+        sets: item.target.sets,
+        reps: targetReps,
+        weight: targetWeight,
+        unit,
+      },
+      last,
+      best,
+      next: {
+        reps: targetReps,
+        weight: nextWeight,
+        unit,
+      },
+      status: last ? (hitTarget ? "Add load next time" : "Repeat target") : "No log yet",
+      evidence: last ? "Based on your last completed set on this device." : "Log this movement once to unlock a real progression target.",
+    };
+  });
 }
 
 export function createPlanProposal(state, library, changes, now = new Date()) {

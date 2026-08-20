@@ -1,5 +1,5 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
-import { escapeHtml } from "../core/utils.mjs";
+import { escapeHtml, formatDate } from "../core/utils.mjs";
 import { restSecondsRemaining } from "../domain/workouts.mjs";
 import {
   button,
@@ -11,7 +11,7 @@ import {
 } from "./components.mjs";
 
 function segmentControl(segment) {
-  return `<div class="segment-control" role="tablist" aria-label="Train sections"><button role="tab" aria-selected="${segment === "workout"}" class="${segment === "workout" ? "active" : ""}" data-action="train-segment" data-value="workout">My Workout</button><button role="tab" aria-selected="${segment === "exercises"}" class="${segment === "exercises" ? "active" : ""}" data-action="train-segment" data-value="exercises">Exercises</button></div>`;
+  return `<div class="segment-control" role="tablist" aria-label="Train sections"><button role="tab" aria-selected="${segment === "workout"}" class="${segment === "workout" ? "active" : ""}" data-action="train-segment" data-value="workout">My Workout</button><button role="tab" aria-selected="${segment === "schedule"}" class="${segment === "schedule" ? "active" : ""}" data-action="train-segment" data-value="schedule">Schedule</button><button role="tab" aria-selected="${segment === "exercises"}" class="${segment === "exercises" ? "active" : ""}" data-action="train-segment" data-value="exercises">Exercises</button></div>`;
 }
 
 function workoutPlan({ state, plan, exerciseById }) {
@@ -34,6 +34,71 @@ function exerciseLibrary({ state, exercises, filters }) {
     <section class="library-hero"><div><span class="eyebrow">VISUAL EXERCISE LIBRARY</span><h1>Know the movement before the first rep.</h1><p>Original offline-ready diagrams, setup steps, cues, substitutions, and honest limits. These are educational guides—not form assessment.</p></div><span class="library-count"><b>${exercises.length}</b><small>matching</small></span></section>
     <section class="library-tools card"><label class="search-field">${icon("search")}<input id="exercise-search" type="search" maxlength="80" placeholder="Search exercise or alias" value="${escapeHtml(filters.query || "")}"><button data-action="clear-exercise-search" aria-label="Clear search">${icon("close")}</button></label><div class="filter-scroll" aria-label="Exercise filters"><button class="filter-chip ${!filters.muscle ? "active" : ""}" data-action="filter-exercises" data-field="muscle" data-value="">All muscles</button>${muscles.map(value => `<button class="filter-chip ${filters.muscle === value ? "active" : ""}" data-action="filter-exercises" data-field="muscle" data-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join("")}</div><div class="filter-scroll" aria-label="Equipment filters"><button class="filter-chip ${!filters.equipment ? "active" : ""}" data-action="filter-exercises" data-field="equipment" data-value="">Any equipment</button>${equipment.map(value => `<button class="filter-chip ${filters.equipment === value ? "active" : ""}" data-action="filter-exercises" data-field="equipment" data-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join("")}</div><label class="favorite-filter"><input type="checkbox" data-action="filter-favorites" ${filters.favorites ? "checked" : ""}> Favorites only</label></section>
     ${exercises.length ? `<section class="exercise-grid">${exercises.map(exercise => renderExerciseCard(exercise,state.exercisePreferences)).join("")}</section>` : emptyState("No exercises match", "Try removing a filter or using another exercise name.", "clear-exercise-filters", "Clear filters")}
+  </div>`;
+}
+
+function scheduleCard(slot) {
+  return `<article class="schedule-card">
+    <header><span class="schedule-day">${escapeHtml(slot.shortDayLabel)}</span><div><b>${escapeHtml(slot.label)}</b><small>${escapeHtml(slot.focus)}</small></div></header>
+    <div class="schedule-meta"><span>${icon("clock")}${slot.minutes} min</span><span>${icon("train")}${slot.exerciseCount} movements</span></div>
+    <p>${escapeHtml(slot.exerciseNames.join(" · "))}</p>
+    <div class="schedule-muscles">${slot.muscles.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div>
+    ${button({ label: `Start ${slot.label}`, action: "start-scheduled-workout", value: slot.id, variant: "primary", iconName: "play" })}
+  </article>`;
+}
+
+function progressionRow(row) {
+  const last = row.last
+    ? `${row.last.weight}${escapeHtml(row.last.unit)} × ${row.last.reps} · ${escapeHtml(formatDate(row.last.date))}`
+    : "No completed set yet";
+  const best = row.best
+    ? `${Math.round(row.best.volume).toLocaleString()} volume`
+    : "First proof pending";
+  const next = row.next.weight > 0
+    ? `${row.next.weight}${escapeHtml(row.next.unit)} × ${row.next.reps}`
+    : `${row.next.reps} clean reps`;
+  return `<article class="progression-row">
+    <div><small>${escapeHtml(row.muscles.join(" · ") || row.movementPattern)}</small><b>${escapeHtml(row.exerciseName)}</b><span>${escapeHtml(row.status)}</span></div>
+    <dl><div><dt>Last</dt><dd>${escapeHtml(last)}</dd></div><div><dt>Next</dt><dd>${escapeHtml(next)}</dd></div><div><dt>Best</dt><dd>${escapeHtml(best)}</dd></div></dl>
+    <p>${escapeHtml(row.evidence)}</p>
+  </article>`;
+}
+
+function routineCard(routine) {
+  const plan = routine.plan || {};
+  const savedAt = routine.savedAt ? formatDate(routine.savedAt) : "Saved locally";
+  const exercises = (plan.exercises || []).slice(0, 3).map(item => item.snapshot?.name || item.exerciseId).join(" · ");
+  return `<article class="routine-card">
+    <span>${icon("spark")}</span>
+    <div><b>${escapeHtml(routine.label || plan.label || "Saved workout")}</b><small>${escapeHtml(savedAt)} · ${plan.minutes || "—"} min</small><p>${escapeHtml(exercises || "No exercise snapshot")}</p></div>
+    <button class="icon-only" data-action="start-routine" data-value="${escapeHtml(routine.id)}" aria-label="Start saved routine">${icon("play")}</button>
+  </article>`;
+}
+
+function scheduleView({ state, workoutSchedule = [], progressionRows = [] }) {
+  const routines = state.workoutDrafts || [];
+  return `<div class="schedule-view">
+    <section class="schedule-hero teal-panel">
+      <span class="eyebrow">WORKOUTS BY DAY</span>
+      <h1>Plan the week, then just press start.</h1>
+      <p>Each day keeps its own session thread. The trainer can open the right workout, but confirmed plan changes still require your approval.</p>
+      <div class="schedule-week-strip">${workoutSchedule.map(slot => `<span><b>${escapeHtml(slot.shortDayLabel)}</b><small>${escapeHtml(slot.label.replace("Strength ","S").replace("Full-body ","FB "))}</small></span>`).join("")}</div>
+    </section>
+
+    <section class="schedule-plan-section">
+      <header class="section-heading"><div><span class="eyebrow">WORKOUT SCHEDULE</span><h2>Different days, different sessions</h2></div><span class="soft-badge">${workoutSchedule.length} days</span></header>
+      <div class="schedule-grid">${workoutSchedule.map(scheduleCard).join("")}</div>
+    </section>
+
+    <section class="progression-card card">
+      <header class="section-heading"><div><span class="eyebrow">PROGRESSION TRACKER</span><h2>What to beat next</h2></div><span class="soft-badge">Local proof only</span></header>
+      <div class="progression-list">${progressionRows.map(progressionRow).join("")}</div>
+    </section>
+
+    <section class="routine-library card">
+      <header class="section-heading"><div><span class="eyebrow">SAVED WORKOUTS</span><h2>Your routine library</h2></div>${button({ label: "Save current", action: "save-routine", variant: "quiet", iconName: "plus" })}</header>
+      ${routines.length ? `<div class="routine-list">${routines.map(routineCard).join("")}</div>` : emptyState("No saved routines yet", "Save the current workout, then it will appear here as a reusable local template.", "save-routine", "Save current workout")}
+    </section>
   </div>`;
 }
 
@@ -92,6 +157,8 @@ export function renderTrainScreen(context) {
   if (context.ui.exerciseDetailId) return `<div class="page train-page">${segmentControl("exercises")}${exerciseDetail({ state: context.state, exercise: context.exerciseById(context.ui.exerciseDetailId), motionPaused: context.ui.motionPaused, replacing: context.ui.replacementIndex != null })}</div>`;
   const content = context.ui.trainSegment === "exercises"
     ? exerciseLibrary({ state: context.state, exercises: context.filteredExercises, filters: context.ui.exerciseFilters })
-    : workoutPlan(context);
+    : context.ui.trainSegment === "schedule"
+      ? scheduleView(context)
+      : workoutPlan(context);
   return `<div class="page train-page">${segmentControl(context.ui.trainSegment)}${content}</div>`;
 }

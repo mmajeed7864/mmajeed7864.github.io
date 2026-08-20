@@ -689,7 +689,7 @@
 
   .segment-control {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: .35rem;
     padding: .25rem;
     border: 1px solid var(--border);
@@ -717,6 +717,165 @@
   .plan-exercise-copy { min-height: 52px; justify-content: start; text-align: left; color: var(--text); background: transparent; display: grid; gap: .1rem; }
   .plan-row-actions { display: flex; gap: .35rem; }
   .exercise-library-view, .train-workout-view, .active-workout-view { display: grid; gap: 1rem; }
+  .schedule-view { display: grid; gap: 1rem; }
+  .schedule-hero { display: grid; gap: .85rem; }
+  .schedule-hero h1 {
+    font-size: clamp(2rem, 8.6vw, 3.1rem);
+    letter-spacing: -.035em;
+  }
+  .schedule-week-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+    gap: .48rem;
+  }
+  .schedule-week-strip span {
+    min-height: 58px;
+    display: grid;
+    align-content: center;
+    gap: .14rem;
+    border-radius: 16px;
+    padding: .55rem .5rem;
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.16);
+    color: white;
+    text-align: center;
+  }
+  .schedule-week-strip small {
+    color: rgba(255,255,255,.74);
+    font-size: .7rem;
+    font-weight: 850;
+    letter-spacing: 0;
+  }
+  .schedule-plan-section {
+    display: grid;
+    gap: .72rem;
+  }
+  .schedule-grid {
+    display: grid;
+    gap: .75rem;
+  }
+  .schedule-card, .routine-card, .progression-row {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 92%, var(--bg-soft));
+    box-shadow: var(--shadow-sm);
+  }
+  .schedule-card {
+    display: grid;
+    gap: .7rem;
+    padding: .88rem;
+  }
+  .schedule-card header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .7rem;
+    align-items: center;
+  }
+  .schedule-card header div,
+  .routine-card div,
+  .progression-row > div {
+    display: grid;
+    gap: .14rem;
+    min-width: 0;
+  }
+  .schedule-card b, .routine-card b, .progression-row b {
+    font-size: 1.02rem;
+    letter-spacing: -.012em;
+  }
+  .schedule-day {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 15px;
+    background: var(--deep);
+    color: white;
+    font-size: .8rem;
+    font-weight: 950;
+  }
+  .schedule-meta {
+    display: flex;
+    gap: .55rem;
+    flex-wrap: wrap;
+  }
+  .schedule-meta span {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border-radius: 999px;
+    padding: .34rem .64rem;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: .82rem;
+    font-weight: 850;
+  }
+  .schedule-muscles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+  }
+  .schedule-muscles span {
+    border-radius: 999px;
+    padding: .34rem .62rem;
+    background: var(--mint-2);
+    color: var(--primary);
+    font-size: .78rem;
+    font-weight: 850;
+  }
+  .progression-card, .routine-library { display: grid; gap: .78rem; }
+  .progression-list, .routine-list { display: grid; gap: .65rem; }
+  .progression-row {
+    display: grid;
+    gap: .72rem;
+    padding: .82rem;
+  }
+  .progression-row dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .45rem;
+    margin: 0;
+  }
+  .progression-row dl div {
+    min-width: 0;
+    border-radius: 14px;
+    background: var(--surface-2);
+    padding: .55rem;
+  }
+  .progression-row dt {
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 950;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .progression-row dd {
+    margin: .1rem 0 0;
+    color: var(--text);
+    font-size: .82rem;
+    font-weight: 850;
+    line-height: 1.22;
+  }
+  .progression-row p {
+    color: var(--muted);
+    font-size: .84rem;
+  }
+  .routine-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: .72rem;
+    align-items: center;
+    padding: .75rem;
+  }
+  .routine-card > span {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: var(--mint-2);
+    color: var(--primary);
+  }
   .library-hero {
     display: flex;
     align-items: center;

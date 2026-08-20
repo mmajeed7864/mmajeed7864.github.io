@@ -14,6 +14,8 @@ import {
   adjustRestTimer,
   approvePlanProposal,
   buildPlan,
+  buildProgressionTracker,
+  buildWorkoutSchedule,
   completeWorkout,
   createPlanProposal,
   isValidCompletedSet,
@@ -166,7 +168,7 @@ function applyTheme(preference) {
 function routeTitle(route) {
   return {
     today: ["TODAY", "Your training day"],
-    train: ["TRAIN", ui.trainSegment === "exercises" ? "Exercise library" : "Your workout"],
+    train: ["TRAIN", ui.trainSegment === "exercises" ? "Exercise library" : ui.trainSegment === "schedule" ? "Workout schedule" : "Your workout"],
     coach: ["COACH", "Your trainer"],
     progress: ["PROGRESS", "Proof of the work"],
     profile: ["PROFILE", "Your FitCoach"],
@@ -219,6 +221,8 @@ function renderAppScreen() {
     state,
     decision,
     plan: state.activePlan,
+    workoutSchedule: buildWorkoutSchedule(state, EXERCISES),
+    progressionRows: buildProgressionTracker(state, EXERCISES),
     exerciseById: getExerciseById,
     filteredExercises: filteredLibrary(),
     founderName: FOUNDERS[ui.founder].name,
@@ -381,6 +385,33 @@ function startWorkout(planId) {
   render();
   window.scrollTo({ top: 0, behavior: "instant" });
   toast(`${plan.label} started. Every change is saved locally.`);
+}
+
+function startScheduledWorkout(slotId) {
+  if (state.activeWorkout) return resumeWorkout();
+  const slot = buildWorkoutSchedule(state, EXERCISES).find(item => item.id === slotId);
+  if (!slot) return toast("That scheduled workout is no longer available.");
+  state = store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(slot.plan); });
+  ui.route = "train";
+  ui.trainSegment = "workout";
+  ui.showActiveWorkout = true;
+  render();
+  window.scrollTo({ top: 0, behavior: "instant" });
+  toast(`${slot.label} started. This session stays linked to ${slot.dayLabel}.`);
+}
+
+function startSavedRoutine(routineId) {
+  if (state.activeWorkout) return resumeWorkout();
+  const routine = (state.workoutDrafts || []).find(item => item.id === routineId && item.plan?.exercises?.length);
+  if (!routine) return toast("That saved routine is no longer available.");
+  const plan = { ...deepClone(routine.plan), id: routine.plan.id || "saved-routine", label: routine.label || routine.plan.label || "Saved workout" };
+  state = store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
+  ui.route = "train";
+  ui.trainSegment = "workout";
+  ui.showActiveWorkout = true;
+  render();
+  window.scrollTo({ top: 0, behavior: "instant" });
+  toast(`${plan.label} started from your saved routines.`);
 }
 
 function resumeWorkout() {
@@ -653,7 +684,7 @@ const voiceController = createVoiceRoomController({
     if (result.status === "private_block") return { text: "", privateIntercepted: true, speak: false };
     if (result.status === "safety") return { text: result.reply, safetyIntercepted: true, speak: false };
     if (result.status !== "ready") throw Object.assign(new Error("Trainer reply unavailable"), { code: result.reason || "trainer_unavailable", userMessage: "Live trainer unavailable. Your transcript is retained locally for an explicit retry." });
-    return { text: result.reply, speak: state.settings.speakReplies && result.speakAllowed };
+    return { text: result.reply, speak: result.speakAllowed !== false };
   },
   onCommitTurn: turn => {
     const meta = voiceLastMetadata || {};
@@ -791,6 +822,8 @@ function handleClick(event) {
   if (action === "explain-decision") { openModal({type:"decision"});return; }
   if (action === "why-workout") { openModal({type:"why-workout"});return; }
   if (action === "start-workout") { startWorkout(value);return; }
+  if (action === "start-scheduled-workout") { startScheduledWorkout(value);return; }
+  if (action === "start-routine") { startSavedRoutine(value);return; }
   if (action === "resume-workout") { resumeWorkout();return; }
   if (action === "minimize-workout") { ui.showActiveWorkout=false;ui.route="today";render();return; }
   if (action === "toggle-set") { toggleSet(target);return; }

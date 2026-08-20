@@ -16,6 +16,8 @@ import {
 import {
   approvePlanProposal,
   buildPlan,
+  buildProgressionTracker,
+  buildWorkoutSchedule,
   completeWorkout,
   createPlanProposal,
   isValidCompletedSet,
@@ -319,6 +321,57 @@ test("duration budgets drive reported minutes, exercise count, and work sets", (
   assert.equal(minimum.minutes, 12);
   assert.equal(minimum.exercises.length, 2);
   assert.equal(totalWorkSets(minimum), 4);
+});
+
+test("workout schedule creates distinct day-linked workout plans", () => {
+  const state = createInitialState("mo", FIXED_NOW);
+  state.profile.preferredDays = [1, 3, 5];
+  state.profile.days = 3;
+  state.profile.duration = 30;
+  state.activePlan = buildPlan(state, testLibrary(), { planId: "A", minutes: 30 });
+
+  const schedule = buildWorkoutSchedule(state, testLibrary());
+  assert.equal(schedule.length, 3);
+  assert.deepEqual(schedule.map(slot => slot.shortDayLabel), ["Mon", "Wed", "Fri"]);
+  assert.deepEqual(schedule.map(slot => slot.label), ["Strength A", "Strength B", "Full-body C"]);
+  assert.equal(new Set(schedule.map(slot => slot.plan.versionId)).size, 3);
+  assert.notDeepEqual(
+    schedule[0].plan.exercises.map(item => item.exerciseId),
+    schedule[1].plan.exercises.map(item => item.exerciseId),
+  );
+  assert.equal(schedule[0].plan.scheduledDay, 1);
+});
+
+test("progression tracker uses completed workout proof and leaves unlogged moves honest", () => {
+  const state = createInitialState("mo", FIXED_NOW);
+  state.settings.units = "lb";
+  state.sessions = [{
+    id: "logged-strength-a",
+    date: "2026-08-19",
+    completedAt: "2026-08-19T14:00:00.000Z",
+    planId: "A",
+    planVersionId: "plan-old",
+    planLabel: "Plan A",
+    units: "lb",
+    exercises: [{
+      exerciseId: "goblet-squat",
+      snapshot: { id: "goblet-squat", name: "Goblet Squat", movementPattern: "squat", equipment: ["dumbbell"], primaryMuscles: ["quadriceps", "glutes"] },
+      target: { sets: 2, reps: 8, restSeconds: 120 },
+      units: "lb",
+      sets: [{ id: "set-proof", index: 1, kind: "work", weight: 25, reps: 8, rpe: 7, unit: "lb", done: true, completedAt: "2026-08-19T14:05:00.000Z" }],
+    }],
+  }];
+  state.activePlan = buildPlan(state, testLibrary(), { planId: "A", minutes: 30 });
+
+  const rows = buildProgressionTracker(state, testLibrary());
+  const squat = rows.find(row => row.exerciseId === "goblet-squat");
+  const unlogged = rows.find(row => row.exerciseId !== "goblet-squat");
+
+  assert.equal(squat.last.weight, 25);
+  assert.equal(squat.status, "Add load next time");
+  assert.equal(squat.next.weight, 30);
+  assert.equal(unlogged.status, "No log yet");
+  assert.match(unlogged.evidence, /Log this movement once/);
 });
 
 test("equipment compatibility beats preferences and exclusions remain hard", () => {
