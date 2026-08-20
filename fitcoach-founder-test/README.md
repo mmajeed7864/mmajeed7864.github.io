@@ -6,10 +6,10 @@ This directory contains historical prototypes plus the current v0.4 founder runt
 
 FitCoach v0.4.0 is the active runtime:
 
-- document shell: `index.html?v=0401`
-- stylesheet: `v040/styles.css?v=0401`
-- ES-module entry: `v040/app.js?v=0401`
-- service worker cache: `fitcoach-symbio-v0401`
+- document shell: `index.html?v=0403`
+- stylesheet: `v040/styles.css?v=0403`
+- ES-module entry: `v040/app.js?v=0403`
+- service worker cache: `fitcoach-symbio-v0403`
 - local storage envelope: `fitcoach-v040:<founder>`
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:

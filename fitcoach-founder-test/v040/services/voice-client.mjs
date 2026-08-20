@@ -52,11 +52,20 @@ export function createSpeechPayload({ text, sessionId, tone, voicePersona }) {
 }
 
 function validAudioResponse(response) {
-  if (!response?.ok) return false;
   const type = String(response.headers?.get?.("content-type") || "").toLowerCase();
   const length = Number(response.headers?.get?.("content-length") || 0);
   if (length > MAX_SPEECH_AUDIO_BYTES) return false;
   return !type || type.startsWith("audio/");
+}
+
+function voiceFallbackReason(response) {
+  if (!response) return "premium_voice_unavailable";
+  if (response.status === 429) return String(response.headers?.get?.("x-fitcoach-voice-limit") || "").includes("monthly")
+    ? "premium_voice_monthly_budget"
+    : "premium_voice_rate_limited";
+  if (response.status === 503) return "premium_voice_unavailable";
+  if (response.status >= 500) return "premium_voice_provider_error";
+  return "premium_voice_invalid_response";
 }
 
 /**
@@ -131,7 +140,12 @@ export function createPremiumVoiceClient({
       cleanupCloud();
       if (typeof deviceFallback !== "function") return finish("error", error);
       try {
-        onMetadata({ provider: "device", profile: normalizedPersona(voicePersona), fallbackUsed: true });
+        onMetadata({
+          provider: "device",
+          profile: normalizedPersona(voicePersona),
+          fallbackUsed: true,
+          fallbackReason: error?.fitcoachReason || error?.message || "premium_voice_unavailable",
+        });
         deviceHandle = deviceFallback({
           onEnd: () => finish("end"),
           onError: fallbackError => finish("error", fallbackError || error),
@@ -169,7 +183,11 @@ export function createPremiumVoiceClient({
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
-        if (!validAudioResponse(response)) throw new Error("PREMIUM_VOICE_RESPONSE_INVALID");
+        if (!response?.ok || !validAudioResponse(response)) {
+          const error = new Error(voiceFallbackReason(response));
+          error.fitcoachReason = error.message;
+          throw error;
+        }
         const blob = await response.blob();
         if (!blob?.size || blob.size > MAX_SPEECH_AUDIO_BYTES) throw new Error("PREMIUM_VOICE_RESPONSE_INVALID");
         if (cancelled) return;

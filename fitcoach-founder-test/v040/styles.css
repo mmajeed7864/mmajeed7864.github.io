@@ -268,6 +268,57 @@
   .status-dot.offline, .status-dot.error { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 16%, transparent); }
   .status-dot.unverified, .status-dot.fallback { background: var(--warning); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 16%, transparent); }
   .status-dot.busy { animation: pulse 1.1s ease-in-out infinite; }
+  .founder-switch button b,
+  .founder-switch button small,
+  .theme-picker button b,
+  .theme-picker button small,
+  .weekly-card header b,
+  .weekly-card header small,
+  .why-workout b,
+  .why-workout small,
+  .session-time b,
+  .session-time small,
+  .metric-grid article b,
+  .metric-grid article small,
+  .trainer-action-card b,
+  .trainer-action-card small,
+  .history-row b,
+  .history-row small,
+  .history-row strong,
+  .training-principles strong,
+  .training-principles small,
+  .library-count b,
+  .library-count small,
+  .active-workout-top b,
+  .active-workout-top small,
+  .active-exercise-copy b,
+  .active-exercise-copy small,
+  .set-logger header b,
+  .set-logger header small,
+  .workout-note label b,
+  .workout-note label small,
+  .active-tools b,
+  .active-tools small,
+  .next-exercise b,
+  .next-exercise small,
+  .preference-controls b,
+  .preference-controls small,
+  .connection-card b,
+  .connection-card small,
+  .receipt-box b,
+  .receipt-box small,
+  .proposal-diff b,
+  .proposal-diff small,
+  .evidence-grid b,
+  .evidence-grid small,
+  .completion-grid b,
+  .completion-grid small,
+  .trainer-memory b,
+  .trainer-memory small,
+  .coach-context b,
+  .coach-context small {
+    display: block;
+  }
   .soft-badge {
     display: inline-flex;
     align-items: center;
@@ -415,6 +466,12 @@
     gap: .75rem;
   }
   .founder-switch { grid-template-columns: 1fr 1fr; margin: 1rem 0; }
+  .gate-card .button-primary { width: 100%; }
+  .founder-disclosure {
+    display: block;
+    margin-top: .75rem;
+    line-height: 1.35;
+  }
   .founder-switch button, .option-card, .theme-picker button, .settings-list label, .boundary-list article {
     min-height: 64px;
     border: 1px solid var(--border);
@@ -454,7 +511,9 @@
   .option-card .selected-mark {
     margin-left: auto;
     flex: 0 0 auto;
+    opacity: 0;
   }
+  .option-card.active .selected-mark { opacity: 1; }
   .option-card.active, .theme-picker button.active, .founder-switch button.active {
     border-color: var(--primary);
     background: var(--mint-2);
@@ -1259,7 +1318,15 @@
     font-weight: 900;
     font-size: 1.5rem;
   }
-  .founder-chip { border-radius: 999px; padding: .35rem .65rem; background: rgba(255,255,255,.14); }
+  .profile-hero, .settings-card { min-width: 0; }
+  .founder-chip {
+    max-width: 100%;
+    border-radius: 999px;
+    padding: .35rem .65rem;
+    background: rgba(255,255,255,.14);
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
   .theme-picker { grid-template-columns: repeat(3, 1fr); }
   .settings-list label {
     grid-template-columns: 1fr auto;

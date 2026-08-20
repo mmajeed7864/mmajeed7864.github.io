@@ -93,6 +93,7 @@ test("provider or autoplay failure falls back to device speech exactly once", as
   let fallback = 0;
   let fallbackCallbacks;
   let ended = 0;
+  const metadata = [];
   const client = createPremiumVoiceClient({
     fetchImpl: async () => new Response(JSON.stringify({ ok: false }), { status: 503, headers: { "content-type": "application/json" } }),
     setTimer: () => 1,
@@ -110,12 +111,46 @@ test("provider or autoplay failure falls back to device speech exactly once", as
       return { cancel() {} };
     },
     onEnd: () => { ended += 1; },
+    onMetadata: value => metadata.push(value),
   });
   await tick();
 
   assert.equal(fallback, 1);
+  assert.deepEqual(metadata, [{
+    provider: "device",
+    profile: "atlas",
+    fallbackUsed: true,
+    fallbackReason: "premium_voice_unavailable",
+  }]);
   fallbackCallbacks.onEnd();
   assert.equal(ended, 1);
+});
+
+test("premium voice rate or budget limits are exposed before device fallback", async () => {
+  const metadata = [];
+  const client = createPremiumVoiceClient({
+    fetchImpl: async () => new Response(JSON.stringify({ ok: false }), {
+      status: 429,
+      headers: {
+        "content-type": "application/json",
+        "x-fitcoach-voice-limit": "monthly-char-budget",
+      },
+    }),
+    setTimer: () => 1,
+    clearTimer: () => {},
+  });
+
+  client.speak({
+    text: "Keep the text available.",
+    sessionId: "fitcoach-mo-voice-v040",
+    tone: "Strict",
+    voicePersona: "atlas",
+    deviceFallback: () => ({ cancel() {} }),
+    onMetadata: value => metadata.push(value),
+  });
+  await tick();
+
+  assert.equal(metadata[0].fallbackReason, "premium_voice_monthly_budget");
 });
 
 test("an autoplay rejection and late media error still start only one device fallback", async () => {

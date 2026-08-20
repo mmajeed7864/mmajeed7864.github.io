@@ -24,6 +24,8 @@ export function renderCoachScreen({ state, decision, ui, coachConnection }) {
   const voiceName = VOICE_LABELS[state.settings.voicePersona] || VOICE_LABELS.nova;
   const speechStatus = ui.voiceProvider === "elevenlabs"
     ? "ElevenLabs premium voice"
+    : ui.voiceProvider === "premium-limited"
+      ? "Premium voice limited · device active"
     : ui.voiceProvider === "device-fallback"
       ? "Device voice fallback"
       : "Premium voice ready";

@@ -576,7 +576,11 @@ function speakText(text, { messageId = null, onEnd = () => {}, onError = () => {
     onError: error => finish("error", error),
     onMetadata: metadata => {
       if (activeSpeechToken !== token) return;
-      ui.voiceProvider = metadata.provider === "elevenlabs" ? "elevenlabs" : "device-fallback";
+      ui.voiceProvider = metadata.provider === "elevenlabs"
+        ? "elevenlabs"
+        : /rate_limited|budget/u.test(String(metadata.fallbackReason || ""))
+          ? "premium-limited"
+          : "device-fallback";
       if (ui.route === "coach") render();
     },
   });
@@ -926,7 +930,7 @@ function bootstrap() {
     if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat();}
     trapDialogFocus(event);
   });
-  window.addEventListener("online",()=>{render();toast("Back online. Live Coach is available.");});
+  window.addEventListener("online",()=>{voiceController.setForeground(document.visibilityState==="visible");render();toast("Back online. Live Coach is available.");});
   window.addEventListener("offline",()=>{voiceController.setForeground(false);render();});
   document.addEventListener("visibilitychange",()=>voiceController.setForeground(document.visibilityState==="visible"));
   window.addEventListener("pagehide",()=>{voiceController.exit();stopSpeech({renderCoach:false});chatRequestController?.abort();});
