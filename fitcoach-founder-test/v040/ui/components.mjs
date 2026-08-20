@@ -22,6 +22,8 @@ const ICONS = Object.freeze({
   check: '<path d="m5 12 4 4L19 6"/>',
   volume: '<path d="M4 10v4h4l5 4V6L8 10zM17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+  camera: '<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  flame: '<path d="M12 3c1 3-3 4.5-3 8a3 3 0 0 0 6 0c0-1.4-.6-2.4-1.2-3.3C15.6 8.6 18 10.4 18 14a6 6 0 0 1-12 0c0-4.8 4.6-6.6 6-11z"/>',
 });
 
 export function icon(name, className = "") {

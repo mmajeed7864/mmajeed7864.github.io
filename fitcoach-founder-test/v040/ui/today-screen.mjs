@@ -1,7 +1,9 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
-import { escapeHtml } from "../core/utils.mjs";
+import { escapeHtml, localDateKey } from "../core/utils.mjs";
 import { readiness, sessionsThisWeek } from "../domain/decisions.mjs";
+import { dayTotals, draftCount, normalizeTargets } from "../domain/nutrition.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
+import { macroBar } from "./nutrition-screen.mjs";
 
 function weekStrip(state, now = new Date()) {
   const completed = new Set((state.sessions || []).map(session => new Date(session.completedAt || session.date).toLocaleDateString("en-CA")));
@@ -30,6 +32,20 @@ function quickControls(state) {
       <div class="control-block"><span>Session feel</span><div class="choice-row compact" role="group" aria-label="Session intensity">${["light", "standard", "push"].map(value => `<button class="choice-chip ${todayIntensity === value ? "active" : ""}" data-action="propose-plan" data-field="intensity" data-value="${value}">${escapeHtml(value)}</button>`).join("")}</div></div>
     </div>
     <div class="energy-scale"><span>Energy right now</span><div role="radiogroup" aria-label="Energy right now">${[[1,"Empty"],[2,"Low"],[3,"Ready"],[4,"Strong"],[5,"High"]].map(([value,label]) => `<button role="radio" aria-checked="${state.profile.energy === value}" class="energy-choice ${state.profile.energy === value ? "active" : ""}" data-action="set-energy" data-value="${value}"><b>${value}</b><small>${label}</small></button>`).join("")}</div><p>Energy changes today’s recommendation—not your worth.</p></div>
+  </section>`;
+}
+
+function nutritionCard(state, now = new Date()) {
+  const day = state.nutrition?.days?.[localDateKey(now)];
+  const totals = dayTotals(day);
+  const targets = normalizeTargets(state.nutrition?.targets);
+  const drafts = draftCount(day);
+  const remaining = targets.calories - totals.calories;
+  return `<section class="nutrition-today card" aria-label="Nutrition today">
+    <header class="section-heading"><div><span class="eyebrow">NUTRITION</span><h2>${totals.calories ? `${totals.calories.toLocaleString()} kcal confirmed` : "Nothing confirmed yet"}</h2></div><span class="soft-badge">${remaining >= 0 ? `${remaining.toLocaleString()} kcal left` : `${Math.abs(remaining).toLocaleString()} kcal over`}</span></header>
+    <div class="macro-bars">${macroBar("Protein", totals.protein, targets.protein)}${macroBar("Carbs", totals.carbs, targets.carbs)}${macroBar("Fat", totals.fat, targets.fat)}</div>
+    ${drafts ? `<p class="nutrition-draft-note">${drafts} draft estimate${drafts === 1 ? "" : "s"} waiting for review — drafts count zero.</p>` : ""}
+    <div class="session-actions">${button({ label: "Open diary", action: "open-nutrition", variant: "primary" })}${button({ label: "Scan food", action: "nutrition-open-capture", variant: "secondary", iconName: "camera" })}</div>
   </section>`;
 }
 
@@ -62,6 +78,8 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, founder
         <button class="why-workout" data-action="why-workout">${icon("info")}<span><b>Why this workout?</b><small>See the goal, constraints, and exact plan inputs</small></span>${icon("chevron")}</button>
       </div>
     </section>
+
+    ${nutritionCard(state, now)}
 
     ${quickControls(state)}
 

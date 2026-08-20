@@ -7,8 +7,27 @@ import {
   ROUTES,
 } from "./core/constants.mjs";
 import { createFitCoachStore } from "./core/store.mjs";
-import { deepClone, escapeHtml, safeNumber, uid } from "./core/utils.mjs";
+import { deepClone, escapeHtml, localDateKey, safeNumber, uid } from "./core/utils.mjs";
 import { computeDecision } from "./domain/decisions.mjs";
+import {
+  MEAL_SLOTS,
+  MEAL_SLOT_LABELS,
+  addEntryToDay,
+  applyFoodEdit,
+  applyPortionEdit,
+  confirmNutritionEntry,
+  copySlotFromDay,
+  createFoodEntry,
+  findEntry,
+  mealSlotForHour,
+  normalizeMultiplier,
+  normalizeTargets,
+  recordRecentFood,
+  removeEntry as removeNutritionEntry,
+  searchFoods,
+  toggleFavoriteFood,
+} from "./domain/nutrition.mjs";
+import { DEMO_MEALS, estimatePhotoMeal, estimateTextMeal } from "./domain/nutrition-estimator.mjs";
 import { deriveTrainerAction } from "./domain/trainer-actions.mjs";
 import {
   adjustRestTimer,
@@ -36,6 +55,7 @@ import { renderCoachScreen, renderVoiceRoom } from "./ui/coach-screen.mjs";
 import { icon } from "./ui/components.mjs";
 import { renderGate, renderOnboarding } from "./ui/onboarding.mjs";
 import { renderModal } from "./ui/modal.mjs";
+import { renderNutritionScreen } from "./ui/nutrition-screen.mjs";
 import { renderProfileScreen } from "./ui/profile-screen.mjs";
 import { renderProgressScreen } from "./ui/progress-screen.mjs";
 import { renderTodayScreen } from "./ui/today-screen.mjs";
@@ -74,6 +94,7 @@ const ui = {
   pendingMessage: "",
   chatDraft: "",
   chatNotice: null,
+  nutritionDate: null,
   speakingMessageId: null,
   voiceProvider: "premium-ready",
   lastFailedChatDraft: "",
@@ -90,6 +111,18 @@ let activeSpeechToken = null;
 let voiceLastMetadata = null;
 let restTicker = null;
 let voiceReturnFocus = null;
+// Photo previews live ONLY in this object URL — never in state or localStorage.
+let nutritionPreviewUrl = null;
+
+function releaseNutritionPreview() {
+  if (!nutritionPreviewUrl) return;
+  try { URL.revokeObjectURL(nutritionPreviewUrl); } catch {}
+  nutritionPreviewUrl = null;
+}
+
+function nutritionDateKey() {
+  return ui.nutritionDate || localDateKey(new Date());
+}
 
 const trainerClient = createTrainerClient();
 const premiumVoice = createPremiumVoiceClient();
@@ -172,6 +205,7 @@ function routeTitle(route) {
     coach: ["COACH", "Your trainer"],
     progress: ["PROGRESS", "Proof of the work"],
     profile: ["PROFILE", "Your FitCoach"],
+    nutrition: ["NUTRITION", "Confirmed-only diary"],
   }[route];
 }
 
@@ -236,6 +270,7 @@ function renderAppScreen() {
   if (ui.route === "coach") screen = renderCoachScreen(context);
   if (ui.route === "progress") screen = renderProgressScreen(context);
   if (ui.route === "profile") screen = renderProfileScreen(context);
+  if (ui.route === "nutrition") screen = renderNutritionScreen(context);
   dom.stage.innerHTML = `${ui.route === "train" && state.activeWorkout && ui.showActiveWorkout ? "" : renderHeader()}<main id="main-content" class="app-main">${screen}</main>`;
   dom.nav.hidden = false;
   dom.nav.querySelectorAll("[data-route]").forEach(button => {
@@ -269,7 +304,7 @@ function render() {
 }
 
 function renderModalRoot() {
-  dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById });
+  dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl });
   dom.modal.hidden = !ui.modal;
   document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || voiceController.getState().active);
   if (ui.modal) requestAnimationFrame(() => dom.modal.querySelector("button:not([disabled]),input,select,textarea")?.focus());
@@ -294,6 +329,7 @@ function openModal(modal) {
 }
 
 function closeModal() {
+  if (ui.modal && typeof ui.modal.type === "string" && ui.modal.type.startsWith("nutrition-")) releaseNutritionPreview();
   ui.modal = null;
   renderModalRoot();
   modalReturnFocus?.focus?.();
@@ -782,6 +818,134 @@ function exportData() {
   setTimeout(()=>URL.revokeObjectURL(link.href),500);
 }
 
+
+// ── Nutrition flows ─────────────────────────────────────────────────────────
+// The ONLY call to confirmNutritionEntry in this app lives in the
+// "nutrition-confirm-entry" click handler, which is rendered exclusively by the
+// draft review sheet. A camera/text draft therefore cannot become confirmed
+// without the founder pressing that button.
+
+function syncReviewEdits() {
+  const modal = ui.modal;
+  if (!modal || modal.type !== "nutrition-review") return;
+  const name = document.querySelector("#review-name")?.value;
+  const per = {
+    calories: document.querySelector("#review-kcal")?.value,
+    protein: document.querySelector("#review-protein")?.value,
+    carbs: document.querySelector("#review-carbs")?.value,
+    fat: document.querySelector("#review-fat")?.value,
+  };
+  if (name === undefined && per.calories === undefined) return;
+  state = store.update(draft => {
+    applyFoodEdit(draft.nutrition, modal.dateKey, modal.entryId, { name, per });
+  });
+}
+
+function openNutritionReview(dateKey, entryId) {
+  ui.route = "nutrition";
+  openModal({ type: "nutrition-review", dateKey, entryId });
+  render();
+}
+
+function createDraftFromEstimate(result, slot, { photoFile = null } = {}) {
+  releaseNutritionPreview();
+  if (photoFile) {
+    try { nutritionPreviewUrl = URL.createObjectURL(photoFile); } catch { nutritionPreviewUrl = null; }
+  }
+  const dateKey = nutritionDateKey();
+  let entryId = null;
+  state = store.update(draft => {
+    const entry = createFoodEntry({
+      slot,
+      source: photoFile ? "photo_estimate" : "text_estimate",
+      food: result.food,
+      multiplier: 1,
+      estimate: result.estimate,
+      photo: result.photo,
+    });
+    if (entry && addEntryToDay(draft.nutrition, dateKey, entry)) entryId = entry.id;
+  });
+  if (!entryId) {
+    releaseNutritionPreview();
+    toast("Could not create a draft estimate.");
+    return null;
+  }
+  openNutritionReview(dateKey, entryId);
+  return entryId;
+}
+
+function shiftNutritionDay(direction) {
+  const current = new Date(`${nutritionDateKey()}T12:00:00`);
+  current.setDate(current.getDate() + direction);
+  const key = localDateKey(current);
+  const todayKey = localDateKey(new Date());
+  ui.nutritionDate = key >= todayKey ? null : key;
+  render();
+}
+
+function addSelectedFood() {
+  const modal = ui.modal;
+  const selected = modal?.selected;
+  const slot = MEAL_SLOTS.includes(modal?.slot) ? modal.slot : null;
+  if (!selected || !slot) return toast("Choose a meal slot first.");
+  const source = selected.origin === "favorite" ? "favorite" : selected.origin === "recent" ? "recent" : "manual";
+  const dateKey = nutritionDateKey();
+  let added = false;
+  state = store.update(draft => {
+    const entry = createFoodEntry({ slot, source, food: selected, multiplier: modal.multiplier || 1 });
+    if (entry && addEntryToDay(draft.nutrition, dateKey, entry)) {
+      recordRecentFood(draft.nutrition, entry);
+      added = true;
+    }
+  });
+  closeModal();
+  render();
+  toast(added ? `Added to ${MEAL_SLOT_LABELS[slot].toLowerCase()}.` : "That entry could not be added.");
+}
+
+function addCustomFood() {
+  const modal = ui.modal;
+  const slot = MEAL_SLOTS.includes(modal?.slot) ? modal.slot : null;
+  if (!slot) return toast("Choose a meal slot first.");
+  const name = document.querySelector("#custom-name")?.value?.trim();
+  const kcal = document.querySelector("#custom-kcal")?.value;
+  if (!name || kcal === "" || kcal === undefined) return toast("A name and calories per serving are required.");
+  const food = {
+    name,
+    servingLabel: document.querySelector("#custom-serving")?.value?.trim() || "1 serving",
+    per: {
+      calories: kcal,
+      protein: document.querySelector("#custom-protein")?.value || 0,
+      carbs: document.querySelector("#custom-carbs")?.value || 0,
+      fat: document.querySelector("#custom-fat")?.value || 0,
+    },
+  };
+  const dateKey = nutritionDateKey();
+  let added = false;
+  state = store.update(draft => {
+    const entry = createFoodEntry({ slot, source: "manual", food, multiplier: 1 });
+    if (entry && addEntryToDay(draft.nutrition, dateKey, entry)) {
+      recordRecentFood(draft.nutrition, entry);
+      added = true;
+    }
+  });
+  if (!added) return toast("Check the custom food values — they did not validate.");
+  closeModal();
+  render();
+  toast(`Added to ${MEAL_SLOT_LABELS[slot].toLowerCase()}.`);
+}
+
+function handleNutritionPhoto(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const context = document.querySelector("#nutrition-context")?.value || ui.modal?.context || "";
+  const slot = MEAL_SLOTS.includes(ui.modal?.slot) ? ui.modal.slot : mealSlotForHour(new Date().getHours());
+  // Deterministic founder-demo estimate: file CONTENT is never read or stored.
+  const result = estimatePhotoMeal({ photoName: file.name, photoSize: file.size, context, now: new Date() });
+  input.value = "";
+  createDraftFromEstimate(result, slot, { photoFile: file });
+}
+
 function handleClick(event) {
   const target = event.target.closest("[data-action]");
   if (!target) return;
@@ -875,6 +1039,14 @@ function handleClick(event) {
     else if (kind === "propose_minutes") proposePlan("minutes",Number(value));
     else if (kind === "open_progress") navigate("progress");
     else if (kind === "open_voice") openVoiceRoom();
+    else if (kind === "open_nutrition") { closeModal(); navigate("nutrition"); }
+    else if (kind === "nutrition_draft") {
+      // Coach hook: drafts ONLY. The review sheet + explicit user confirm
+      // remain the sole path into the day's totals.
+      ui.nutritionDate = null;
+      const estimate = estimateTextMeal(value, new Date());
+      createDraftFromEstimate(estimate, estimate.suggestedSlot);
+    }
     return;
   }
   if (action === "restore-chat-draft") { ui.chatDraft=ui.lastFailedChatDraft;ui.chatNotice=null;render();requestAnimationFrame(()=>document.querySelector("#coach-input")?.focus());return; }
@@ -904,6 +1076,7 @@ function handleClick(event) {
 function handleChange(event) {
   const target=event.target;
   const action=target.dataset.action;
+  if (action === "nutrition-photo") { handleNutritionPhoto(target); return; }
   if (action === "onboarding-profile-field") {
     if (target.dataset.field === "tone") applyOnboardingTone(target.value);
     else ui.onboardingDraft.profile[target.dataset.field]=target.value;
@@ -928,6 +1101,8 @@ function handleInput(event) {
   if (target.dataset.action === "set-field") updateSetField(target);
   if (target.id === "workout-notes") state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
   if (target.id === "coach-input") ui.chatDraft=target.value;
+  if (target.id === "nutrition-search" && ui.modal) { ui.modal.query=target.value; renderModalRoot(); requestAnimationFrame(()=>{const input=document.querySelector("#nutrition-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
+  if (target.id === "nutrition-context" && ui.modal) ui.modal.context=target.value;
 }
 
 function trapDialogFocus(event) {

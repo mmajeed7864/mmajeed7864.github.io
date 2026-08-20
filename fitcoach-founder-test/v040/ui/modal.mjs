@@ -1,6 +1,7 @@
 import { escapeHtml } from "../core/utils.mjs";
 import { isValidCompletedSet } from "../domain/workouts.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
+import { renderNutritionModalContent } from "./nutrition-screen.mjs";
 
 function shell(title, body, actions = "", { eyebrow = "FITCOACH", wide = false } = {}) {
   return `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-sheet ${wide ? "wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close icon-only" data-action="close-modal" aria-label="Close dialog">${icon("close")}</button><span class="eyebrow">${escapeHtml(eyebrow)}</span><h2 id="modal-title">${escapeHtml(title)}</h2>${body}<footer>${actions}</footer></section>`;
@@ -29,6 +30,11 @@ const TUTORIAL_STEPS = Object.freeze([
 
 export function renderModal(modal, context) {
   if (!modal) return "";
+  if (typeof modal.type === "string" && modal.type.startsWith("nutrition-")) {
+    const content = renderNutritionModalContent(modal, context);
+    if (!content) return "";
+    return shell(content.title, content.body, content.actions, { eyebrow: content.eyebrow });
+  }
   if (modal.type === "proposal") {
     const proposal = context.state.pendingPlanProposal;
     if (!proposal) return "";

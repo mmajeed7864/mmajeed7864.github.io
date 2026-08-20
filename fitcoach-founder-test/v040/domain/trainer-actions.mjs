@@ -1,4 +1,5 @@
 import { normalizeTrainerMessage } from "../services/trainer-client.mjs";
+import { projectNutritionForCoach } from "./nutrition.mjs";
 
 export const TRAINER_ACTION_KINDS = Object.freeze([
   "open_exercise",
@@ -6,6 +7,8 @@ export const TRAINER_ACTION_KINDS = Object.freeze([
   "propose_minutes",
   "open_progress",
   "open_voice",
+  "open_nutrition",
+  "nutrition_draft",
 ]);
 
 const INTENT = Object.freeze({
@@ -14,6 +17,9 @@ const INTENT = Object.freeze({
   duration: /\b(?:shorter|quick(?:er)?|only\s+have|fit\s+into|make\s+(?:it|today|the\s+workout))\b/i,
   progress: /\b(?:progress|history|personal\s+best|prs?|volume|consistency|completed\s+workouts?)\b/i,
   voice: /\b(?:voice\s+(?:room|mode|coach|trainer)|talk\s+to\s+(?:you|my\s+trainer)|speak\s+(?:with|to)|start\s+voice)\b/i,
+  nutritionDraft: /(?:\b(?:log|record|track)\b[\s\S]{0,60}\b(?:food|meal|breakfast|lunch|dinner|snack|calories?|protein|ate)\b|\bi\s+(?:just\s+)?(?:ate|had)\s+\S|\blog\s+this\s+as\s+a\s+draft\b)/i,
+  proteinGap: /\bprotein\s+gap\b|\b(?:enough|how\s+much)\s+protein\b/i,
+  nutrition: /\b(?:nutrition|calorie?s?|macros?|food\s+(?:log|diary)|diet\s+diary|what\s+should\s+i\s+eat)\b/i,
 });
 
 function searchableExerciseNames(exercise) {
@@ -58,6 +64,37 @@ export function deriveTrainerAction({ state, message, exercises }) {
       value: String(minutes),
       label: `Review ${minutes}-minute option`,
       detail: "Creates a deterministic candidate; your current plan stays active",
+    });
+  }
+
+  // Nutrition hooks are DRAFT/OPEN only. There is deliberately no trainer
+  // action kind that confirms a food entry — confirmation is a user-only act.
+  if (INTENT.nutritionDraft.test(normalized)) {
+    return Object.freeze({
+      kind: "nutrition_draft",
+      value: normalized.slice(0, 96),
+      label: "Draft this meal in Nutrition",
+      detail: "Creates an unconfirmed demo estimate — you review, edit, and confirm before it counts",
+    });
+  }
+
+  if (INTENT.proteinGap.test(normalized)) {
+    const projection = projectNutritionForCoach(state);
+    return Object.freeze({
+      kind: "open_nutrition",
+      value: "nutrition",
+      label: "Show protein gap",
+      detail: `${projection.proteinGrams} g confirmed today · ${projection.proteinGapGrams} g below your ${projection.proteinTarget} g target`,
+    });
+  }
+
+  if (INTENT.nutrition.test(normalized)) {
+    const projection = projectNutritionForCoach(state);
+    return Object.freeze({
+      kind: "open_nutrition",
+      value: "nutrition",
+      label: "Open today’s nutrition",
+      detail: `${projection.confirmedCalories} kcal confirmed · drafts count zero until you review them`,
     });
   }
 
