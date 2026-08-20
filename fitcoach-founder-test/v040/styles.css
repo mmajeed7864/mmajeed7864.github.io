@@ -345,9 +345,9 @@
     transform: translateX(-50%);
     width: min(100%, 520px);
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: .2rem;
-    padding: .55rem .65rem calc(.55rem + var(--safe-bottom));
+    grid-template-columns: repeat(6, 1fr);
+    gap: .12rem;
+    padding: .5rem .45rem calc(.5rem + var(--safe-bottom));
     background: color-mix(in srgb, var(--surface) 88%, transparent);
     backdrop-filter: blur(18px);
     border-top: 1px solid var(--border);
@@ -360,13 +360,14 @@
     display: grid;
     place-items: center;
     gap: .12rem;
-    font-size: .72rem;
+    font-size: .66rem;
+    font-weight: 750;
   }
   .bottom-nav button.active {
     color: var(--action);
     background: color-mix(in srgb, var(--action) 10%, transparent);
   }
-  .bottom-nav svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .bottom-nav svg { width: 1.22rem; height: 1.22rem; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .coach-nav i {
     width: 1.5rem;
     height: 1.5rem;

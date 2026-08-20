@@ -1,13 +1,13 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0405";
+const CACHE = "fitcoach-symbio-v0406";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0405",
-  "./manifest.webmanifest?v=0405",
-  "./assets/icon-symbio.svg?v=0405",
-  "./v040/styles.css?v=0405",
-  "./v040/app.js?v=0405",
+  "./index.html?v=0406",
+  "./manifest.webmanifest?v=0406",
+  "./assets/icon-symbio.svg?v=0406",
+  "./v040/styles.css?v=0406",
+  "./v040/app.js?v=0406",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -38,22 +38,22 @@ const MODULE_ASSETS = Object.freeze([
 ]);
 
 const EXERCISE_ASSETS = Object.freeze([
-  "./v040/assets/exercises/air-squat-premium-v1.png?v=0405",
-  "./v040/assets/exercises/band-lat-pulldown-premium-v1.png?v=0405",
-  "./v040/assets/exercises/band-row-premium-v1.png?v=0405",
-  "./v040/assets/exercises/dead-bug-premium-v1.png?v=0405",
-  "./v040/assets/exercises/dumbbell-curl-premium-v1.png?v=0405",
-  "./v040/assets/exercises/dumbbell-floor-press-premium-v1.png?v=0405",
-  "./v040/assets/exercises/glute-bridge-premium-v1.png?v=0405",
-  "./v040/assets/exercises/goblet-squat-premium-v1.png?v=0405",
-  "./v040/assets/exercises/half-kneeling-press-premium-v1.png?v=0405",
-  "./v040/assets/exercises/hip-hinge-premium-v1.png?v=0405",
-  "./v040/assets/exercises/incline-push-up-premium-v1.png?v=0405",
-  "./v040/assets/exercises/lateral-raise-premium-v1.png?v=0405",
-  "./v040/assets/exercises/marching-jacks-premium-v1.png?v=0405",
-  "./v040/assets/exercises/one-arm-dumbbell-row-premium-v1.png?v=0405",
-  "./v040/assets/exercises/overhead-triceps-extension-premium-v1.png?v=0405",
-  "./v040/assets/exercises/reverse-lunge-premium-v1.png?v=0405",
+  "./v040/assets/exercises/air-squat-premium-v1.png?v=0406",
+  "./v040/assets/exercises/band-lat-pulldown-premium-v1.png?v=0406",
+  "./v040/assets/exercises/band-row-premium-v1.png?v=0406",
+  "./v040/assets/exercises/dead-bug-premium-v1.png?v=0406",
+  "./v040/assets/exercises/dumbbell-curl-premium-v1.png?v=0406",
+  "./v040/assets/exercises/dumbbell-floor-press-premium-v1.png?v=0406",
+  "./v040/assets/exercises/glute-bridge-premium-v1.png?v=0406",
+  "./v040/assets/exercises/goblet-squat-premium-v1.png?v=0406",
+  "./v040/assets/exercises/half-kneeling-press-premium-v1.png?v=0406",
+  "./v040/assets/exercises/hip-hinge-premium-v1.png?v=0406",
+  "./v040/assets/exercises/incline-push-up-premium-v1.png?v=0406",
+  "./v040/assets/exercises/lateral-raise-premium-v1.png?v=0406",
+  "./v040/assets/exercises/marching-jacks-premium-v1.png?v=0406",
+  "./v040/assets/exercises/one-arm-dumbbell-row-premium-v1.png?v=0406",
+  "./v040/assets/exercises/overhead-triceps-extension-premium-v1.png?v=0406",
+  "./v040/assets/exercises/reverse-lunge-premium-v1.png?v=0406",
 ]);
 
 const PRECACHE_ASSETS = Object.freeze([
@@ -106,12 +106,12 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0405")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0406")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0405";
+  const versioned = url.searchParams.get("v") === "0406";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   if (versioned || moduleAsset || exerciseAsset) {

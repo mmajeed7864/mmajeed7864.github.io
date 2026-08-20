@@ -340,10 +340,13 @@ test("review, capture, add, and targets sheets render with honest founder-demo l
 test("today and progress screens expose the nutrition route entry points", () => {
   const todaySource = readFileSync(new URL("../v040/ui/today-screen.mjs", import.meta.url), "utf8");
   const progressSource = readFileSync(new URL("../v040/ui/progress-screen.mjs", import.meta.url), "utf8");
+  const indexSource = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.match(todaySource, /nutritionCard\(state, now\)/u, "Today renders the nutrition card");
   assert.match(todaySource, /open-nutrition/u);
   assert.match(progressSource, /nutritionTrendCard\(state, now\)/u, "Progress renders the confirmed-only trend card");
   assert.match(progressSource, /Confirmed only/u);
+  assert.match(indexSource, /data-route="nutrition"/u, "Nutrition must be directly visible in bottom navigation");
+  assert.match(indexSource, />Food<\/span>/u, "Food tab label must be short enough for mobile");
 });
 
 // ── Supporting invariants ──────────────────────────────────────────────────
