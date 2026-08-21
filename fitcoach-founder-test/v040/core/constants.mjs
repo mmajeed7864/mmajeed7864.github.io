@@ -33,6 +33,7 @@ export const ACTIONS = [
 ];
 export const TRAINER_API = "https://symbioai.dev/api/fitcoach-chat-v3";
 export const SPEECH_API = "https://symbioai.dev/api/fitcoach-speech-v2";
+export const NUTRITION_API = "https://symbioai.dev/api/fitcoach-nutrition-v1";
 
 export const MODEL_MODES = Object.freeze({
   fast: { label: "Quick", detail: "Short answer, same safety rules" },

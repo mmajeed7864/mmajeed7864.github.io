@@ -23,6 +23,7 @@ const MODULE_ASSETS = Object.freeze([
   "./v040/domain/nutrition.mjs",
   "./v040/domain/trainer-actions.mjs",
   "./v040/domain/workouts.mjs",
+  "./v040/services/nutrition-client.mjs",
   "./v040/services/trainer-client.mjs",
   "./v040/services/voice-client.mjs",
   "./v040/ui/coach-screen.mjs",

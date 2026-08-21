@@ -47,6 +47,7 @@ import {
   getExerciseById,
 } from "./data/exercise-library.mjs";
 import { createTrainerClient, isPrivateTrainerInput } from "./services/trainer-client.mjs";
+import { createNutritionClient, normalizeBarcode } from "./services/nutrition-client.mjs";
 import { createPremiumVoiceClient } from "./services/voice-client.mjs";
 import { renderCoachScreen, renderVoiceRoom } from "./ui/coach-screen.mjs";
 import { icon } from "./ui/components.mjs";
@@ -129,6 +130,7 @@ function nutritionDateKey() {
 }
 
 const trainerClient = createTrainerClient();
+const nutritionClient = createNutritionClient();
 const SILENT_AUDIO_URI = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 const sharedPremiumAudio = typeof Audio === "function" ? new Audio() : null;
 if (sharedPremiumAudio) {
@@ -912,7 +914,7 @@ function addSelectedFood() {
   const selected = modal?.selected;
   const slot = MEAL_SLOTS.includes(modal?.slot) ? modal.slot : null;
   if (!selected || !slot) return toast("Choose a meal slot first.");
-  const source = selected.origin === "favorite" ? "favorite" : selected.origin === "recent" ? "recent" : "manual";
+  const source = selected.origin === "favorite" ? "favorite" : selected.origin === "recent" ? "recent" : selected.origin === "barcode" ? "barcode" : "manual";
   const dateKey = nutritionDateKey();
   let added = false;
   state = store.update(draft => {
@@ -925,6 +927,45 @@ function addSelectedFood() {
   closeModal();
   render();
   toast(added ? `Added to ${MEAL_SLOT_LABELS[slot].toLowerCase()}.` : "That entry could not be added.");
+}
+
+async function lookupBarcodeFood() {
+  const modal = ui.modal;
+  if (!modal || modal.type !== "nutrition-add") return;
+  const barcode = normalizeBarcode(document.querySelector("#nutrition-barcode")?.value || modal.barcode || "");
+  if (!barcode) {
+    ui.modal = { ...modal, lookupError: "Enter 6–18 barcode digits." };
+    renderModalRoot();
+    return;
+  }
+
+  ui.modal = { ...modal, barcode, lookupBusy: true, lookupError: "" };
+  renderModalRoot();
+  const result = await nutritionClient.lookupBarcode({
+    sessionId: `fitcoach-${ui.founder}-nutrition-v040`,
+    barcode,
+  });
+  if (!ui.modal || ui.modal.type !== "nutrition-add") return;
+  if (result.status !== "ready") {
+    ui.modal = {
+      ...ui.modal,
+      lookupBusy: false,
+      lookupError: result.reason === "FOOD_NOT_FOUND"
+        ? "No verified product found for that barcode. You can still add it manually."
+        : "Barcode lookup is unavailable right now. Try manual add.",
+    };
+    renderModalRoot();
+    return;
+  }
+  ui.modal = {
+    ...ui.modal,
+    lookupBusy: false,
+    lookupError: "",
+    selected: result.food,
+    multiplier: 1,
+  };
+  renderModalRoot();
+  toast("Verified label data loaded. Review the portion before adding it.");
 }
 
 function addCustomFood() {
@@ -1116,6 +1157,7 @@ function handleClick(event) {
   if (action === "nutrition-pick-food") { const results = searchFoods(state.nutrition, ui.modal?.query || ""); const item = results[Number(value)]; if (item && ui.modal) { ui.modal.selected = { name: item.name, servingLabel: item.servingLabel, per: { ...item.per }, origin: item.origin }; ui.modal.multiplier = normalizeMultiplier(item.multiplier || 1); renderModalRoot(); } return; }
   if (action === "nutrition-add-back") { if (ui.modal) { ui.modal.selected = null; renderModalRoot(); } return; }
   if (action === "nutrition-add-portion") { if (ui.modal) { ui.modal.multiplier = normalizeMultiplier((ui.modal.multiplier || 1) + Number(value)); renderModalRoot(); } return; }
+  if (action === "nutrition-barcode-search") { lookupBarcodeFood(); return; }
   if (action === "nutrition-add-confirm") { addSelectedFood(); return; }
   if (action === "nutrition-add-custom") { addCustomFood(); return; }
   if (action === "nutrition-copy-yesterday") { const dateKey = nutritionDateKey(); const from = new Date(`${dateKey}T12:00:00`); from.setDate(from.getDate() - 1); let copied = 0; state = store.update(draft => { copied = copySlotFromDay(draft.nutrition, localDateKey(from), dateKey, value); }); render(); toast(copied ? `Copied ${copied} confirmed item${copied === 1 ? "" : "s"} from yesterday.` : "Nothing confirmed yesterday to copy."); return; }
@@ -1165,6 +1207,7 @@ function handleInput(event) {
   if (target.id === "workout-notes") state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
   if (target.id === "coach-input") ui.chatDraft=target.value;
   if (target.id === "nutrition-search" && ui.modal) { ui.modal.query=target.value; renderModalRoot(); requestAnimationFrame(()=>{const input=document.querySelector("#nutrition-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
+  if (target.id === "nutrition-barcode" && ui.modal) ui.modal.barcode=target.value;
   if (target.id === "nutrition-context" && ui.modal) ui.modal.context=target.value;
 }
 
