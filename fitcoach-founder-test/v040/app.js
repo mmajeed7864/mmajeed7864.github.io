@@ -53,7 +53,7 @@ import { createTrainerClient, isPrivateTrainerInput } from "./services/trainer-c
 import { createPremiumVoiceClient } from "./services/voice-client.mjs";
 import { renderCoachScreen, renderVoiceRoom } from "./ui/coach-screen.mjs";
 import { icon } from "./ui/components.mjs";
-import { renderGate, renderOnboarding } from "./ui/onboarding.mjs";
+import { ONBOARDING_STEP_COUNT, renderGate, renderOnboarding } from "./ui/onboarding.mjs";
 import { renderModal } from "./ui/modal.mjs";
 import { renderNutritionScreen } from "./ui/nutrition-screen.mjs";
 import { renderProfileScreen } from "./ui/profile-screen.mjs";
@@ -993,7 +993,7 @@ function handleClick(event) {
   if (action === "onboarding-consent") { ui.onboardingDraft.consent=target.checked; render(); return; }
   if (action === "onboarding-back") { ui.onboardingStep=Math.max(0,ui.onboardingStep-1); render(); return; }
   if (action === "onboarding-next") {
-    if (ui.onboardingStep<3) { ui.onboardingStep+=1; render(); return; }
+    if (ui.onboardingStep < ONBOARDING_STEP_COUNT - 1) { ui.onboardingStep+=1; render(); return; }
     if (!ui.onboardingDraft.consent) return;
     state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile}},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
     applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();maybeOpenTutorial();render();return;

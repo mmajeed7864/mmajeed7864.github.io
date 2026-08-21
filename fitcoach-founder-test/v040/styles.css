@@ -605,7 +605,7 @@
   }
   .onboarding-progress.segmented {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(13, minmax(0, 1fr));
     height: .34rem;
     gap: .28rem;
     background: transparent;
@@ -622,6 +622,58 @@
   .trainer-interview {
     align-content: end;
     min-height: min(68dvh, 620px);
+  }
+  .single-question {
+    width: min(100%, 42rem);
+    margin-inline: auto;
+  }
+  .single-question > h1 {
+    max-width: 15ch;
+    text-wrap: balance;
+  }
+  .single-question > p {
+    max-width: 42rem;
+    line-height: 1.55;
+  }
+  .single-question-answer {
+    display: grid;
+    gap: .8rem;
+    width: 100%;
+  }
+  .single-answer {
+    width: min(100%, 36rem);
+    margin-left: auto;
+  }
+  .single-answer select {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding-inline: 1rem 2.5rem;
+    font-size: 1rem;
+  }
+  .single-answer > span {
+    display: grid;
+    gap: .18rem;
+    line-height: 1.35;
+  }
+  .single-answer > span > b,
+  .single-answer > span:first-child {
+    color: var(--text);
+  }
+  .single-answer > small {
+    line-height: 1.4;
+  }
+  .single-answer.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .single-answer.toggle-row input {
+    flex: 0 0 auto;
   }
   .trainer-interview-row {
     display: grid;
