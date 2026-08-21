@@ -32,6 +32,11 @@ import {
   estimatePhotoMeal,
   estimateTextMeal,
 } from "../v040/domain/nutrition-estimator.mjs";
+import {
+  createNutritionLookupPayload,
+  normalizeBarcode,
+  normalizeRemoteFood,
+} from "../v040/services/nutrition-client.mjs";
 import { deriveTrainerAction, isTrainerAction, TRAINER_ACTION_KINDS } from "../v040/domain/trainer-actions.mjs";
 import { createTrainerPayload } from "../v040/services/trainer-client.mjs";
 import { renderNutritionModalContent, renderNutritionScreen } from "../v040/ui/nutrition-screen.mjs";
@@ -242,6 +247,48 @@ test("app source: photos are preview-only object URLs, never read or encoded", (
   assert.doesNotMatch(appSource, /FileReader|readAsDataURL|readAsArrayBuffer|canvas/iu, "app shell must not read image bytes");
   assert.match(appSource, /URL\.createObjectURL/u, "preview uses a session object URL");
   assert.match(appSource, /revokeObjectURL/u, "preview object URL must be revocable");
+});
+
+test("barcode lookup payload is bounded and never includes profile or nutrition free text", () => {
+  assert.equal(normalizeBarcode("0 12345-678901 2"), "0123456789012");
+  assert.equal(normalizeBarcode("abc"), "");
+  const payload = createNutritionLookupPayload({
+    action: "barcode_lookup",
+    sessionId: "fitcoach-mo-nutrition-v040",
+    barcode: "0123456789012",
+  });
+  assert.deepEqual(payload, {
+    action: "barcode_lookup",
+    data_classification: "synthetic_low_sensitivity",
+    session_id: "fitcoach-mo-nutrition-v040",
+    barcode: "0123456789012",
+  });
+  assert.doesNotMatch(JSON.stringify(payload), /profile|medication|condition|Grandma/i);
+});
+
+test("remote barcode food can be confirmed as a barcode source with portion edits", () => {
+  const food = normalizeRemoteFood({
+    name: "Greek Yogurt",
+    brand: "Example Dairy",
+    barcode: "0123456789012",
+    servingLabel: "170 g",
+    confidence: "high",
+    source: "open_food_facts",
+    per: { calories: 150, protein: 17, carbs: 9, fat: 4, sodium: 80 },
+  });
+  assert.equal(food.origin, "barcode");
+  const entry = createFoodEntry({ slot: "breakfast", source: "barcode", food, multiplier: 2, now: FIXED_NOW });
+  assert.equal(entry.status, "confirmed");
+  assert.equal(entry.source, "barcode");
+  assert.equal(entry.nutrients.calories, 300);
+  assert.equal(entry.nutrients.protein, 34);
+});
+
+test("add-food sheet exposes verified barcode lookup separately from demo search", () => {
+  const content = renderNutritionModalContent({ type: "nutrition-add", slot: "breakfast", query: "" }, { state: createInitialState("mo", FIXED_NOW) });
+  assert.match(content.body, /id="nutrition-barcode"/);
+  assert.match(content.body, /data-action="nutrition-barcode-search"/);
+  assert.match(content.body, /Uses verified product data/u);
 });
 
 // ── 7. Private/safety text never reaches the provider projection ───────────

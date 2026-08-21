@@ -174,6 +174,7 @@ function addSheet(modal, context) {
         <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
         <div class="portion-stepper" role="group" aria-label="Portion size"><span>Portion</span><button class="icon-only" data-action="nutrition-add-portion" data-value="-0.25" aria-label="Smaller portion">−</button><b>${fmtMultiplier(multiplier)} ×</b><button class="icon-only" data-action="nutrition-add-portion" data-value="0.25" aria-label="Larger portion">+</button><small>${escapeHtml(selected.servingLabel)}</small></div>
         <p class="counted-preview">Adds <b>${preview.toLocaleString()} kcal</b> · ${Math.round(selected.per.protein * multiplier)} P / ${Math.round(selected.per.carbs * multiplier)} C / ${Math.round(selected.per.fat * multiplier)} F</p>
+        ${selected.origin === "barcode" ? `<div class="receipt-box">${icon("barcode")}<p><b>${escapeHtml(selected.confidence || "medium")} confidence label data</b><small>${escapeHtml(selected.brand ? `${selected.brand} · ` : "")}${escapeHtml(selected.barcode || "barcode")} · ${escapeHtml(selected.licenseNote || "Verify the label before relying on it.")}</small></p></div>` : ""}
       `,
       actions: button({ label: "Back", action: "nutrition-add-back", variant: "quiet" })
         + button({ label: `Add to ${MEAL_SLOT_LABELS[slot] || "meal"}`, action: "nutrition-add-confirm", variant: "primary", disabled: !slot }),
@@ -186,6 +187,12 @@ function addSheet(modal, context) {
     title: slot ? `Add to ${MEAL_SLOT_LABELS[slot]}` : "Add food",
     body: `
       ${slot ? "" : `<div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>`}
+      <div class="barcode-lookup">
+        <label class="field"><span>Barcode lookup</span><input id="nutrition-barcode" inputmode="numeric" pattern="[0-9]*" maxlength="18" placeholder="Scan or type barcode digits" value="${escapeHtml(modal.barcode || "")}"></label>
+        ${button({ label: modal.lookupBusy ? "Looking up…" : "Search barcode", action: "nutrition-barcode-search", variant: "secondary", iconName: "barcode", disabled: Boolean(modal.lookupBusy) })}
+        <small>Uses verified product data where available. You still choose the portion before it counts.</small>
+        ${modal.lookupError ? `<p class="form-error">${escapeHtml(modal.lookupError)}</p>` : ""}
+      </div>
       <label class="field search-field"><span class="sr-only">Search foods</span>${icon("search")}<input id="nutrition-search" maxlength="80" placeholder="Search demo foods, recents, favorites…" value="${escapeHtml(modal.query || "")}"></label>
       ${showCustom ? `
       <div class="per-serving-grid custom-food-grid"><label><span>Name</span><input id="custom-name" maxlength="120" placeholder="e.g. Mom’s dal"></label><label><span>Serving label</span><input id="custom-serving" maxlength="80" placeholder="1 bowl"></label><label><span>kcal / serving</span><input id="custom-kcal" type="number" inputmode="numeric" min="0" max="5000"></label><label><span>Protein g</span><input id="custom-protein" type="number" inputmode="decimal" min="0" max="500" value="0"></label><label><span>Carbs g</span><input id="custom-carbs" type="number" inputmode="decimal" min="0" max="800" value="0"></label><label><span>Fat g</span><input id="custom-fat" type="number" inputmode="decimal" min="0" max="500" value="0"></label></div>

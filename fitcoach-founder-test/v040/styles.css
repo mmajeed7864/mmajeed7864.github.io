@@ -2522,6 +2522,11 @@
   .photo-input-button { display: flex; align-items: center; justify-content: center; gap: .55rem; min-height: 52px; padding: .8rem 1rem; border-radius: var(--radius); background: var(--action); color: #fff; font-weight: 650; cursor: pointer; }
   .photo-input-button:active { transform: translateY(1px); }
 
+  .barcode-lookup { display: grid; gap: .55rem; padding: .75rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); }
+  .barcode-lookup .button { width: 100%; }
+  .barcode-lookup small { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+  .form-error { color: var(--danger); font-size: .84rem; font-weight: 700; }
+
   .search-field { position: relative; display: flex; align-items: center; gap: .5rem; }
   .search-field .icon { position: absolute; left: .7rem; pointer-events: none; color: var(--muted); }
   .search-field input { width: 100%; padding-left: 2.3rem; }
