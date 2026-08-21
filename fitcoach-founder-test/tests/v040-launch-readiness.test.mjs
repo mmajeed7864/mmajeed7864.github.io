@@ -11,6 +11,10 @@ import {
   createInitialState,
   normalizeStateForTest,
 } from "../v040/core/store.mjs";
+import {
+  ONBOARDING_STEP_COUNT,
+  renderOnboarding,
+} from "../v040/ui/onboarding.mjs";
 
 class MemoryStorage {
   #values = new Map();
@@ -64,6 +68,22 @@ test("launch integrations and draft surfaces are explicit non-production contrac
   assert.deepEqual(state.socialDrafts, []);
   assert.ok(state.gymProfile.equipment.includes("dumbbells"));
   assert.ok(state.gymProfile.equipment.includes("squat rack"));
+});
+
+test("onboarding answers use premium tap bubbles instead of native dropdowns", () => {
+  const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
+  const draft = { profile: state.profile, settings: state.settings, consent: true };
+
+  for (let step = 0; step < ONBOARDING_STEP_COUNT; step += 1) {
+    const html = renderOnboarding({ step, draft });
+    assert.doesNotMatch(html, /<select\b/i, `step ${step + 1} must not use a dropdown`);
+    assert.doesNotMatch(html, /<option\b/i, `step ${step + 1} must not use native select options`);
+  }
+
+  for (const step of [2, 3, 4, 5, 6, 8, 9, 10, 11]) {
+    const html = renderOnboarding({ step, draft });
+    assert.match(html, /answer-option/, `step ${step + 1} must render custom answer bubbles`);
+  }
 });
 
 test("normalization keeps photo drafts as metadata only and drops corrupt drafts", () => {

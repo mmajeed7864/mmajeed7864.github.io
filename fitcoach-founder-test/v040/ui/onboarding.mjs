@@ -29,16 +29,18 @@ export function renderGate(founder = "mo") {
 
 export const ONBOARDING_STEP_COUNT = 13;
 
-function selectBubble({ label, field, action, options, selected, hint = "" }) {
-  return `<label class="answer-bubble single-answer"><span>${escapeHtml(label)}</span><select data-action="${action}" data-field="${escapeHtml(field)}">${options.map(option => {
+function choiceBubbleGroup({ label, field, action, options, selected, hint = "" }) {
+  return `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="${escapeHtml(label)}">${options.map(option => {
     const value = typeof option === "object" ? option.value : option;
-    const text = typeof option === "object" ? option.label : option;
-    return `<option value="${escapeHtml(String(value))}" ${String(selected) === String(value) ? "selected" : ""}>${escapeHtml(text)}</option>`;
-  }).join("")}</select>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</label>`;
+    const title = typeof option === "object" ? option.label : option;
+    const copy = typeof option === "object" ? option.copy : "";
+    const active = String(selected) === String(value);
+    return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(value))}"><span><b>${escapeHtml(String(title))}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span>${active ? icon("check") : ""}</button>`;
+  }).join("")}${hint ? `<small class="answer-choice-hint">${escapeHtml(hint)}</small>` : ""}</div>`;
 }
 
-function toggleBubble({ title, copy, action, field, checked }) {
-  return `<label class="toggle-row answer-bubble single-answer"><span><b>${escapeHtml(title)}</b><small>${escapeHtml(copy)}</small></span><input type="checkbox" data-action="${action}" data-field="${escapeHtml(field)}" ${checked ? "checked" : ""}></label>`;
+function toggleBubble({ title, copy, offTitle = "Keep it off for now", offCopy = "You can change this later.", action, field, checked }) {
+  return `<div class="single-answer answer-choice-group boolean-answer" role="radiogroup" aria-label="${escapeHtml(title)}"><button role="radio" aria-checked="${checked}" class="answer-option ${checked ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="true"><span><b>${escapeHtml(title)}</b><small>${escapeHtml(copy)}</small></span>${checked ? icon("check") : ""}</button><button role="radio" aria-checked="${!checked}" class="answer-option ${!checked ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="false"><span><b>${escapeHtml(offTitle)}</b><small>${escapeHtml(offCopy)}</small></span>${!checked ? icon("check") : ""}</button></div>`;
 }
 
 function questionStep({ eyebrow, title, copy, question, answer }) {
@@ -54,7 +56,21 @@ function themeStep(draft) {
 }
 
 function scheduleQuestion(draft, config) {
-  return questionStep({ eyebrow: "REAL AVAILABILITY", title: config.title, copy: config.copy || "The best plan is the one you can repeat.", question: config.question, answer: selectBubble(config.field === "experience" ? { label: "Experience", field: "experience", action: "onboarding-profile-field", options: ["beginner", "intermediate", "advanced"], selected: draft.profile.experience } : config.field === "days" ? { label: "Training days", field: "days", action: "onboarding-number", options: [2,3,4,5,6].map(value => ({ value, label: `${value} days per week` })), selected: draft.profile.days } : config.field === "duration" ? { label: "Typical session", field: "duration", action: "onboarding-number", options: [20,30,45,60,75].map(value => ({ value, label: `${value} minutes` })), selected: draft.profile.duration } : config.field === "equipment" ? { label: "Equipment", field: "equipment", action: "onboarding-profile-field", options: ["full gym", "home gym", "dumbbells only", "bodyweight"], selected: draft.profile.equipment } : { label: "Usual location", field: "location", action: "onboarding-profile-field", options: ["gym", "home", "travel", "outdoors"], selected: draft.profile.location }) });
+  return questionStep({ eyebrow: "REAL AVAILABILITY", title: config.title, copy: config.copy || "The best plan is the one you can repeat.", question: config.question, answer: choiceBubbleGroup(config.field === "experience" ? { label: "Experience", field: "experience", action: "onboarding-profile-field", options: [
+    { value: "beginner", label: "Beginner", copy: "New, returning, or rebuilding the habit" },
+    { value: "intermediate", label: "Intermediate", copy: "You train consistently and know the basics" },
+    { value: "advanced", label: "Advanced", copy: "Experienced with harder progressions" },
+  ], selected: draft.profile.experience } : config.field === "days" ? { label: "Training days", field: "days", action: "onboarding-number", options: [2,3,4,5,6].map(value => ({ value, label: `${value} days/week`, copy: value <= 3 ? "Easier to repeat" : value === 4 ? "Balanced progression" : "Higher commitment" })), selected: draft.profile.days } : config.field === "duration" ? { label: "Typical session", field: "duration", action: "onboarding-number", options: [20,30,45,60,75].map(value => ({ value, label: `${value} minutes`, copy: value <= 30 ? "Compact and repeatable" : value === 45 ? "Strong default" : "Full training block" })), selected: draft.profile.duration } : config.field === "equipment" ? { label: "Equipment", field: "equipment", action: "onboarding-profile-field", options: [
+    { value: "full gym", label: "Full gym", copy: "Machines, cables, racks, and free weights" },
+    { value: "home gym", label: "Home gym", copy: "Flexible setup with limited equipment" },
+    { value: "dumbbells only", label: "Dumbbells only", copy: "Simple strength work anywhere" },
+    { value: "bodyweight", label: "Bodyweight", copy: "No equipment needed" },
+  ], selected: draft.profile.equipment } : { label: "Usual location", field: "location", action: "onboarding-profile-field", options: [
+    { value: "gym", label: "Gym", copy: "Best for full programs and substitutions" },
+    { value: "home", label: "Home", copy: "Built around your own space" },
+    { value: "travel", label: "Travel", copy: "Hotel and limited-equipment friendly" },
+    { value: "outdoors", label: "Outdoors", copy: "Movement-focused and flexible" },
+  ], selected: draft.profile.location }) });
 }
 
 function scheduleSummaryStep(draft) {
@@ -67,20 +83,32 @@ function blockerStep(draft) {
 
 function toneStep(draft) {
   const recommendedVoice = VOICE_PERSONA_LABELS[DEFAULT_VOICE_BY_TONE[draft.profile.tone] || draft.settings.voicePersona];
-  return questionStep({ eyebrow: "THE TRAINER RELATIONSHIP", title: "Choose how I should coach you.", copy: "Tone changes presentation only. Safety, evidence, and plan decisions stay exactly the same.", question: "How should I sound when I coach you?", answer: selectBubble({ label: "Trainer tone", field: "tone", action: "onboarding-profile-field", options: TRAINER_TONES, selected: draft.profile.tone, hint: `Recommended voice: ${recommendedVoice || "your current voice"}` }) });
+  const toneCopy = {
+    Supportive: "Warm, calm, and honest",
+    Direct: "Clear and concise",
+    Strict: "Firm standards, no humiliation",
+    Competitive: "High-energy pressure, still safe",
+  };
+  return questionStep({ eyebrow: "THE TRAINER RELATIONSHIP", title: "Choose how I should coach you.", copy: "Tone changes presentation only. Safety, evidence, and plan decisions stay exactly the same.", question: "How should I sound when I coach you?", answer: choiceBubbleGroup({ label: "Trainer tone", field: "tone", action: "onboarding-profile-field", options: TRAINER_TONES.map(value => ({ value, label: value, copy: toneCopy[value] || "" })), selected: draft.profile.tone, hint: `Recommended voice: ${recommendedVoice || "your current voice"}` }) });
 }
 
 function voiceStep(draft) {
   const recommendedVoice = VOICE_PERSONA_LABELS[DEFAULT_VOICE_BY_TONE[draft.profile.tone] || draft.settings.voicePersona];
-  return questionStep({ eyebrow: "PREMIUM VOICE", title: "Give your trainer a voice you’ll want to hear.", copy: "Text always stays visible. Voice is optional and can be changed later.", question: "Which voice fits this trainer?", answer: selectBubble({ label: "Premium voice", field: "voicePersona", action: "onboarding-setting", options: VOICE_PERSONAS.map(value => ({ value, label: VOICE_PERSONA_LABELS[value] })), selected: draft.settings.voicePersona, hint: `Recommended for ${draft.profile.tone}: ${recommendedVoice || "your current voice"}` }) });
+  const voiceCopy = {
+    nova: "Best for supportive coaching",
+    atlas: "Best for strict and competitive modes",
+    bennett: "Best for direct British coaching",
+    mira: "Calm, steady, and low-pressure",
+  };
+  return questionStep({ eyebrow: "PREMIUM VOICE", title: "Give your trainer a voice you’ll want to hear.", copy: "Text always stays visible. Voice is optional and can be changed later.", question: "Which voice fits this trainer?", answer: choiceBubbleGroup({ label: "Premium voice", field: "voicePersona", action: "onboarding-setting", options: VOICE_PERSONAS.map(value => ({ value, label: VOICE_PERSONA_LABELS[value], copy: voiceCopy[value] || "" })), selected: draft.settings.voicePersona, hint: `Recommended for ${draft.profile.tone}: ${recommendedVoice || "your current voice"}` }) });
 }
 
 function speakRepliesStep(draft) {
-  return questionStep({ eyebrow: "PREMIUM VOICE", title: "Want Nova to read replies aloud?", copy: "You’ll still see every trainer message as text. Turn this off whenever you prefer quiet coaching.", question: "Should spoken replies be on by default?", answer: toggleBubble({ title: "Read trainer replies aloud", copy: `Uses ${VOICE_PERSONA_LABELS[draft.settings.voicePersona] || "your selected voice"} when available.`, action: "onboarding-setting-toggle", field: "speakReplies", checked: draft.settings.speakReplies }) });
+  return questionStep({ eyebrow: "PREMIUM VOICE", title: "Want Nova to read replies aloud?", copy: "You’ll still see every trainer message as text. Turn this off whenever you prefer quiet coaching.", question: "Should spoken replies be on by default?", answer: toggleBubble({ title: "Read trainer replies aloud", copy: `Uses ${VOICE_PERSONA_LABELS[draft.settings.voicePersona] || "your selected voice"} when available.`, offTitle: "Text only for now", offCopy: "Replies stay visible; voice can be enabled later.", action: "onboarding-setting-toggle", field: "speakReplies", checked: draft.settings.speakReplies }) });
 }
 
 function proactiveStep(draft) {
-  return questionStep({ eyebrow: "COACHING CADENCE", title: "Let the trainer know when to step in.", copy: "This founder build keeps coaching inside the app. You stay in control.", question: "Should I offer an earned check-in when the evidence says it may help?", answer: toggleBubble({ title: "Allow earned coaching inside the app", copy: "No operating-system notifications in this founder build.", action: "onboarding-toggle", field: "proactive", checked: draft.profile.proactive }) });
+  return questionStep({ eyebrow: "COACHING CADENCE", title: "Let the trainer know when to step in.", copy: "This founder build keeps coaching inside the app. You stay in control.", question: "Should I offer an earned check-in when the evidence says it may help?", answer: toggleBubble({ title: "Allow earned coaching inside the app", copy: "No operating-system notifications in this founder build.", offTitle: "Only when I open the app", offCopy: "The trainer stays quiet unless you ask.", action: "onboarding-toggle", field: "proactive", checked: draft.profile.proactive }) });
 }
 
 function boundaryStep(draft) {

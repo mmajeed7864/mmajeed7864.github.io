@@ -988,8 +988,10 @@ function handleClick(event) {
   if (action === "exit-onboarding") { ui.mode="gate"; render(); return; }
   if (action === "onboarding-choice") { ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
   if (action === "onboarding-setting") { ui.onboardingDraft.settings[target.dataset.field]=value; if(target.dataset.field==="theme") applyTheme(value); render(); return; }
-  if (action === "onboarding-setting-toggle") { ui.onboardingDraft.settings[target.dataset.field]=target.checked; render(); return; }
-  if (action === "onboarding-toggle") { ui.onboardingDraft.profile[target.dataset.field]=target.checked; render(); return; }
+  if (action === "onboarding-profile-field") { if(target.dataset.field==="tone") applyOnboardingTone(value); else ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
+  if (action === "onboarding-number") { ui.onboardingDraft.profile[target.dataset.field]=Number(value); render(); return; }
+  if (action === "onboarding-setting-toggle") { ui.onboardingDraft.settings[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }
+  if (action === "onboarding-toggle") { ui.onboardingDraft.profile[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }
   if (action === "onboarding-consent") { ui.onboardingDraft.consent=target.checked; render(); return; }
   if (action === "onboarding-back") { ui.onboardingStep=Math.max(0,ui.onboardingStep-1); render(); return; }
   if (action === "onboarding-next") {
