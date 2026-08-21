@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0412";
+const GENERATION = "0413";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
 
@@ -41,8 +41,8 @@ function moduleGraph(entry) {
 }
 
 function swAssets(source) {
-  return [...source.matchAll(/["'](\.\/[^"']+\?v=0412|\.[^"']+)["']/g)]
-    .map(match => match[1].replace(/^\.\//, "").replace(/\?v=0412$/, ""))
+  return [...source.matchAll(/["'](\.\/[^"']+\?v=0413|\.[^"']+)["']/g)]
+    .map(match => match[1].replace(/^\.\//, "").replace(/\?v=0413$/, ""))
     .filter(value => value && !value.includes("${"));
 }
 
@@ -57,8 +57,8 @@ function syntaxCheck(file) {
 
 (async () => {
   const html = read("index.html");
-  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0412["']/);
-  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0412 as a module");
+  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0413["']/);
+  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0413 as a module");
   else ok("index.html loads the v0.4 module entry");
 
   const entry = moduleMatch?.[1] || "v040/app.js";
@@ -80,8 +80,8 @@ function syntaxCheck(file) {
   const constants = read("v040/core/constants.mjs");
   const sw = read("sw.js");
   if (!html.includes(`v=${GENERATION}`) || !manifest.start_url.includes(`v=${GENERATION}`) || !sw.includes(`v${GENERATION}`) || !constants.includes(`CACHE_GENERATION = "${GENERATION}"`)) {
-    bad("index, manifest, service worker, and constants must agree on 0412");
-  } else ok("document, manifest, service worker, and constants agree on 0412");
+    bad("index, manifest, service worker, and constants must agree on 0413");
+  } else ok("document, manifest, service worker, and constants agree on 0413");
 
   const precached = new Set(swAssets(sw));
   const graphMissingFromSw = graph.filter(file => !precached.has(file));

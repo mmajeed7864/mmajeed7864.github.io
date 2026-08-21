@@ -1,13 +1,13 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0412";
+const CACHE = "fitcoach-symbio-v0413";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0412",
-  "./manifest.webmanifest?v=0412",
-  "./assets/icon-symbio.svg?v=0412",
-  "./v040/styles.css?v=0412",
-  "./v040/app.js?v=0412",
+  "./index.html?v=0413",
+  "./manifest.webmanifest?v=0413",
+  "./assets/icon-symbio.svg?v=0413",
+  "./v040/styles.css?v=0413",
+  "./v040/app.js?v=0413",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -39,22 +39,22 @@ const MODULE_ASSETS = Object.freeze([
 ]);
 
 const EXERCISE_ASSETS = Object.freeze([
-  "./v040/assets/exercises/air-squat-premium-v1.png?v=0412",
-  "./v040/assets/exercises/band-lat-pulldown-premium-v1.png?v=0412",
-  "./v040/assets/exercises/band-row-premium-v1.png?v=0412",
-  "./v040/assets/exercises/dead-bug-premium-v1.png?v=0412",
-  "./v040/assets/exercises/dumbbell-curl-premium-v1.png?v=0412",
-  "./v040/assets/exercises/dumbbell-floor-press-premium-v1.png?v=0412",
-  "./v040/assets/exercises/glute-bridge-premium-v1.png?v=0412",
-  "./v040/assets/exercises/goblet-squat-premium-v1.png?v=0412",
-  "./v040/assets/exercises/half-kneeling-press-premium-v1.png?v=0412",
-  "./v040/assets/exercises/hip-hinge-premium-v1.png?v=0412",
-  "./v040/assets/exercises/incline-push-up-premium-v1.png?v=0412",
-  "./v040/assets/exercises/lateral-raise-premium-v1.png?v=0412",
-  "./v040/assets/exercises/marching-jacks-premium-v1.png?v=0412",
-  "./v040/assets/exercises/one-arm-dumbbell-row-premium-v1.png?v=0412",
-  "./v040/assets/exercises/overhead-triceps-extension-premium-v1.png?v=0412",
-  "./v040/assets/exercises/reverse-lunge-premium-v1.png?v=0412",
+  "./v040/assets/exercises/air-squat-premium-v1.png?v=0413",
+  "./v040/assets/exercises/band-lat-pulldown-premium-v1.png?v=0413",
+  "./v040/assets/exercises/band-row-premium-v1.png?v=0413",
+  "./v040/assets/exercises/dead-bug-premium-v1.png?v=0413",
+  "./v040/assets/exercises/dumbbell-curl-premium-v1.png?v=0413",
+  "./v040/assets/exercises/dumbbell-floor-press-premium-v1.png?v=0413",
+  "./v040/assets/exercises/glute-bridge-premium-v1.png?v=0413",
+  "./v040/assets/exercises/goblet-squat-premium-v1.png?v=0413",
+  "./v040/assets/exercises/half-kneeling-press-premium-v1.png?v=0413",
+  "./v040/assets/exercises/hip-hinge-premium-v1.png?v=0413",
+  "./v040/assets/exercises/incline-push-up-premium-v1.png?v=0413",
+  "./v040/assets/exercises/lateral-raise-premium-v1.png?v=0413",
+  "./v040/assets/exercises/marching-jacks-premium-v1.png?v=0413",
+  "./v040/assets/exercises/one-arm-dumbbell-row-premium-v1.png?v=0413",
+  "./v040/assets/exercises/overhead-triceps-extension-premium-v1.png?v=0413",
+  "./v040/assets/exercises/reverse-lunge-premium-v1.png?v=0413",
 ]);
 
 const PRECACHE_ASSETS = Object.freeze([
@@ -72,6 +72,19 @@ async function cachedOrFetch(request) {
     await cache.put(request, response.clone());
   }
   return response;
+}
+
+async function networkOrCached(request) {
+  try {
+    const response = await fetch(request, { cache: "no-store" });
+    if (response.ok) {
+      const cache = await caches.open(CACHE);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return caches.match(request);
+  }
 }
 
 self.addEventListener("install", event => {
@@ -107,15 +120,19 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0412")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0413")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0412";
+  const versioned = url.searchParams.get("v") === "0413";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
-  if (versioned || moduleAsset || exerciseAsset) {
+  if (versioned || moduleAsset) {
+    event.respondWith(networkOrCached(event.request));
+    return;
+  }
+  if (exerciseAsset) {
     event.respondWith(cachedOrFetch(event.request));
   }
 });

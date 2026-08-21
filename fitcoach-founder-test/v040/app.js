@@ -1205,7 +1205,6 @@ function bootstrap() {
   document.addEventListener("visibilitychange",()=>voiceController.setForeground(document.visibilityState==="visible"));
   window.addEventListener("pagehide",()=>{voiceController.exit();stopSpeech({renderCoach:false});chatRequestController?.abort();});
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(state?.settings.theme==="system")applyTheme("system");});
-  if("serviceWorker" in navigator)navigator.serviceWorker.register(`./sw.js?v=${CACHE_GENERATION}`).then(registration=>registration.update()).catch(()=>{});
   beginRestTicker();
   maybeOpenTutorial();
   render();

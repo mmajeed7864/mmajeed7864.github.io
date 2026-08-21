@@ -150,6 +150,18 @@ test("active app has no password gate or visible founder picker", () => {
   assert.match(html, /FitCoach v0\.4\.3/u);
 });
 
+test("the document owns service-worker upgrades and modules refresh network-first", () => {
+  const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0413", \{ updateViaCache: "none" \}\)/u);
+  assert.doesNotMatch(app, /serviceWorker\.register/u);
+  assert.match(worker, /async function networkOrCached/u);
+  assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);
+  assert.match(worker, /if \(versioned \|\| moduleAsset\) \{\s*event\.respondWith\(networkOrCached/u);
+});
+
 test("normalization keeps photo drafts as metadata only and drops corrupt drafts", () => {
   const normalized = normalizeStateForTest({
     socialDrafts: [
