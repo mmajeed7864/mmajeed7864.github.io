@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 founder runt
 
 ## Active browser runtime
 
-FitCoach v0.4.0 is the active runtime (cache generation 0406 adds the nutrition diary slice):
+FitCoach v0.4.0 is the active runtime (cache generation 0407 refreshes the one-question onboarding flow):
 
-- document shell: `index.html?v=0406`
-- stylesheet: `v040/styles.css?v=0406`
-- ES-module entry: `v040/app.js?v=0406`
-- service worker cache: `fitcoach-symbio-v0406`
+- document shell: `index.html?v=0407`
+- stylesheet: `v040/styles.css?v=0407`
+- ES-module entry: `v040/app.js?v=0407`
+- service worker cache: `fitcoach-symbio-v0407`
 - local storage envelope: `fitcoach-v040:<founder>`
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:

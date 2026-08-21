@@ -1,5 +1,5 @@
 export const BUILD = "0.4.0";
-export const CACHE_GENERATION = "0406";
+export const CACHE_GENERATION = "0407";
 export const ACCESS_CODE = "LIFT26";
 export const ROUTES = ["today", "train", "coach", "progress", "profile", "nutrition"];
 export const TRAIN_SEGMENTS = ["workout", "exercises"];
