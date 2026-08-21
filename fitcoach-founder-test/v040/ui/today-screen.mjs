@@ -57,8 +57,7 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, now = n
   const first = plan.exercises[0];
   const firstExercise = first ? exerciseById(first.exerciseId) : null;
   const remaining = Math.max(0, target - weekDone);
-  const hasNoTrainingHistory = !(state.sessions || []).length;
-  const isStartingWeek = weekDone === 0 && hasNoTrainingHistory;
+  const isStartingWeek = weekDone === 0;
   const weekHeadline = isStartingWeek ? "Your week starts today" : `${weekDone}/${target} sessions`;
   const weekDetail = isStartingWeek
     ? `${target}-session plan ready · nothing is late`

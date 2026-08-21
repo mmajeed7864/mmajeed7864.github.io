@@ -119,6 +119,25 @@ test("a profile with no training history never gets a zero-of-target score", () 
   assert.doesNotMatch(html, /0\/3 sessions/u);
 });
 
+test("the opening week state stays welcoming even when older history exists", () => {
+  const now = new Date("2026-08-20T14:00:00.000Z");
+  const state = createInitialState("mo", new Date("2026-07-01T14:00:00.000Z"));
+  state.sessions = [{ id: "older-session", completedAt: "2026-07-10T14:00:00.000Z", exercises: [] }];
+  const plan = {
+    id: "plan-a", minutes: 45, detail: "full session", label: "Plan A", location: "gym", intensity: "standard",
+    exercises: [{ exerciseId: "air-squat", snapshot: { primaryMuscles: ["quadriceps"] } }],
+  };
+  const decision = {
+    title: "Start with one honest session", message: "Today starts this week.", type: "CHECK_IN",
+    primary: { label: "Start Plan A" }, secondary: null,
+  };
+  const exercise = { id: "air-squat", name: "Air Squat", media: [] };
+
+  const html = renderTodayScreen({ state, plan, decision, exerciseById: () => exercise, now });
+  assert.match(html, /Your week starts today/u);
+  assert.doesNotMatch(html, /0\/3 sessions/u);
+});
+
 test("active app has no password gate or visible founder picker", () => {
   const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
   const onboarding = readFileSync(new URL("../v040/ui/onboarding.mjs", import.meta.url), "utf8");
