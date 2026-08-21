@@ -15,6 +15,7 @@ const MODULE_ASSETS = Object.freeze([
   "./v040/core/store.mjs",
   "./v040/core/utils.mjs",
   "./v040/data/exercise-library.mjs",
+  "./v040/data/exercise-expansion-targets.mjs",
   "./v040/data/exercise-media-manifest.mjs",
   "./v040/data/exercise-schema.mjs",
   "./v040/domain/decisions.mjs",

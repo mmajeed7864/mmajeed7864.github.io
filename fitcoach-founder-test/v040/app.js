@@ -113,11 +113,18 @@ let restTicker = null;
 let voiceReturnFocus = null;
 // Photo previews live ONLY in this object URL — never in state or localStorage.
 let nutritionPreviewUrl = null;
+let communityPreviewUrl = null;
 
 function releaseNutritionPreview() {
   if (!nutritionPreviewUrl) return;
   try { URL.revokeObjectURL(nutritionPreviewUrl); } catch {}
   nutritionPreviewUrl = null;
+}
+
+function releaseCommunityPreview() {
+  if (!communityPreviewUrl) return;
+  try { URL.revokeObjectURL(communityPreviewUrl); } catch {}
+  communityPreviewUrl = null;
 }
 
 function nutritionDateKey() {
@@ -304,7 +311,7 @@ function render() {
 }
 
 function renderModalRoot() {
-  dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl });
+  dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl, communityPreviewUrl });
   dom.modal.hidden = !ui.modal;
   document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || voiceController.getState().active);
   if (ui.modal) requestAnimationFrame(() => dom.modal.querySelector("button:not([disabled]),input,select,textarea")?.focus());
@@ -330,6 +337,7 @@ function openModal(modal) {
 
 function closeModal() {
   if (ui.modal && typeof ui.modal.type === "string" && ui.modal.type.startsWith("nutrition-")) releaseNutritionPreview();
+  if (ui.modal?.type === "community-draft") releaseCommunityPreview();
   ui.modal = null;
   renderModalRoot();
   modalReturnFocus?.focus?.();
@@ -946,6 +954,19 @@ function handleNutritionPhoto(input) {
   createDraftFromEstimate(result, slot, { photoFile: file });
 }
 
+function handleCommunityPhoto(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  releaseCommunityPreview();
+  communityPreviewUrl = URL.createObjectURL(file);
+  if (ui.modal?.type === "community-draft") {
+    ui.modal.caption = document.querySelector("#community-caption")?.value || ui.modal.caption || "";
+    ui.modal.visibility = document.querySelector("#community-visibility")?.value || ui.modal.visibility || "private";
+  }
+  input.value = "";
+  renderModalRoot();
+}
+
 function handleClick(event) {
   const target = event.target.closest("[data-action]");
   if (!target) return;
@@ -1060,6 +1081,16 @@ function handleClick(event) {
   if (action === "voice-mute") { voiceController.setMuted(!voiceController.getState().muted);return; }
   if (action === "voice-replay") { if(!voiceController.replayLast())toast("Replay is unavailable in this voice state.");return; }
   if (action === "connection-info") { if(!navigator.onLine)openModal({type:"offline"});else toast("Live text uses DeepSeek first, configured Qwen backup second, then local safe copy.");return; }
+  if (action === "open-apple-health-plan") { openModal({ type: "apple-health" }); return; }
+  if (action === "mark-apple-health-planned") { state=store.update(draft=>{draft.integrations.appleHealth.status="planned";draft.integrations.appleHealth.syncMode="manual_until_ios";draft.integrations.appleHealth.requestedAt=new Date().toISOString();});closeModal();render();toast("Apple Health sync marked for the native iOS build.");return; }
+  if (action === "open-pro-preview") { openModal({ type: "pro-preview" }); return; }
+  if (action === "select-pro-plan") { state=store.update(draft=>{draft.integrations.payments.selectedPlan=value==="monthly"?"monthly":"yearly";draft.integrations.payments.status="preview";});renderModalRoot();renderAppScreen();return; }
+  if (action === "mark-pro-preview") { state=store.update(draft=>{draft.integrations.payments.status="preview";});closeModal();render();toast("Pro preview saved. Payments are still not active.");return; }
+  if (action === "open-exercise-roadmap") { openModal({ type: "exercise-roadmap" }); return; }
+  if (action === "open-gym-setup") { openModal({ type: "gym-setup" }); return; }
+  if (action === "save-gym-profile") { const selected=[...document.querySelectorAll('[data-action="gym-toggle-equipment"]:checked')].map(node=>node.dataset.value).filter(Boolean);state=store.update(draft=>{draft.gymProfile.selectedGymName=(document.querySelector("#gym-name")?.value || "").trim().slice(0,120);draft.gymProfile.selectedGymAddress=(document.querySelector("#gym-address")?.value || "").trim().slice(0,180);draft.gymProfile.equipment=selected.slice(0,60);draft.gymProfile.source="manual";});closeModal();render();toast("Equipment profile saved locally.");return; }
+  if (action === "open-community-draft") { openModal({ type: "community-draft", caption: "", visibility: "private" }); return; }
+  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=document.querySelector("#community-visibility")?.value || "private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");state=store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:uid("social-draft"),status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});closeModal();render();toast("Saved as a local draft. No photo was uploaded.");return; }
   if (action === "open-tutorial") { ui.modal={type:"tutorial",step:0};renderModalRoot();return; }
   if (action === "tutorial-next") { ui.modal={type:"tutorial",step:Math.min(2,Number(target.dataset.step || 0)+1)};renderModalRoot();return; }
   if (action === "tutorial-back") { ui.modal={type:"tutorial",step:Math.max(0,Number(target.dataset.step || 0)-1)};renderModalRoot();return; }
@@ -1101,6 +1132,7 @@ function handleChange(event) {
   const target=event.target;
   const action=target.dataset.action;
   if (action === "nutrition-photo") { handleNutritionPhoto(target); return; }
+  if (action === "community-photo") { handleCommunityPhoto(target); return; }
   if (action === "onboarding-profile-field") {
     if (target.dataset.field === "tone") applyOnboardingTone(target.value);
     else ui.onboardingDraft.profile[target.dataset.field]=target.value;
@@ -1116,6 +1148,7 @@ function handleChange(event) {
   if (action === "set-tone") { state=store.update(draft=>applyTonePreference(draft,target.value));stopSpeech({renderCoach:false});render(); }
   if (action === "set-answer-depth") { state=store.update(draft=>{draft.settings.coachMode=target.value;});render(); }
   if (action === "set-voice-persona") { state=store.update(draft=>{draft.settings.voicePersona=target.value;});stopSpeech({renderCoach:false});render(); }
+  if (action === "gym-toggle-equipment") { const value=target.dataset.value || "";state=store.update(draft=>{const equipment=new Set(draft.gymProfile.equipment || []);if(target.checked)equipment.add(value);else equipment.delete(value);draft.gymProfile.equipment=[...equipment].slice(0,60);draft.gymProfile.source="manual";});renderModalRoot();renderAppScreen(); }
   if (action === "filter-favorites") { ui.exerciseFilters.favorites=target.checked;render(); }
 }
 

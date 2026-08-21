@@ -107,6 +107,26 @@ export function createInitialState(founder = "mo", now = new Date()) {
     lastWorkoutSummary: null,
     lastApi: null,
     feedback: [],
+    integrations: {
+      appleHealth: {
+        status: "native_required",
+        syncMode: "manual_until_ios",
+        requestedAt: null,
+        lastSyncedAt: null,
+      },
+      payments: {
+        status: "not_configured",
+        trialDays: 7,
+        selectedPlan: "yearly",
+      },
+    },
+    gymProfile: {
+      selectedGymName: "",
+      selectedGymAddress: "",
+      source: "manual",
+      equipment: ["dumbbells", "kettlebells", "barbells", "plates", "squat rack", "benches", "cables", "machines"],
+    },
+    socialDrafts: [],
     nutrition: createInitialNutritionState(),
     migration: {
       source: "fresh-v040",
@@ -246,6 +266,51 @@ function normalizeProfile(raw, base) {
   };
 }
 
+function normalizeIntegrations(raw, base) {
+  const integrations = isObject(raw) ? raw : {};
+  const appleHealth = isObject(integrations.appleHealth) ? integrations.appleHealth : {};
+  const payments = isObject(integrations.payments) ? integrations.payments : {};
+  return {
+    appleHealth: {
+      status: oneOf(appleHealth.status, ["native_required", "planned", "manual_until_ios", "connected"], base.appleHealth.status),
+      syncMode: oneOf(appleHealth.syncMode, ["manual_until_ios", "read_only", "read_write"], base.appleHealth.syncMode),
+      requestedAt: cleanString(appleHealth.requestedAt, "", 40) || null,
+      lastSyncedAt: cleanString(appleHealth.lastSyncedAt, "", 40) || null,
+    },
+    payments: {
+      status: oneOf(payments.status, ["not_configured", "preview", "sandbox", "live"], base.payments.status),
+      trialDays: safeNumber(payments.trialDays, base.payments.trialDays, 0, 30),
+      selectedPlan: oneOf(payments.selectedPlan, ["yearly", "monthly"], base.payments.selectedPlan),
+    },
+  };
+}
+
+function normalizeGymProfile(raw, base) {
+  const profile = isObject(raw) ? raw : {};
+  return {
+    selectedGymName: cleanString(profile.selectedGymName, base.selectedGymName, 120),
+    selectedGymAddress: cleanString(profile.selectedGymAddress, base.selectedGymAddress, 180),
+    source: oneOf(profile.source, ["manual", "native_location_required", "gym_search_preview"], base.source),
+    equipment: unique(Array.isArray(profile.equipment) ? profile.equipment.map(value => cleanString(value, "", 80)) : base.equipment).slice(0, 60),
+  };
+}
+
+function normalizeSocialDraft(raw, index) {
+  if (!isObject(raw)) return null;
+  const id = cleanString(raw.id, `social-draft-${index}`, 120);
+  const caption = cleanString(raw.caption, "", 280);
+  if (!caption && !raw.hasImagePreview) return null;
+  return {
+    id,
+    status: oneOf(raw.status, ["draft", "ready_for_review"], "draft"),
+    visibility: oneOf(raw.visibility, ["private", "founders", "public_preview"], "private"),
+    caption,
+    createdAt: cleanString(raw.createdAt, new Date().toISOString(), 40),
+    hasImagePreview: Boolean(raw.hasImagePreview),
+    imagePersisted: false,
+  };
+}
+
 function normalizeState(raw, founder, migration = null) {
   const base = createInitialState(founder);
   const settings = isObject(raw?.settings) ? raw.settings : {};
@@ -305,6 +370,9 @@ function normalizeState(raw, founder, migration = null) {
     lastWorkoutSummary: isObject(raw?.lastWorkoutSummary) ? deepClone(raw.lastWorkoutSummary) : null,
     lastApi: isObject(raw?.lastApi) ? deepClone(raw.lastApi) : null,
     feedback: Array.isArray(raw?.feedback) ? raw.feedback.filter(isObject).slice(-200) : [],
+    integrations: normalizeIntegrations(raw?.integrations, base.integrations),
+    gymProfile: normalizeGymProfile(raw?.gymProfile, base.gymProfile),
+    socialDrafts: (Array.isArray(raw?.socialDrafts) ? raw.socialDrafts : []).map(normalizeSocialDraft).filter(Boolean).slice(-24),
     // Fail-closed nutrition normalization: corrupted nutrition entries are
     // dropped individually and can never reset the rest of the app state.
     nutrition: normalizeNutritionState(raw?.nutrition),

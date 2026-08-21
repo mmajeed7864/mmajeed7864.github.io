@@ -1,4 +1,5 @@
 import { escapeHtml } from "../core/utils.mjs";
+import { EXERCISE_EXPANSION_CATEGORIES, EXERCISE_EXPANSION_TARGETS } from "../data/exercise-expansion-targets.mjs";
 import { isValidCompletedSet } from "../domain/workouts.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
 import { renderNutritionModalContent } from "./nutrition-screen.mjs";
@@ -28,8 +29,96 @@ const TUTORIAL_STEPS = Object.freeze([
   }),
 ]);
 
+const EQUIPMENT_OPTIONS = Object.freeze([
+  "dumbbells",
+  "kettlebells",
+  "barbells",
+  "plates",
+  "squat rack",
+  "benches",
+  "cables",
+  "machines",
+  "pull-up bar",
+  "resistance bands",
+  "treadmill",
+  "bike",
+  "rower",
+  "sled",
+]);
+
+function renderAppleHealthPlan(state) {
+  const status = state.integrations?.appleHealth?.status || "native_required";
+  return `<div class="health-sync-modal">
+    <div class="native-sync-hero">${icon("heart")}<span><b>Native iOS required</b><small>GitHub Pages cannot request HealthKit permissions. The real sync belongs in the App Store wrapper.</small></span></div>
+    <div class="sync-benefit-list">
+      <article>${icon("train")}<span><b>Write completed workouts</b><small>Only after a saved FitCoach receipt and explicit Health permission.</small></span></article>
+      <article>${icon("flame")}<span><b>Read active energy</b><small>Used for progress context, never diagnosis or medical advice.</small></span></article>
+      <article>${icon("progress")}<span><b>Read weight/body stats only if allowed</b><small>Optional, skippable, and visible in the profile.</small></span></article>
+      <article>${icon("info")}<span><b>Manual mode remains first-class</b><small>Users can skip sync and still use training, nutrition, and Coach.</small></span></article>
+    </div>
+    <p class="modal-note">Current state: ${escapeHtml(status.replaceAll("_", " "))}. This button records launch intent only; it does not access Apple Health from the web build.</p>
+  </div>`;
+}
+
+function renderProPreview(state) {
+  const selected = state.integrations?.payments?.selectedPlan || "yearly";
+  const planCopy = selected === "monthly" ? "$15.99/month target" : "$95.99/year target · about $8/month";
+  return `<div class="pro-preview-card">
+    <div class="pro-logo">F</div>
+    <h3>Try 7 days free</h3>
+    <p>${escapeHtml(planCopy)}. Prices are placeholders until Apple/Google/Stripe products exist.</p>
+    <div class="billing-toggle" role="radiogroup" aria-label="Billing preview">
+      <button class="${selected === "yearly" ? "active" : ""}" data-action="select-pro-plan" data-value="yearly">Yearly</button>
+      <button class="${selected === "monthly" ? "active" : ""}" data-action="select-pro-plan" data-value="monthly">Monthly</button>
+    </div>
+    <div class="pro-benefit-list">
+      <article>${icon("check")}<span><b>Adaptive progression</b><small>Reps, sets, and substitutions update from logged behavior.</small></span></article>
+      <article>${icon("check")}<span><b>Premium AI voice trainer</b><small>Mode-matched voice when ElevenLabs is configured; device voice fallback otherwise.</small></span></article>
+      <article>${icon("check")}<span><b>Camera nutrition drafts</b><small>Photo estimates stay drafts until the user confirms them.</small></span></article>
+      <article>${icon("check")}<span><b>Apple Health sync</b><small>Native permission flow, not web scraping or hidden uploads.</small></span></article>
+    </div>
+  </div>`;
+}
+
+function renderExerciseRoadmap() {
+  const sampleTargets = EXERCISE_EXPANSION_TARGETS.slice(0, 14);
+  return `<div class="exercise-roadmap">
+    <div class="roadmap-counter"><b>${EXERCISE_EXPANSION_TARGETS.length}</b><span>popular exercises mapped for premium motion guides</span></div>
+    <div class="roadmap-categories">${EXERCISE_EXPANSION_CATEGORIES.map(item => `<span><b>${escapeHtml(item.category)}</b><small>${item.count} targets</small></span>`).join("")}</div>
+    <div class="target-chip-cloud">${sampleTargets.map(item => `<span>${escapeHtml(item.name)}</span>`).join("")}</div>
+    <p class="modal-note">These are not live exercise guides yet. They define the production list so we can create consistent animated how-to assets instead of adding low-quality filler.</p>
+  </div>`;
+}
+
+function renderGymSetup(state) {
+  const profile = state.gymProfile || {};
+  const selected = new Set(profile.equipment || []);
+  return `<div class="gym-setup-modal">
+    <label><span>Gym name</span><input id="gym-name" maxlength="120" value="${escapeHtml(profile.selectedGymName || "")}" placeholder="Crunch Fitness, Planet Fitness, home gym"></label>
+    <label><span>Address or note</span><input id="gym-address" maxlength="180" value="${escapeHtml(profile.selectedGymAddress || "")}" placeholder="Optional · keep broad in founder build"></label>
+    <div class="equipment-stack">
+      ${EQUIPMENT_OPTIONS.map(item => `<label><span>${escapeHtml(item)}</span><input type="checkbox" data-action="gym-toggle-equipment" data-value="${escapeHtml(item)}" ${selected.has(item) ? "checked" : ""}></label>`).join("")}
+    </div>
+    <p class="modal-note">Location search and automatic gym-equipment lookup require native permissions and a reviewed provider. This founder build stores only the manual profile above.</p>
+  </div>`;
+}
+
+function renderCommunityDraft(context) {
+  const modal = context.modal || {};
+  return `<div class="community-draft-modal">
+    <div class="draft-camera-box">
+      ${context.communityPreviewUrl ? `<img src="${escapeHtml(context.communityPreviewUrl)}" alt="Local progress photo preview">` : `<span>${icon("camera")}<b>Add a progress photo</b><small>The file is previewed only in memory and is not stored in localStorage.</small></span>`}
+      <input type="file" accept="image/*" data-action="community-photo" aria-label="Choose a progress photo">
+    </div>
+    <label><span>Caption draft</span><textarea id="community-caption" maxlength="280" rows="4" placeholder="Example: Week 3 check-in. Better consistency, same plan.">${escapeHtml(modal.caption || "")}</textarea></label>
+    <label><span>Visibility preview</span><select id="community-visibility"><option value="private" ${modal.visibility === "private" ? "selected" : ""}>Private draft</option><option value="founders" ${modal.visibility === "founders" ? "selected" : ""}>Founders only</option><option value="public_preview" ${modal.visibility === "public_preview" ? "selected" : ""}>Public later — disabled until backend review</option></select></label>
+    <p class="modal-note">No public feed, image upload, or social graph is active. This is the safe local drafting surface for the future community feature.</p>
+  </div>`;
+}
+
 export function renderModal(modal, context) {
   if (!modal) return "";
+  const modalContext = { ...context, modal };
   if (typeof modal.type === "string" && modal.type.startsWith("nutrition-")) {
     const content = renderNutritionModalContent(modal, context);
     if (!content) return "";
@@ -80,6 +169,21 @@ export function renderModal(modal, context) {
   }
   if (modal.type === "offline") {
     return shell("Live Coach is offline","<p>Your workout, exercise library, timer, set logging, and local plans remain available. FitCoach will not queue or retry a voice transcript automatically.</p>",button({label:"Continue locally",action:"close-modal",variant:"primary"}),{eyebrow:"OFFLINE MODE"});
+  }
+  if (modal.type === "apple-health") {
+    return shell("Sync with Apple Health", renderAppleHealthPlan(context.state), button({ label: "Record for native build", action: "mark-apple-health-planned", variant: "primary" }) + button({ label: "Skip for now", action: "close-modal", variant: "quiet" }), { eyebrow: "NATIVE SYNC" });
+  }
+  if (modal.type === "pro-preview") {
+    return shell("FitCoach Pro preview", renderProPreview(context.state), button({ label: "Keep founder build free", action: "close-modal", variant: "quiet" }) + button({ label: "Save trial plan", action: "mark-pro-preview", variant: "primary" }), { eyebrow: "MONETIZATION" });
+  }
+  if (modal.type === "exercise-roadmap") {
+    return shell("100-exercise guide roadmap", renderExerciseRoadmap(), button({ label: "Open live library", action: "open-library", variant: "primary" }) + button({ label: "Close", action: "close-modal", variant: "quiet" }), { eyebrow: "MOVEMENT LIBRARY", wide: true });
+  }
+  if (modal.type === "gym-setup") {
+    return shell("Gym and equipment setup", renderGymSetup(context.state), button({ label: "Save equipment profile", action: "save-gym-profile", variant: "primary" }) + button({ label: "Cancel", action: "close-modal", variant: "quiet" }), { eyebrow: "AVAILABLE EQUIPMENT", wide: true });
+  }
+  if (modal.type === "community-draft") {
+    return shell("Draft a progress post", renderCommunityDraft(modalContext), button({ label: "Save local draft", action: "save-community-draft", variant: "primary" }) + button({ label: "Cancel", action: "close-modal", variant: "quiet" }), { eyebrow: "COMMUNITY PREVIEW" });
   }
   return shell("FitCoach",`<p>${escapeHtml(modal.message || "Nothing to review.")}</p>`,button({label:"Close",action:"close-modal",variant:"primary"}));
 }
