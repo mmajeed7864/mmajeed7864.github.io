@@ -707,6 +707,41 @@
     color: var(--text);
     box-shadow: var(--shadow-sm);
   }
+  .ai-setup-screen .theme-onboarding,
+  .ai-setup-screen .schedule-preview,
+  .ai-setup-screen .tone-preview,
+  .ai-setup-screen .consent-row,
+  .ai-setup-screen .answer-bubble {
+    border-left: 3px solid var(--primary);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  }
+  .ai-setup-screen .answer-bubble {
+    width: min(100%, 36rem);
+    margin-left: auto;
+  }
+  .premium-setup-form label.answer-bubble {
+    gap: .45rem;
+    padding: .82rem .95rem .9rem;
+  }
+  .premium-setup-form label.answer-bubble > span {
+    color: var(--text);
+    font-size: .86rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  .premium-setup-form label.answer-bubble select {
+    border-radius: 999px;
+    background: var(--surface-2);
+  }
+  .premium-setup-form label.answer-bubble.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .premium-setup-form label.answer-bubble.toggle-row > span {
+    text-transform: none;
+    letter-spacing: 0;
+  }
   .ai-setup-screen .theme-onboarding button {
     color: var(--text);
     background: var(--surface-2);
