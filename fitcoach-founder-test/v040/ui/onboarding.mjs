@@ -84,6 +84,7 @@ function toneStep(draft) {
     Direct: "Clear and concise",
     Strict: "Firm standards, no humiliation",
     Competitive: "High-energy pressure, still safe",
+    Rude: "Playful roast, then a firm next move",
   };
   return questionStep({ eyebrow: "THE TRAINER RELATIONSHIP", title: "Choose how I should coach you.", copy: "Tone changes presentation only. Safety, evidence, and plan decisions stay exactly the same.", question: "How should I sound when I coach you?", answer: choiceBubbleGroup({ label: "Trainer tone", field: "tone", action: "onboarding-profile-field", options: TRAINER_TONES.map(value => ({ value, label: value, copy: toneCopy[value] || "" })), selected: draft.profile.tone, hint: `Recommended voice: ${recommendedVoice || "your current voice"}` }) });
 }
@@ -93,7 +94,7 @@ function voiceStep(draft) {
   const voiceCopy = {
     nova: "Best for supportive coaching",
     atlas: "Best for strict and competitive modes",
-    bennett: "Best for direct British coaching",
+    bennett: "Modern London voice for direct or roast coaching",
     mira: "Calm, steady, and low-pressure",
   };
   return questionStep({ eyebrow: "PREMIUM VOICE", title: "Give your trainer a voice you’ll want to hear.", copy: "Text always stays visible. Voice is optional and can be changed later.", question: "Which voice fits this trainer?", answer: choiceBubbleGroup({ label: "Premium voice", field: "voicePersona", action: "onboarding-setting", options: VOICE_PERSONAS.map(value => ({ value, label: VOICE_PERSONA_LABELS[value], copy: voiceCopy[value] || "" })), selected: draft.settings.voicePersona, hint: `Recommended for ${draft.profile.tone}: ${recommendedVoice || "your current voice"}` }) });

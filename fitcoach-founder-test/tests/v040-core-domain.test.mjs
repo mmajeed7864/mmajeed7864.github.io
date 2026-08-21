@@ -11,6 +11,7 @@ import {
 } from "../v040/core/store.mjs";
 import {
   computeDecision,
+  journeyStage,
   selectAction,
 } from "../v040/domain/decisions.mjs";
 import {
@@ -240,6 +241,20 @@ test("daily trainer action is deterministic and an existing valid decision is re
   assert.equal(nextDay.type, "RECOMMEND_REST");
   assert.equal(nextDay.primary.kind, "acknowledge");
   assert.equal(nextDay.primary.value, "recovery");
+});
+
+test("journey stage distinguishes day one from missing history without inventing failure", () => {
+  const state = createInitialState("mo", FIXED_NOW);
+  assert.equal(journeyStage(state, new Date("2026-08-20T20:00:00.000Z")), "first_day");
+  const decision = computeDecision(state, new Date("2026-08-20T20:00:00.000Z"));
+  assert.equal(decision.contractVersion, "fitcoach-decision-v2");
+  assert.match(decision.message, /first day/u);
+  assert.doesNotMatch(decision.message, /behind|gap|failure/u);
+
+  state.createdAt = "2026-08-10T14:00:00.000Z";
+  assert.equal(journeyStage(state, FIXED_NOW), "building_history");
+  state.sessions.push({ id: "session-1", completedAt: "2026-08-19T14:00:00.000Z", exercises: [] });
+  assert.equal(journeyStage(state, FIXED_NOW), "active");
 });
 
 test("a plan proposal cannot activate or alter the plan before explicit approval", () => {

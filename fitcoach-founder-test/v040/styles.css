@@ -1559,6 +1559,53 @@
     gap: .55rem;
     margin: .15rem 0;
   }
+  .provider-boundary.compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+  }
+  .provider-boundary.compact span {
+    min-height: 34px;
+    display: grid;
+    place-items: center;
+    padding: .4rem .5rem;
+    font-size: .72rem;
+    text-align: center;
+  }
+  .voice-room-launch {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .85rem;
+    padding: .85rem;
+    border: 1px solid rgba(190, 252, 238, .42);
+    border-radius: calc(var(--radius) + 4px);
+    background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(83,228,204,.1));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 16px 34px rgba(0,24,31,.16);
+  }
+  .voice-room-launch h2 { margin: .08rem 0 .16rem; font-size: 1.05rem; letter-spacing: -.018em; }
+  .voice-room-launch p { color: rgba(255,255,255,.76); font-size: .76rem; line-height: 1.35; }
+  .voice-room-launch .button { min-width: 138px; white-space: nowrap; }
+  .voice-launch-orb {
+    width: 48px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at 38% 28%, #ebffff, #62e5d3 31%, #188fbd 62%, #072b42);
+    box-shadow: 0 0 28px rgba(84,230,210,.46), inset 0 0 0 1px rgba(255,255,255,.36);
+  }
+  .voice-launch-orb i, .voice-launch-orb span {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    top: 44%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(235,255,255,.9);
+    transform: rotate(-10deg);
+    box-shadow: 0 0 10px rgba(235,255,255,.8);
+  }
+  .voice-launch-orb span { top: 58%; transform: rotate(8deg) scaleX(.74); opacity: .64; }
   .provider-boundary span {
     min-height: 42px;
     border: 1px solid rgba(255,255,255,.2);
@@ -2113,11 +2160,12 @@
     padding: calc(1rem + var(--safe-top)) 1rem calc(1rem + var(--safe-bottom));
     color: white;
     background:
-      radial-gradient(circle at 50% 22%, rgba(75, 198, 255, .34), transparent 12rem),
-      linear-gradient(180deg, #032b34, #051015 74%);
+      radial-gradient(circle at 50% 18%, rgba(76, 220, 255, .36), transparent 13rem),
+      radial-gradient(circle at 14% 78%, rgba(65, 226, 188, .16), transparent 18rem),
+      linear-gradient(168deg, #042d38, #06151d 52%, #03090d);
     display: grid;
     grid-template-rows: auto 1fr auto auto;
-    gap: 1rem;
+    gap: .8rem;
     letter-spacing: 0;
   }
   .voice-room header, .voice-room footer {
@@ -2146,11 +2194,11 @@
     display: grid;
     place-items: center;
     align-content: center;
-    gap: .9rem;
+    gap: .7rem;
     text-align: center;
   }
   .voice-room-orb {
-    width: min(46vw, 188px);
+    width: min(50vw, 202px);
     aspect-ratio: 1;
     border-radius: 50%;
     position: relative;
@@ -2191,7 +2239,7 @@
   }
   .voice-room[data-phase="listening"] .voice-room-orb { animation: pulse 1.45s ease-in-out infinite; }
   .voice-state-label { color: var(--mint); font-weight: 900; letter-spacing: .015em; }
-  .voice-room h2 { max-width: 22rem; font-size: 1.3rem; line-height: 1.34; text-wrap: balance; }
+  .voice-room h2 { max-width: 22rem; font-size: 1.2rem; line-height: 1.32; text-wrap: balance; letter-spacing: -.016em; }
   .voice-captions {
     width: 100%;
     display: grid;
@@ -2201,12 +2249,35 @@
   .voice-captions p, .voice-consent {
     border: 1px solid rgba(255,255,255,.18);
     border-radius: var(--radius);
-    background: rgba(255,255,255,.09);
+    background: rgba(255,255,255,.1);
+    backdrop-filter: blur(18px);
     padding: .85rem;
     line-height: 1.48;
   }
   .voice-captions span { display: block; color: var(--mint); font-weight: 900; margin-bottom: .2rem; }
   .voice-consent { display: grid; gap: .75rem; }
+  .voice-consent-points {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .45rem;
+  }
+  .voice-consent-points span {
+    min-height: 72px;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: .35rem;
+    padding: .55rem .35rem;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 14px;
+    background: rgba(255,255,255,.07);
+    text-align: center;
+  }
+  .voice-consent-points svg { width: 20px; height: 20px; color: var(--mint); }
+  .voice-consent-points b { font-size: .69rem; line-height: 1.25; letter-spacing: 0; }
+  .voice-consent details { color: rgba(255,255,255,.7); font-size: .72rem; line-height: 1.45; }
+  .voice-consent summary { cursor: pointer; text-align: center; font-weight: 800; color: rgba(255,255,255,.82); }
+  .voice-consent details p { padding-top: .55rem; }
   .voice-room footer {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
@@ -2298,6 +2369,9 @@
       align-items: start;
     }
     .voice-room { padding-inline: .85rem; gap: .85rem; }
+    .voice-room-launch { grid-template-columns: auto 1fr; }
+    .voice-room-launch .button { grid-column: 1 / -1; width: 100%; }
+    .provider-boundary.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .voice-room header button { min-width: 72px; }
     .voice-room button, .voice-room select { font-size: 1rem; }
   }

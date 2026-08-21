@@ -21,3 +21,11 @@ test("Voice Room speaks trainer replies automatically while text chat respects s
     "Voice Room must not reuse the text-chat Speak replies toggle",
   );
 });
+
+test("Voice Room primes one persistent audio element from a user gesture", () => {
+  assert.match(appSource, /const sharedPremiumAudio = typeof Audio === "function" \? new Audio\(\) : null/u);
+  assert.match(appSource, /audioFactory: url => \{[\s\S]*sharedPremiumAudio\.src = url/u);
+  assert.match(appSource, /function unlockVoicePlayback\(\)/u);
+  assert.match(appSource, /function openVoiceRoom\(\) \{[\s\S]{0,260}unlockVoicePlayback\(\)/u);
+  assert.match(appSource, /action === "voice-consent"\) \{ unlockVoicePlayback\(\)/u);
+});

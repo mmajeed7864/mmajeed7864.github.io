@@ -129,7 +129,39 @@ function nutritionDateKey() {
 }
 
 const trainerClient = createTrainerClient();
-const premiumVoice = createPremiumVoiceClient();
+const SILENT_AUDIO_URI = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+const sharedPremiumAudio = typeof Audio === "function" ? new Audio() : null;
+if (sharedPremiumAudio) {
+  sharedPremiumAudio.preload = "auto";
+  sharedPremiumAudio.setAttribute("playsinline", "");
+}
+const premiumVoice = createPremiumVoiceClient({
+  audioFactory: url => {
+    if (!sharedPremiumAudio) return new Audio(url);
+    sharedPremiumAudio.src = url;
+    sharedPremiumAudio.preload = "auto";
+    return sharedPremiumAudio;
+  },
+});
+
+function unlockVoicePlayback() {
+  try { speechSynthesis?.resume?.(); } catch {}
+  if (!sharedPremiumAudio || sharedPremiumAudio.dataset.fitcoachUnlocked === "true") return;
+  try {
+    sharedPremiumAudio.muted = true;
+    sharedPremiumAudio.src = SILENT_AUDIO_URI;
+    sharedPremiumAudio.load?.();
+    const attempt = sharedPremiumAudio.play();
+    Promise.resolve(attempt).then(() => {
+      sharedPremiumAudio.pause();
+      sharedPremiumAudio.currentTime = 0;
+      sharedPremiumAudio.muted = false;
+      sharedPremiumAudio.dataset.fitcoachUnlocked = "true";
+    }).catch(() => { sharedPremiumAudio.muted = false; });
+  } catch {
+    sharedPremiumAudio.muted = false;
+  }
+}
 
 function createStore(founder) {
   store = createFitCoachStore({ founder });
@@ -557,10 +589,13 @@ function dynamicVoiceSettings() {
     direct: { rate: 1.02, pitch: .98 },
     strict: { rate: .97, pitch: .9 },
     competitive: { rate: 1.08, pitch: 1.02 },
+    rude: { rate: 1.04, pitch: .92 },
   }[tone] || { rate: 1, pitch: 1 };
   const pattern = {
     nova: /Samantha|Ava|Serena|Allison|Jenny|Aria|Karen|Moira/i,
     atlas: /Daniel|Alex|Aaron|Fred|Tom|Arthur|Oliver/i,
+    bennett: /Daniel|Arthur|Oliver|Jamie|Thomas|James|British|English|UK/i,
+    mira: /Samantha|Ava|Serena|Allison|Jenny|Aria|Karen|Moira|Tessa/i,
   }[state.settings.voicePersona] || /Premium|Enhanced|Natural|Siri/i;
   return { ...prosody, pattern };
 }
@@ -728,6 +763,8 @@ const voiceController = createVoiceRoomController({
 
 function openVoiceRoom() {
   if (!navigator.onLine) return openModal({type:"offline"});
+  stopSpeech({ renderCoach: false });
+  unlockVoicePlayback();
   voiceReturnFocus = document.activeElement;
   ui.route = "coach";
   render();
@@ -1042,9 +1079,9 @@ function handleClick(event) {
   if (action === "restore-chat-draft") { ui.chatDraft=ui.lastFailedChatDraft;ui.chatNotice=null;render();requestAnimationFrame(()=>document.querySelector("#coach-input")?.focus());return; }
   if (action === "speak-message") { const message=state.chat.find(item=>item.id===value);if(!message)return;if(ui.speakingMessageId===value)stopSpeech();else speakText(message.text,{messageId:value});return; }
   if (action === "open-voice-room") { openVoiceRoom();return; }
-  if (action === "voice-consent") { state=store.update(draft=>{draft.settings.voiceConsent=true;});voiceController.grantConsent();renderVoiceRoot();return; }
+  if (action === "voice-consent") { unlockVoicePlayback();state=store.update(draft=>{draft.settings.voiceConsent=true;});voiceController.grantConsent();renderVoiceRoot();return; }
   if (action === "voice-exit" || action === "voice-text-mode") { voiceController.exit();renderVoiceRoot();ui.route="coach";render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;return; }
-  if (action === "voice-resume") { voiceController.resume();return; }
+  if (action === "voice-resume") { unlockVoicePlayback();voiceController.resume();return; }
   if (action === "voice-retry") { voiceController.retry();return; }
   if (action === "voice-interrupt") { voiceController.interrupt();return; }
   if (action === "voice-mute") { voiceController.setMuted(!voiceController.getState().muted);return; }

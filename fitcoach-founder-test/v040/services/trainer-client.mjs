@@ -5,7 +5,7 @@ import {
   TRAINER_API,
 } from "../core/constants.mjs";
 import { clamp, slug, uid } from "../core/utils.mjs";
-import { daysSinceLastSession, sessionsThisWeek } from "../domain/decisions.mjs";
+import { daysSinceLastSession, journeyStage, sessionsThisWeek } from "../domain/decisions.mjs";
 
 export const PRIVATE_INPUT_PATTERN = /\b(?:(?:api[_ -]?key|password|secret|token)\s*(?:is|[:=])\s*\S+|bearer\s+(?:sk-)?[a-z0-9._~+/=-]{8,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}|medicat\w*|prescription|dosage?|\d+\s?mg\b|diagnos\w*|pregnan\w*|eating\s+disorder)\b/i;
 
@@ -42,7 +42,7 @@ function deviceId(storage) {
 
 function trainerStyle(state) {
   const value = String(state.profile?.tone || "Direct").toLowerCase();
-  return ["supportive", "direct", "strict", "competitive"].includes(value) ? value : "direct";
+  return ["supportive", "direct", "strict", "competitive", "rude"].includes(value) ? value : "direct";
 }
 
 function planCode(plan) {
@@ -88,6 +88,7 @@ export function createTrainerPayload({ state, message, approvedAction, founder =
       energy_1_to_5: clamp(Number(state.profile.energy) || 3, 1, 5),
       weekly_completed: completed,
       weekly_target: target,
+      journey_stage: journeyStage(state, now),
       days_since_last_session: clamp(daysSinceLastSession(state, now), 0, 999),
       approved_action: ACTIONS.includes(approvedAction) ? approvedAction : "SAY_NOTHING",
       plan_code: planCode(plan),

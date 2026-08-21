@@ -97,6 +97,7 @@ test("trainer v3 payload has an exact low-sensitivity allow-list", () => {
     "exercise_codes",
     "experience_code",
     "goal_code",
+    "journey_stage",
     "plan_code",
     "plan_minutes",
     "session_minutes",
@@ -119,6 +120,7 @@ test("trainer v3 payload has an exact low-sensitivity allow-list", () => {
     energy_1_to_5: 4,
     weekly_completed: 1,
     weekly_target: 4,
+    journey_stage: "active",
     days_since_last_session: 1,
     approved_action: "OFFER_PLAN_B",
     plan_code: "plan_b",
@@ -132,6 +134,21 @@ test("trainer v3 payload has an exact low-sensitivity allow-list", () => {
   assert.equal(JSON.stringify(payload).includes("founder@example.com"), false);
   assert.equal(JSON.stringify(payload).includes("must-not-leave-device"), false);
   assert.equal(JSON.stringify(payload).includes("must-not-serialize-raw-memory"), false);
+});
+
+test("a fresh profile sends first-day context and accepts the bounded rude style", () => {
+  const state = createInitialState("mo", NOW);
+  state.profile.tone = "Rude";
+  const payload = createTrainerPayload({
+    state,
+    message: "Give me the day-one standard.",
+    founder: "mo",
+    storage: new MemoryStorage(),
+    now: new Date("2026-08-20T15:00:00.000Z"),
+  });
+  assert.equal(payload.style, "rude");
+  assert.equal(payload.context.journey_stage, "first_day");
+  assert.equal(payload.context.weekly_completed, 0);
 });
 
 test("migrated and rechecked private chat history are excluded from provider projection", () => {

@@ -1,14 +1,14 @@
-export const BUILD = "0.4.2";
-export const CACHE_GENERATION = "0409";
+export const BUILD = "0.4.3";
+export const CACHE_GENERATION = "0410";
 export const ROUTES = ["today", "train", "coach", "progress", "profile", "nutrition"];
 export const TRAIN_SEGMENTS = ["workout", "exercises"];
 export const THEMES = ["light", "dark", "system"];
-export const TRAINER_TONES = ["Supportive", "Direct", "Strict", "Competitive"];
+export const TRAINER_TONES = ["Supportive", "Direct", "Strict", "Competitive", "Rude"];
 export const VOICE_PERSONAS = ["nova", "atlas", "bennett", "mira"];
 export const VOICE_PERSONA_LABELS = Object.freeze({
   nova: "Nova · supportive woman",
   atlas: "Atlas · strong male",
-  bennett: "Bennett · British male",
+  bennett: "Bennett · modern British male",
   mira: "Mira · calm woman",
 });
 export const DEFAULT_VOICE_BY_TONE = Object.freeze({
@@ -16,6 +16,7 @@ export const DEFAULT_VOICE_BY_TONE = Object.freeze({
   Direct: "bennett",
   Strict: "atlas",
   Competitive: "atlas",
+  Rude: "bennett",
 });
 export const ANSWER_DEPTHS = ["fast", "smart", "deep"];
 export const SESSION_MINUTES = [12, 20, 30, 45, 60];

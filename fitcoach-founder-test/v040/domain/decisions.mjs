@@ -1,6 +1,19 @@
 import { ACTIONS } from "../core/constants.mjs";
 import { clamp, localDateKey, uid } from "../core/utils.mjs";
 
+export const DECISION_CONTRACT_VERSION = "fitcoach-decision-v2";
+
+export function journeyStage(state, now = new Date()) {
+  if ((state.sessions || []).length > 0) return "active";
+  const createdAt = new Date(state.createdAt || "").getTime();
+  const ageMs = now.getTime() - createdAt;
+  const isFreshProfile = state.migration?.source === "fresh-v040"
+    && Number.isFinite(createdAt)
+    && ageMs >= 0
+    && ageMs <= 48 * 60 * 60 * 1_000;
+  return isFreshProfile ? "first_day" : "building_history";
+}
+
 export function sessionsThisWeek(state, now = new Date()) {
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -48,9 +61,13 @@ function actionCopy(type, state, now) {
       primary: { label: "View workout", kind: "route", value: "train" },
     },
     CHECK_IN: {
-      title: "Start with one honest session",
-      message: `You chose ${target} days each week. The first useful step is to log one session, not chase a perfect start.`,
-      why: "Your plan exists, but this device has no completed session yet.",
+      title: journeyStage(state, now) === "first_day" ? "Day one starts with one clear rep" : "Start with one honest session",
+      message: journeyStage(state, now) === "first_day"
+        ? `This is your first day—not a ${target}-session deficit. Your plan is ready; complete one approved session or its minimum version to create the baseline.`
+        : `You chose ${target} days each week. The first useful step is to log one session, not chase a perfect start.`,
+      why: journeyStage(state, now) === "first_day"
+        ? "This profile was created today and has no prior workout history, so FitCoach starts the baseline without calling you behind."
+        : "Your plan exists, but this device has no completed session yet.",
       primary: { label: "Start Plan A", kind: "start_plan", value: "A" },
       secondary: { label: "See Minimum Dose", kind: "start_plan", value: "MIN" },
     },
@@ -123,12 +140,17 @@ export function selectAction(state, now = new Date()) {
 
 export function computeDecision(state, now = new Date()) {
   const today = localDateKey(now);
-  const existing = [...(state.decisions || [])].reverse().find(item => item.date === today && ACTIONS.includes(item.type));
+  const existing = [...(state.decisions || [])].reverse().find(item => (
+    item.date === today
+    && item.contractVersion === DECISION_CONTRACT_VERSION
+    && ACTIONS.includes(item.type)
+  ));
   if (existing) return existing;
   const type = selectAction(state, now);
   return {
     id: uid("decision"),
     type,
+    contractVersion: DECISION_CONTRACT_VERSION,
     date: today,
     createdAt: now.toISOString(),
     outcome: null,

@@ -1,6 +1,6 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
 import { escapeHtml, localDateKey } from "../core/utils.mjs";
-import { readiness, sessionsThisWeek } from "../domain/decisions.mjs";
+import { journeyStage, readiness, sessionsThisWeek } from "../domain/decisions.mjs";
 import { dayTotals, draftCount, normalizeTargets } from "../domain/nutrition.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
 import { macroBar } from "./nutrition-screen.mjs";
@@ -57,6 +57,11 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, now = n
   const first = plan.exercises[0];
   const firstExercise = first ? exerciseById(first.exerciseId) : null;
   const remaining = Math.max(0, target - weekDone);
+  const stage = journeyStage(state, now);
+  const weekHeadline = stage === "first_day" ? "Your week starts today" : `${weekDone}/${target} sessions`;
+  const weekDetail = stage === "first_day"
+    ? `${target}-session plan ready · nothing is late`
+    : remaining ? `${remaining} remaining · every valid version counts` : "Weekly target complete";
   return `<div class="page today-page">
     <section class="today-intro"><div><span class="eyebrow">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</span><h1>${now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening"}</h1><p>Your plan is ready. Change the context, and FitCoach will preview the exact difference before anything moves.</p></div><div class="readiness-orb" style="--score:${ready.score}" aria-label="Readiness ${ready.score}, ${ready.label}"><strong>${ready.score}</strong><small>${ready.label}</small></div></section>
 
@@ -68,7 +73,7 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, now = n
       </div>
     </section>
 
-    <section class="weekly-card card"><header><span><small>THIS WEEK</small><b>${weekDone}/${target} sessions</b></span><p>${remaining ? `${remaining} remaining · every valid version counts` : "Weekly target complete"}</p></header><div class="week-strip">${weekStrip(state, now)}</div></section>
+    <section class="weekly-card card"><header><span><small>THIS WEEK</small><b>${weekHeadline}</b></span><p>${weekDetail}</p></header><div class="week-strip">${weekStrip(state, now)}</div></section>
 
     <section class="next-session-card card">
       <div class="session-visual">${firstExercise ? exercisePoster(firstExercise, { eager: true }) : ""}<span class="session-time"><b>${plan.minutes}</b><small>MIN</small></span></div>

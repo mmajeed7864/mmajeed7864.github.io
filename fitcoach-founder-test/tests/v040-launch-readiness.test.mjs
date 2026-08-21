@@ -96,7 +96,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.4\.2/u);
+  assert.match(html, /FitCoach v0\.4\.3/u);
 });
 
 test("normalization keeps photo drafts as metadata only and drops corrupt drafts", () => {

@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.4.2 is the active runtime (cache generation 0409 refreshes the one-question onboarding flow):
+FitCoach v0.4.3 is the active runtime (cache generation 0410 refreshes the voice-room and first-day trainer flow):
 
-- document shell: `index.html?v=0409`
-- stylesheet: `v040/styles.css?v=0409`
-- ES-module entry: `v040/app.js?v=0409`
-- service worker cache: `fitcoach-symbio-v0409`
+- document shell: `index.html?v=0410`
+- stylesheet: `v040/styles.css?v=0410`
+- ES-module entry: `v040/app.js?v=0410`
+- service worker cache: `fitcoach-symbio-v0410`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
