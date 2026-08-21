@@ -1,17 +1,17 @@
-// FitCoach v0.4 founder-prototype meal estimator.
+// FitCoach v0.4 preview meal estimator.
 //
 // HONESTY CONTRACT: there is NO vision provider in this build. This module is a
 // deterministic demo that exercises the full review UX. It never fabricates a
 // provider response: every result is flagged { demo: true }, labeled with a
 // deterministic provider id, carries wide ranges + low confidence, and must be
-// reviewed and explicitly confirmed by the founder before it counts anywhere.
+// reviewed and explicitly confirmed before it counts anywhere.
 // The photo itself is never read, uploaded, or stored — only name/size metadata
 // feeds the deterministic selection.
 import { hashText, safeNumber } from "../core/utils.mjs";
 import { DEMO_FOODS, mealSlotForHour, photoHash } from "./nutrition.mjs";
 
-export const ESTIMATOR_PROVIDER = "founder-demo-deterministic-v1";
-export const ESTIMATOR_DISCLAIMER = "Founder prototype: deterministic demo estimate, not computer vision. Photo estimates can be wrong — review, edit, and confirm before anything counts.";
+export const ESTIMATOR_PROVIDER = "preview-demo-deterministic-v1";
+export const ESTIMATOR_DISCLAIMER = "Preview estimate: deterministic demo estimate, not computer vision. Photo estimates can be wrong — review, edit, and confirm before anything counts.";
 
 const meal = (name, servingLabel, calories, protein, carbs, fat, assumptions) => Object.freeze({
   name,

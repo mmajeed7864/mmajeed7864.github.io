@@ -112,7 +112,7 @@ export function renderNutritionScreen({ state, ui, now = new Date() }) {
 
     <section class="card nutrition-honesty"><header>${icon("info")}<span><small>HOW THESE NUMBERS WORK</small><h2>Estimates, honestly labeled</h2></span></header>
       <p>${escapeHtml(NUTRITION_DISCLAIMER)}</p>
-      <ul><li>Totals count confirmed entries only — drafts always count zero</li><li>Photo and text estimates are a deterministic founder demo, not computer vision</li><li>Targets are yours to set; FitCoach never prescribes a diet</li><li>Photos never leave this device and are never stored — only name and size metadata</li></ul>
+      <ul><li>Totals count confirmed entries only — drafts always count zero</li><li>Photo and text estimates are a deterministic preview demo, not computer vision</li><li>Targets are yours to set; FitCoach never prescribes a diet</li><li>Photos never leave this device and are never stored — only name and size metadata</li></ul>
     </section>
   </div>`;
 }
@@ -128,7 +128,7 @@ function reviewSheet(modal, context) {
     eyebrow: "REVIEW BEFORE IT COUNTS",
     title: "Check this estimate",
     body: `
-      <div class="demo-banner">${icon("info")}<p><b>Founder prototype estimate.</b> ${escapeHtml(ESTIMATOR_DISCLAIMER)}</p></div>
+      <div class="demo-banner">${icon("info")}<p><b>Preview estimate.</b> ${escapeHtml(ESTIMATOR_DISCLAIMER)}</p></div>
       ${previewUrl ? `<img class="review-photo" src="${escapeHtml(previewUrl)}" alt="Your meal photo (kept on this device only)">` : ""}
       <label class="field"><span>Food name</span><input id="review-name" maxlength="120" value="${escapeHtml(entry.name)}"></label>
       ${estimate?.candidates?.length > 1 ? `<div class="candidate-row" role="group" aria-label="Other guesses"><span>Other guesses</span>${estimate.candidates.slice(1).map(name => `<button class="choice-chip" data-action="nutrition-review-candidate" data-value="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}</div>` : ""}
@@ -146,7 +146,7 @@ function reviewSheet(modal, context) {
 function captureSheet(modal) {
   const slot = MEAL_SLOTS.includes(modal.slot) ? modal.slot : "";
   return {
-    eyebrow: "PHOTO ESTIMATE · FOUNDER DEMO",
+    eyebrow: "PHOTO ESTIMATE · PREVIEW DEMO",
     title: "Scan your food",
     body: `
       <div class="demo-banner">${icon("info")}<p><b>No vision provider is connected in this build.</b> ${escapeHtml(ESTIMATOR_DISCLAIMER)}</p></div>

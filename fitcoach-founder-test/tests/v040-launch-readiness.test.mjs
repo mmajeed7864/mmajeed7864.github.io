@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   EXERCISE_EXPANSION_CATEGORIES,
@@ -86,6 +87,18 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
   }
 });
 
+test("active app has no password gate or visible founder picker", () => {
+  const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
+  const onboarding = readFileSync(new URL("../v040/ui/onboarding.mjs", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+
+  for (const source of [app, onboarding, html]) {
+    assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
+  }
+
+  assert.match(html, /FitCoach v0\.4\.2/u);
+});
+
 test("normalization keeps photo drafts as metadata only and drops corrupt drafts", () => {
   const normalized = normalizeStateForTest({
     socialDrafts: [
@@ -133,7 +146,7 @@ test("store persists launch readiness fields without storing image bytes", () =>
   const updated = store.update(draft => {
     draft.integrations.appleHealth.status = "planned";
     draft.integrations.appleHealth.requestedAt = "2026-08-20T14:00:00.000Z";
-    draft.gymProfile.selectedGymName = "Founder Gym";
+    draft.gymProfile.selectedGymName = "Preview Gym";
     draft.gymProfile.equipment = ["dumbbells", "cables", "machines"];
     draft.socialDrafts.push({
       id: "local-draft-one",
@@ -148,7 +161,7 @@ test("store persists launch readiness fields without storing image bytes", () =>
   });
 
   assert.equal(updated.integrations.appleHealth.status, "planned");
-  assert.equal(updated.gymProfile.selectedGymName, "Founder Gym");
+  assert.equal(updated.gymProfile.selectedGymName, "Preview Gym");
   assert.equal(updated.socialDrafts[0].hasImagePreview, true);
   assert.equal("imageDataUrl" in updated.socialDrafts[0], false);
   assert.doesNotMatch(JSON.stringify(updated), /data:image|NOT_ALLOWED/);

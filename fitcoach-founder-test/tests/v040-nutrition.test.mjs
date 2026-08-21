@@ -309,13 +309,13 @@ test("nutrition screen renders dashboard, meal cards, drafts, and capture entry 
   assert.ok(!/😊|🎉/.test(html));
 });
 
-test("review, capture, add, and targets sheets render with honest founder-demo labeling", () => {
+test("review, capture, add, and targets sheets render with honest preview-demo labeling", () => {
   const state = createInitialState("mo", FIXED_NOW);
   const draft = addEntryToDay(state.nutrition, DATE_KEY, photoDraft());
   const context = { state, previewUrl: null };
 
   const review = renderNutritionModalContent({ type: "nutrition-review", dateKey: DATE_KEY, entryId: draft.id }, context);
-  assert.match(review.body, /Founder prototype/u, "review sheet declares the demo estimator");
+  assert.match(review.body, /Preview estimate/u, "review sheet declares the demo estimator");
   assert.match(review.body, /not computer vision/u);
   assert.match(review.body, /–/u, "ranges are shown");
   assert.match(review.actions, /nutrition-confirm-entry/u);

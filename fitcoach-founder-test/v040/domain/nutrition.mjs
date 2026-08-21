@@ -1,6 +1,6 @@
 // FitCoach v0.4 nutrition domain — deterministic, local-first, confirmed-only totals.
 // Drafts (photo/text estimates) contribute EXACTLY ZERO to any total until the
-// founder explicitly confirms them in the review sheet. No provider is involved
+// the user explicitly confirms them in the review sheet. No provider is involved
 // anywhere in this module.
 import { clamp, deepClone, hashText, localDateKey, safeNumber, uid } from "../core/utils.mjs";
 
@@ -25,7 +25,7 @@ export const MAX_TRACKED_DAYS = 60;
 export const MAX_RECENTS = 20;
 export const MAX_FAVORITES = 30;
 
-export const NUTRITION_DISCLAIMER = "Founder research tool. Nutrition values are approximate estimates for training context — not medical, dietetic, or treatment advice.";
+export const NUTRITION_DISCLAIMER = "Preview nutrition tool. Nutrition values are approximate estimates for training context — not medical, dietetic, or treatment advice.";
 
 const RAW_IMAGE_PAYLOAD = /data:image\/|;base64,|blob:/i;
 const isObject = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -35,8 +35,8 @@ const cleanString = (value, fallback = "", max = 160) => (
 const oneOf = (value, allowed, fallback) => allowed.includes(value) ? value : fallback;
 const round1 = value => Math.round(value * 10) / 10;
 
-// ── Founder demo food list ─────────────────────────────────────────────────
-// Approximate per-serving values for a private founder test. Everything is
+// ── Preview demo food list ─────────────────────────────────────────────────
+// Approximate per-serving values for a private preview. Everything is
 // editable before it is confirmed; nothing here claims database-grade accuracy.
 const food = (key, name, servingLabel, calories, protein, carbs, fat, fiber = 0, sugar = 0, sodium = 0) => Object.freeze({
   key,
@@ -89,7 +89,7 @@ export function findDemoFood(key) {
 }
 
 // ── Targets ────────────────────────────────────────────────────────────────
-// FitCoach does NOT compute a calorie prescription from body data. The founder
+// FitCoach does NOT compute a calorie prescription from body data. The user
 // sets targets manually; defaults are a neutral starting point, clearly labeled.
 export const DEFAULT_TARGETS = Object.freeze({
   calories: 2200,
@@ -159,7 +159,7 @@ export function normalizeEstimate(raw) {
   if (!kcalRange) return null;
   return {
     demo: true, // v1 has no real vision provider; this flag is honest and load-bearing.
-    provider: cleanString(raw.provider, "founder-demo-deterministic-v1", 80),
+    provider: cleanString(raw.provider, "preview-demo-deterministic-v1", 80),
     confidence: oneOf(raw.confidence, CONFIDENCE_LEVELS, "low"),
     kcalRange,
     proteinRange: range(raw.proteinRange) || [0, 0],

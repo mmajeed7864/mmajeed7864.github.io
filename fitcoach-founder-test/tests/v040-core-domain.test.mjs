@@ -212,7 +212,7 @@ test("tutorial dismissal is local settings state and defaults to showing the tut
   assert.equal(normalizeStateForTest({ settings: { tutorialDismissed: false } }).settings.tutorialDismissed, false);
 });
 
-test("new founder profiles start with a voice that matches the trainer tone", () => {
+test("new local profiles start with a voice that matches the trainer tone", () => {
   assert.equal(createInitialState("mo", FIXED_NOW).profile.tone, "Strict");
   assert.equal(createInitialState("mo", FIXED_NOW).settings.voicePersona, "atlas");
   assert.equal(createInitialState("ravi", FIXED_NOW).profile.tone, "Direct");

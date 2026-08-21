@@ -1,6 +1,5 @@
-export const BUILD = "0.4.0";
-export const CACHE_GENERATION = "0408";
-export const ACCESS_CODE = "LIFT26";
+export const BUILD = "0.4.2";
+export const CACHE_GENERATION = "0409";
 export const ROUTES = ["today", "train", "coach", "progress", "profile", "nutrition"];
 export const TRAIN_SEGMENTS = ["workout", "exercises"];
 export const THEMES = ["light", "dark", "system"];
@@ -38,9 +37,4 @@ export const MODEL_MODES = Object.freeze({
   fast: { label: "Quick", detail: "Short answer, same safety rules" },
   smart: { label: "Balanced", detail: "Useful context and one clear move" },
   deep: { label: "Deep", detail: "More explanation, no extra authority" },
-});
-
-export const FOUNDERS = Object.freeze({
-  mo: { name: "Mohammed", initial: "M" },
-  ravi: { name: "Ravi", initial: "R" },
 });

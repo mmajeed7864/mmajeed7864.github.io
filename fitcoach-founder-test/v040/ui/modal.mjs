@@ -95,11 +95,11 @@ function renderGymSetup(state) {
   const selected = new Set(profile.equipment || []);
   return `<div class="gym-setup-modal">
     <label><span>Gym name</span><input id="gym-name" maxlength="120" value="${escapeHtml(profile.selectedGymName || "")}" placeholder="Crunch Fitness, Planet Fitness, home gym"></label>
-    <label><span>Address or note</span><input id="gym-address" maxlength="180" value="${escapeHtml(profile.selectedGymAddress || "")}" placeholder="Optional · keep broad in founder build"></label>
+    <label><span>Address or note</span><input id="gym-address" maxlength="180" value="${escapeHtml(profile.selectedGymAddress || "")}" placeholder="Optional · keep broad in preview"></label>
     <div class="equipment-stack">
       ${EQUIPMENT_OPTIONS.map(item => `<label><span>${escapeHtml(item)}</span><input type="checkbox" data-action="gym-toggle-equipment" data-value="${escapeHtml(item)}" ${selected.has(item) ? "checked" : ""}></label>`).join("")}
     </div>
-    <p class="modal-note">Location search and automatic gym-equipment lookup require native permissions and a reviewed provider. This founder build stores only the manual profile above.</p>
+    <p class="modal-note">Location search and automatic gym-equipment lookup require native permissions and a reviewed provider. This preview stores only the manual profile above.</p>
   </div>`;
 }
 
@@ -111,7 +111,7 @@ function renderCommunityDraft(context) {
       <input type="file" accept="image/*" data-action="community-photo" aria-label="Choose a progress photo">
     </div>
     <label><span>Caption draft</span><textarea id="community-caption" maxlength="280" rows="4" placeholder="Example: Week 3 check-in. Better consistency, same plan.">${escapeHtml(modal.caption || "")}</textarea></label>
-    <label><span>Visibility preview</span><select id="community-visibility"><option value="private" ${modal.visibility === "private" ? "selected" : ""}>Private draft</option><option value="founders" ${modal.visibility === "founders" ? "selected" : ""}>Founders only</option><option value="public_preview" ${modal.visibility === "public_preview" ? "selected" : ""}>Public later — disabled until backend review</option></select></label>
+    <label><span>Visibility preview</span><select id="community-visibility"><option value="private" ${modal.visibility === "private" ? "selected" : ""}>Private draft</option><option value="founders" ${modal.visibility === "founders" ? "selected" : ""}>Team only</option><option value="public_preview" ${modal.visibility === "public_preview" ? "selected" : ""}>Public later — disabled until backend review</option></select></label>
     <p class="modal-note">No public feed, image upload, or social graph is active. This is the safe local drafting surface for the future community feature.</p>
   </div>`;
 }
@@ -162,10 +162,10 @@ export function renderModal(modal, context) {
     return shell("End this workout without saving?","<p>The active workout and its unsaved set entries will be removed from this device. Completed history is not affected.</p>",button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:"End unsaved workout",action:"confirm-exit-workout",variant:"danger"}),{eyebrow:"EMERGENCY EXIT"});
   }
   if (modal.type === "confirm-clear-chat") {
-    return shell("Clear the Coach thread?","<p>This removes saved text messages from this founder profile. Workout history and exercise preferences remain.</p>",button({label:"Keep thread",action:"close-modal",variant:"quiet"})+button({label:"Clear thread",action:"confirm-clear-chat",variant:"danger"}),{eyebrow:"LOCAL DATA"});
+    return shell("Clear the Coach thread?","<p>This removes saved text messages from this local profile. Workout history and exercise preferences remain.</p>",button({label:"Keep thread",action:"close-modal",variant:"quiet"})+button({label:"Clear thread",action:"confirm-clear-chat",variant:"danger"}),{eyebrow:"LOCAL DATA"});
   }
   if (modal.type === "confirm-reset") {
-    return shell("Reset this founder profile?","<p>This creates a fresh v0.4 profile and removes current v0.4 workouts, chat, settings, and preferences. The exact pre-migration v0.3.6 backup is preserved separately.</p>",button({label:"Cancel",action:"close-modal",variant:"quiet"})+button({label:"Reset v0.4 profile",action:"confirm-reset",variant:"danger"}),{eyebrow:"FOUNDER RECOVERY"});
+    return shell("Reset this local profile?","<p>This creates a fresh v0.4 profile and removes current v0.4 workouts, chat, settings, and preferences. The exact pre-migration v0.3.6 backup is preserved separately.</p>",button({label:"Cancel",action:"close-modal",variant:"quiet"})+button({label:"Reset v0.4 profile",action:"confirm-reset",variant:"danger"}),{eyebrow:"LOCAL RECOVERY"});
   }
   if (modal.type === "offline") {
     return shell("Live Coach is offline","<p>Your workout, exercise library, timer, set logging, and local plans remain available. FitCoach will not queue or retry a voice transcript automatically.</p>",button({label:"Continue locally",action:"close-modal",variant:"primary"}),{eyebrow:"OFFLINE MODE"});
@@ -174,7 +174,7 @@ export function renderModal(modal, context) {
     return shell("Sync with Apple Health", renderAppleHealthPlan(context.state), button({ label: "Record for native build", action: "mark-apple-health-planned", variant: "primary" }) + button({ label: "Skip for now", action: "close-modal", variant: "quiet" }), { eyebrow: "NATIVE SYNC" });
   }
   if (modal.type === "pro-preview") {
-    return shell("FitCoach Pro preview", renderProPreview(context.state), button({ label: "Keep founder build free", action: "close-modal", variant: "quiet" }) + button({ label: "Save trial plan", action: "mark-pro-preview", variant: "primary" }), { eyebrow: "MONETIZATION" });
+    return shell("FitCoach Pro preview", renderProPreview(context.state), button({ label: "Keep preview free", action: "close-modal", variant: "quiet" }) + button({ label: "Save trial plan", action: "mark-pro-preview", variant: "primary" }), { eyebrow: "MONETIZATION" });
   }
   if (modal.type === "exercise-roadmap") {
     return shell("100-exercise guide roadmap", renderExerciseRoadmap(), button({ label: "Open live library", action: "open-library", variant: "primary" }) + button({ label: "Close", action: "close-modal", variant: "quiet" }), { eyebrow: "MOVEMENT LIBRARY", wide: true });

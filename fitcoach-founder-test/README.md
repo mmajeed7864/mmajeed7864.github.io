@@ -1,22 +1,22 @@
-# FitCoach founder build runtime map
+# FitCoach preview runtime map
 
-This directory contains historical prototypes plus the current v0.4 founder runtime. `index.html` and `sw.js` are the authoritative runtime manifests.
+This directory contains historical prototypes plus the current v0.4 preview runtime. `index.html` and `sw.js` are the authoritative runtime manifests.
 
 ## Active browser runtime
 
-FitCoach v0.4.0 is the active runtime (cache generation 0408 refreshes the one-question onboarding flow):
+FitCoach v0.4.2 is the active runtime (cache generation 0409 refreshes the one-question onboarding flow):
 
-- document shell: `index.html?v=0408`
-- stylesheet: `v040/styles.css?v=0408`
-- ES-module entry: `v040/app.js?v=0408`
-- service worker cache: `fitcoach-symbio-v0408`
-- local storage envelope: `fitcoach-v040:<founder>`
+- document shell: `index.html?v=0409`
+- stylesheet: `v040/styles.css?v=0409`
+- ES-module entry: `v040/app.js?v=0409`
+- service worker cache: `fitcoach-symbio-v0409`
+- local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
 
 - `core/`: constants, storage, migration, unit helpers, stable utility functions
 - `data/`: exercise library, local premium two-position guide manifest, schema validators
-- `domain/`: deterministic workout planning, intervention decisions, and the nutrition diary (confirmed-only totals; the photo/text estimator is an honestly-labeled deterministic founder demo — no vision provider exists in this build)
+- `domain/`: deterministic workout planning, intervention decisions, and the nutrition diary (confirmed-only totals; the photo/text estimator is an honestly-labeled deterministic preview demo; no vision provider exists in this build)
 - `services/`: bounded trainer text and spoken-reply API payload mapping
 - `ui/`: five-tab browser UI plus the Nutrition route (reached from Today/Progress cards, not a sixth tab), modals, exercise detail, active workout, progress, profile
 - `voice/`: foreground half-duplex voice-room state and controller

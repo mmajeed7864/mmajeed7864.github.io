@@ -1,9 +1,6 @@
 import {
-  ACCESS_CODE,
-  BUILD,
   CACHE_GENERATION,
   DEFAULT_VOICE_BY_TONE,
-  FOUNDERS,
   ROUTES,
 } from "./core/constants.mjs";
 import { createFitCoachStore } from "./core/store.mjs";
@@ -53,7 +50,7 @@ import { createTrainerClient, isPrivateTrainerInput } from "./services/trainer-c
 import { createPremiumVoiceClient } from "./services/voice-client.mjs";
 import { renderCoachScreen, renderVoiceRoom } from "./ui/coach-screen.mjs";
 import { icon } from "./ui/components.mjs";
-import { ONBOARDING_STEP_COUNT, renderGate, renderOnboarding } from "./ui/onboarding.mjs";
+import { ONBOARDING_STEP_COUNT, renderOnboarding } from "./ui/onboarding.mjs";
 import { renderModal } from "./ui/modal.mjs";
 import { renderNutritionScreen } from "./ui/nutrition-screen.mjs";
 import { renderProfileScreen } from "./ui/profile-screen.mjs";
@@ -76,7 +73,7 @@ const dom = {
 };
 
 const ui = {
-  mode: "gate",
+  mode: "onboarding",
   founder: "mo",
   route: "today",
   trainSegment: "workout",
@@ -133,19 +130,6 @@ function nutritionDateKey() {
 
 const trainerClient = createTrainerClient();
 const premiumVoice = createPremiumVoiceClient();
-
-function readSession() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem("fitcoach-session") || "null");
-    return parsed && FOUNDERS[parsed.founder] ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession() {
-  localStorage.setItem("fitcoach-session", JSON.stringify({ founder: ui.founder, build: BUILD, at: Date.now() }));
-}
 
 function createStore(founder) {
   store = createFitCoachStore({ founder });
@@ -239,7 +223,7 @@ function coachConnection() {
 function renderHeader() {
   const [kicker,title] = routeTitle(ui.route);
   const connection = coachConnection();
-  return `<header class="app-header"><button class="brand-button" data-action="route" data-value="today" aria-label="FitCoach Today"><span>F</span></button><div><small>${kicker}</small><b>${escapeHtml(title)}</b></div><div class="header-actions"><button class="connection-pill" data-action="connection-info"><span class="status-dot ${escapeHtml(connection.state)}"></span>${escapeHtml(connection.label)}</button><button class="theme-quick" data-action="cycle-theme" aria-label="Change theme">${state.settings.theme === "dark" ? "☾" : state.settings.theme === "system" ? "◐" : "☀"}</button><button class="header-avatar" data-action="route" data-value="profile" aria-label="Open profile">${FOUNDERS[ui.founder].initial}</button></div></header>`;
+  return `<header class="app-header"><button class="brand-button" data-action="route" data-value="today" aria-label="FitCoach Today"><span>F</span></button><div><small>${kicker}</small><b>${escapeHtml(title)}</b></div><div class="header-actions"><button class="connection-pill" data-action="connection-info"><span class="status-dot ${escapeHtml(connection.state)}"></span>${escapeHtml(connection.label)}</button><button class="theme-quick" data-action="cycle-theme" aria-label="Change theme">${state.settings.theme === "dark" ? "☾" : state.settings.theme === "system" ? "◐" : "☀"}</button><button class="header-avatar" data-action="route" data-value="profile" aria-label="Open profile">${icon("profile")}</button></div></header>`;
 }
 
 function renderMiniWorkout() {
@@ -266,7 +250,6 @@ function renderAppScreen() {
     progressionRows: buildProgressionTracker(state, EXERCISES),
     exerciseById: getExerciseById,
     filteredExercises: filteredLibrary(),
-    founderName: FOUNDERS[ui.founder].name,
     ui,
     coachConnection: coachConnection(),
     now: new Date(),
@@ -294,11 +277,7 @@ function renderAppScreen() {
 }
 
 function render() {
-  if (ui.mode === "gate") {
-    dom.stage.innerHTML = renderGate(ui.founder);
-    dom.nav.hidden = true;
-    dom.mini.hidden = true;
-  } else if (ui.mode === "onboarding") {
+  if (ui.mode === "onboarding") {
     dom.stage.innerHTML = renderOnboarding({ step: ui.onboardingStep, draft: ui.onboardingDraft });
     dom.nav.hidden = true;
     dom.mini.hidden = true;
@@ -831,7 +810,7 @@ function exportData() {
 // The ONLY call to confirmNutritionEntry in this app lives in the
 // "nutrition-confirm-entry" click handler, which is rendered exclusively by the
 // draft review sheet. A camera/text draft therefore cannot become confirmed
-// without the founder pressing that button.
+// without the user pressing that button.
 
 function syncReviewEdits() {
   const modal = ui.modal;
@@ -948,7 +927,7 @@ function handleNutritionPhoto(input) {
   if (!file) return;
   const context = document.querySelector("#nutrition-context")?.value || ui.modal?.context || "";
   const slot = MEAL_SLOTS.includes(ui.modal?.slot) ? ui.modal.slot : mealSlotForHour(new Date().getHours());
-  // Deterministic founder-demo estimate: file CONTENT is never read or stored.
+  // Deterministic preview estimate: file CONTENT is never read or stored.
   const result = estimatePhotoMeal({ photoName: file.name, photoSize: file.size, context, now: new Date() });
   input.value = "";
   createDraftFromEstimate(result, slot, { photoFile: file });
@@ -972,20 +951,7 @@ function handleClick(event) {
   if (!target) return;
   const action = target.dataset.action;
   const value = target.dataset.value || "";
-  if (action === "choose-founder") { ui.founder=value; render(); return; }
-  if (action === "enter-gate") {
-    const accepted = document.querySelector("#founder-code")?.value.trim().toUpperCase() === ACCESS_CODE;
-    document.querySelector("#gate-error")?.toggleAttribute("hidden",accepted);
-    if (!accepted) return;
-    saveSession();
-    createStore(ui.founder);
-    ui.mode = state.profile.onboarded ? "app" : "onboarding";
-    ui.onboardingDraft = { profile:deepClone(state.profile),settings:deepClone(state.settings),consent:false };
-    maybeOpenTutorial();
-    render();
-    return;
-  }
-  if (action === "exit-onboarding") { ui.mode="gate"; render(); return; }
+  if (action === "exit-onboarding") { ui.mode=state?.profile?.onboarded ? "app" : "onboarding"; render(); return; }
   if (action === "onboarding-choice") { ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
   if (action === "onboarding-setting") { ui.onboardingDraft.settings[target.dataset.field]=value; if(target.dataset.field==="theme") applyTheme(value); render(); return; }
   if (action === "onboarding-profile-field") { if(target.dataset.field==="tone") applyOnboardingTone(value); else ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
@@ -1177,9 +1143,9 @@ function trapDialogFocus(event) {
 }
 
 function bootstrap() {
-  const session=readSession();
-  if(session){ui.founder=session.founder;createStore(ui.founder);ui.mode=state.profile.onboarded?"app":"onboarding";ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),consent:false};}
-  else {ui.mode="gate";applyTheme(localStorage.getItem("fitcoach-theme")||"light");}
+  createStore(ui.founder);
+  ui.mode=state.profile.onboarded?"app":"onboarding";
+  ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),consent:false};
   const route=new URLSearchParams(location.search).get("route");
   if(ROUTES.includes(route))ui.route=route;
   document.addEventListener("click",handleClick);
@@ -1194,7 +1160,6 @@ function bootstrap() {
   document.addEventListener("keydown",event=>{
     if((event.key==="Enter"||event.key===" ")&&event.target?.classList?.contains("voice-room-orb")){event.preventDefault();voiceController.interrupt();}
     if(event.key==="Escape"){if(voiceController.getState().active){voiceController.exit();render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;}else if(ui.modal)closeModal();}
-    if(event.key==="Enter"&&event.target.id==="founder-code")document.querySelector('[data-action="enter-gate"]')?.click();
     if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat();}
     trapDialogFocus(event);
   });

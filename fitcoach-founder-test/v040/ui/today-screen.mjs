@@ -49,7 +49,7 @@ function nutritionCard(state, now = new Date()) {
   </section>`;
 }
 
-export function renderTodayScreen({ state, plan, decision, exerciseById, founderName, now = new Date() }) {
+export function renderTodayScreen({ state, plan, decision, exerciseById, now = new Date() }) {
   const weekDone = sessionsThisWeek(state, now).length;
   const target = Number(state.profile.days) || 3;
   const ready = readiness(state, now);
@@ -58,7 +58,7 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, founder
   const firstExercise = first ? exerciseById(first.exerciseId) : null;
   const remaining = Math.max(0, target - weekDone);
   return `<div class="page today-page">
-    <section class="today-intro"><div><span class="eyebrow">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</span><h1>${now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening"}, ${escapeHtml(founderName)}</h1><p>Your plan is ready. Change the context, and FitCoach will preview the exact difference before anything moves.</p></div><div class="readiness-orb" style="--score:${ready.score}" aria-label="Readiness ${ready.score}, ${ready.label}"><strong>${ready.score}</strong><small>${ready.label}</small></div></section>
+    <section class="today-intro"><div><span class="eyebrow">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</span><h1>${now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening"}</h1><p>Your plan is ready. Change the context, and FitCoach will preview the exact difference before anything moves.</p></div><div class="readiness-orb" style="--score:${ready.score}" aria-label="Readiness ${ready.score}, ${ready.label}"><strong>${ready.score}</strong><small>${ready.label}</small></div></section>
 
     <section class="coach-decision-card tone-${escapeHtml(state.profile.tone.toLowerCase())}">
       <div class="coach-mark" aria-hidden="true"><span></span></div>

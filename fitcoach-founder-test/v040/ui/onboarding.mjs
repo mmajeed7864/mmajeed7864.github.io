@@ -20,11 +20,7 @@ function trainerBubble(title, copy = "") {
 }
 
 function chipOption({ value, title, copy, field, active, iconName = "" }) {
-  return `<button class="setup-chip ${active ? "active" : ""}" data-action="onboarding-choice" data-field="${escapeHtml(field)}" data-value="${escapeHtml(value)}">${iconName ? icon(iconName) : ""}<span><b>${escapeHtml(title)}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span></button>`;
-}
-
-export function renderGate(founder = "mo") {
-  return `<section class="gate-screen"><div class="gate-brand"><div class="fitcoach-mark"><span>F</span><i></i></div><span class="eyebrow">SYMBIO LABS · PRIVATE FOUNDER BUILD</span><h1>Your trainer.<br><em>In your pocket.</em></h1><p>A persistent training relationship that remembers the work, adapts without judgment, and explains every change.</p></div><div class="gate-card card"><div class="privacy-callout">${icon("info")}<p><b>Low-sensitivity founder research.</b> Do not enter diagnoses, medication details, credentials, measurements, identifiers, or private records.</p></div><div class="founder-switch" role="radiogroup" aria-label="Choose founder"><button role="radio" aria-checked="${founder === "mo"}" class="${founder === "mo" ? "active" : ""}" data-action="choose-founder" data-value="mo"><span>M</span><b>Mohammed<small>Product + trainer feel</small></b></button><button role="radio" aria-checked="${founder === "ravi"}" class="${founder === "ravi" ? "active" : ""}" data-action="choose-founder" data-value="ravi"><span>R</span><b>Ravi<small>Systems + safety</small></b></button></div><label class="field"><span>Founder access code</span><input id="founder-code" type="password" autocomplete="off" placeholder="Enter code"><small id="gate-error" class="field-error" hidden>That code is not correct.</small></label>${button({label:"Enter FitCoach",action:"enter-gate",variant:"primary"})}<small class="founder-disclosure">Convenience gate only. Production authentication is not active.</small></div></section>`;
+  return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="onboarding-choice" data-field="${escapeHtml(field)}" data-value="${escapeHtml(value)}">${iconName ? icon(iconName) : ""}<span><b>${escapeHtml(title)}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span></button>`;
 }
 
 export const ONBOARDING_STEP_COUNT = 13;
@@ -35,12 +31,12 @@ function choiceBubbleGroup({ label, field, action, options, selected, hint = "" 
     const title = typeof option === "object" ? option.label : option;
     const copy = typeof option === "object" ? option.copy : "";
     const active = String(selected) === String(value);
-    return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(value))}"><span><b>${escapeHtml(String(title))}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span>${active ? icon("check") : ""}</button>`;
+    return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(value))}"><span><b>${escapeHtml(String(title))}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span></button>`;
   }).join("")}${hint ? `<small class="answer-choice-hint">${escapeHtml(hint)}</small>` : ""}</div>`;
 }
 
 function toggleBubble({ title, copy, offTitle = "Keep it off for now", offCopy = "You can change this later.", action, field, checked }) {
-  return `<div class="single-answer answer-choice-group boolean-answer" role="radiogroup" aria-label="${escapeHtml(title)}"><button role="radio" aria-checked="${checked}" class="answer-option ${checked ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="true"><span><b>${escapeHtml(title)}</b><small>${escapeHtml(copy)}</small></span>${checked ? icon("check") : ""}</button><button role="radio" aria-checked="${!checked}" class="answer-option ${!checked ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="false"><span><b>${escapeHtml(offTitle)}</b><small>${escapeHtml(offCopy)}</small></span>${!checked ? icon("check") : ""}</button></div>`;
+  return `<div class="single-answer answer-choice-group boolean-answer" role="radiogroup" aria-label="${escapeHtml(title)}"><button role="radio" aria-checked="${checked}" class="answer-option ${checked ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="true"><span><b>${escapeHtml(title)}</b><small>${escapeHtml(copy)}</small></span></button><button role="radio" aria-checked="${!checked}" class="answer-option ${!checked ? "active" : ""}" data-action="${action}" data-field="${escapeHtml(field)}" data-value="false"><span><b>${escapeHtml(offTitle)}</b><small>${escapeHtml(offCopy)}</small></span></button></div>`;
 }
 
 function questionStep({ eyebrow, title, copy, question, answer }) {
@@ -48,11 +44,11 @@ function questionStep({ eyebrow, title, copy, question, answer }) {
 }
 
 function goalStep(draft) {
-  return questionStep({ eyebrow: "AI TRAINER SETUP", title: "Let’s build your starting plan.", copy: "Nova will ask one useful question at a time. You can change anything later.", question: "What are we building toward?", answer: `<div class="setup-chip-cloud">${GOALS.map(([value,title,copy]) => chipOption({ value, title, copy, field: "goal", active: draft.profile.goal === value, iconName: value === "get stronger" ? "train" : value === "stay consistent" ? "today" : "progress" })).join("")}</div>` });
+  return questionStep({ eyebrow: "AI TRAINER SETUP", title: "Let’s build your starting plan.", copy: "Nova will ask one useful question at a time. You can change anything later.", question: "What are we building toward?", answer: `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="Training goal">${GOALS.map(([value,title,copy]) => chipOption({ value, title, copy, field: "goal", active: draft.profile.goal === value, iconName: value === "get stronger" ? "train" : value === "stay consistent" ? "today" : "progress" })).join("")}</div>` });
 }
 
 function themeStep(draft) {
-  return questionStep({ eyebrow: "YOUR SPACE", title: "Make FitCoach feel like yours.", copy: "Choose a starting look. You can change it any time in Profile.", question: "Which look should we start with?", answer: `<div class="theme-onboarding answer-bubble single-answer"><span><b>App appearance</b><small>Light is calm and bright; dark is easy on the eyes at night.</small></span><div role="radiogroup" aria-label="Starting theme">${THEMES.map(value => `<button role="radio" aria-checked="${draft.settings.theme === value}" class="${draft.settings.theme === value ? "active" : ""}" data-action="onboarding-setting" data-field="theme" data-value="${value}">${value}</button>`).join("")}</div></div>` });
+  return questionStep({ eyebrow: "YOUR SPACE", title: "Make FitCoach feel like yours.", copy: "Choose a starting look. You can change it any time in Profile.", question: "Which look should we start with?", answer: choiceBubbleGroup({ label: "Starting theme", field: "theme", action: "onboarding-setting", options: THEMES.map(value => ({ value, label: value[0].toUpperCase() + value.slice(1), copy: value === "light" ? "Bright and clean" : value === "dark" ? "Focused night mode" : "Follow your device" })), selected: draft.settings.theme }) });
 }
 
 function scheduleQuestion(draft, config) {
@@ -78,7 +74,7 @@ function scheduleSummaryStep(draft) {
 }
 
 function blockerStep(draft) {
-  return questionStep({ eyebrow: "THE TRAINER RELATIONSHIP", title: "Make the plan honest about real life.", copy: "This helps the trainer choose a useful fallback instead of giving you a speech.", question: "What gets in the way most often?", answer: `<div class="setup-chip-cloud blocker-cloud">${BLOCKERS.map(([value,title,copy])=>chipOption({ value, title, copy, field: "blocker", active: draft.profile.blocker===value })).join("")}</div>` });
+  return questionStep({ eyebrow: "THE TRAINER RELATIONSHIP", title: "Make the plan honest about real life.", copy: "This helps the trainer choose a useful fallback instead of giving you a speech.", question: "What gets in the way most often?", answer: `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="Training blocker">${BLOCKERS.map(([value,title,copy])=>chipOption({ value, title, copy, field: "blocker", active: draft.profile.blocker===value })).join("")}</div>` });
 }
 
 function toneStep(draft) {
@@ -108,11 +104,11 @@ function speakRepliesStep(draft) {
 }
 
 function proactiveStep(draft) {
-  return questionStep({ eyebrow: "COACHING CADENCE", title: "Let the trainer know when to step in.", copy: "This founder build keeps coaching inside the app. You stay in control.", question: "Should I offer an earned check-in when the evidence says it may help?", answer: toggleBubble({ title: "Allow earned coaching inside the app", copy: "No operating-system notifications in this founder build.", offTitle: "Only when I open the app", offCopy: "The trainer stays quiet unless you ask.", action: "onboarding-toggle", field: "proactive", checked: draft.profile.proactive }) });
+  return questionStep({ eyebrow: "COACHING CADENCE", title: "Let the trainer know when to step in.", copy: "This build keeps coaching inside the app. You stay in control.", question: "Should I offer an earned check-in when the evidence says it may help?", answer: toggleBubble({ title: "Allow earned coaching inside the app", copy: "No operating-system notifications in this build.", offTitle: "Only when I open the app", offCopy: "The trainer stays quiet unless you ask.", action: "onboarding-toggle", field: "proactive", checked: draft.profile.proactive }) });
 }
 
 function boundaryStep(draft) {
-  return `<div class="onboarding-step trainer-interview single-question"><span class="eyebrow">CLEAR BOUNDARIES</span><h1>Useful, honest, and still in your control.</h1><p>One last question before entering FitCoach.</p>${trainerBubble("Last thing: I need the safety rules clear before we train.")}<div class="boundary-list premium-boundaries"><article>${icon("check")}<span><b>Workout data stays local</b><small>Plans, sets, preferences, and progress live in this browser.</small></span></article><article>${icon("check")}<span><b>Coach gets bounded text context</b><small>Only ordinary low-sensitivity codes and text go through Symbio’s server.</small></span></article><article>${icon("check")}<span><b>You approve every plan change</b><small>The model writes display copy; it cannot activate a plan or write memory.</small></span></article><article>${icon("close")}<span><b>Not medical care or form assessment</b><small>No diagnosis, rehabilitation, medication, emergency care, or vision-based form correction.</small></span></article></div><label class="consent-row premium-consent"><input type="checkbox" data-action="onboarding-consent" ${draft.consent?"checked":""}><span><b>I understand this is a private synthetic founder build.</b><small>I will not enter medical records, medications, measurements, credentials, identifiers, or private health information.</small></span></label></div>`;
+  return `<div class="onboarding-step trainer-interview single-question"><span class="eyebrow">CLEAR BOUNDARIES</span><h1>Useful, honest, and still in your control.</h1><p>One last question before entering FitCoach.</p>${trainerBubble("Last thing: I need the safety rules clear before we train.")}<div class="boundary-list premium-boundaries"><article>${icon("check")}<span><b>Workout data stays local</b><small>Plans, sets, preferences, and progress live in this browser.</small></span></article><article>${icon("check")}<span><b>Coach gets bounded text context</b><small>Only ordinary low-sensitivity codes and text go through Symbio’s server.</small></span></article><article>${icon("check")}<span><b>You approve every plan change</b><small>The model writes display copy; it cannot activate a plan or write memory.</small></span></article><article>${icon("close")}<span><b>Not medical care or form assessment</b><small>No diagnosis, rehabilitation, medication, emergency care, or vision-based form correction.</small></span></article></div><label class="consent-row premium-consent"><input type="checkbox" data-action="onboarding-consent" ${draft.consent?"checked":""}><span><b>I understand this is a private synthetic preview.</b><small>I will not enter medical records, medications, measurements, credentials, identifiers, or private health information.</small></span></label></div>`;
 }
 
 export function renderOnboarding({step,draft}) {
