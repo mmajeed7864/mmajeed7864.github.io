@@ -1,6 +1,6 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
 import { escapeHtml, localDateKey } from "../core/utils.mjs";
-import { journeyStage, readiness, sessionsThisWeek } from "../domain/decisions.mjs";
+import { readiness, sessionsThisWeek } from "../domain/decisions.mjs";
 import { dayTotals, draftCount, normalizeTargets } from "../domain/nutrition.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
 import { macroBar } from "./nutrition-screen.mjs";
@@ -57,9 +57,10 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, now = n
   const first = plan.exercises[0];
   const firstExercise = first ? exerciseById(first.exerciseId) : null;
   const remaining = Math.max(0, target - weekDone);
-  const stage = journeyStage(state, now);
-  const weekHeadline = stage === "first_day" ? "Your week starts today" : `${weekDone}/${target} sessions`;
-  const weekDetail = stage === "first_day"
+  const hasNoTrainingHistory = !(state.sessions || []).length;
+  const isStartingWeek = weekDone === 0 && hasNoTrainingHistory;
+  const weekHeadline = isStartingWeek ? "Your week starts today" : `${weekDone}/${target} sessions`;
+  const weekDetail = isStartingWeek
     ? `${target}-session plan ready · nothing is late`
     : remaining ? `${remaining} remaining · every valid version counts` : "Weekly target complete";
   return `<div class="page today-page">

@@ -16,6 +16,7 @@ import {
   ONBOARDING_STEP_COUNT,
   renderOnboarding,
 } from "../v040/ui/onboarding.mjs";
+import { renderTodayScreen } from "../v040/ui/today-screen.mjs";
 
 class MemoryStorage {
   #values = new Map();
@@ -85,6 +86,37 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
     const html = renderOnboarding({ step, draft });
     assert.match(html, /answer-option/, `step ${step + 1} must render custom answer bubbles`);
   }
+});
+
+test("a profile with no training history never gets a zero-of-target score", () => {
+  const now = new Date("2026-08-20T14:00:00.000Z");
+  const state = createInitialState("mo", new Date("2026-08-01T14:00:00.000Z"));
+  const exercise = {
+    id: "air-squat",
+    name: "Air Squat",
+    media: [],
+  };
+  const plan = {
+    id: "plan-a",
+    minutes: 45,
+    detail: "full session",
+    label: "Plan A",
+    location: "gym",
+    intensity: "standard",
+    exercises: [{ exerciseId: exercise.id, snapshot: { primaryMuscles: ["quadriceps"] } }],
+  };
+  const decision = {
+    title: "Start with one honest session",
+    message: "Today establishes the baseline.",
+    type: "CHECK_IN",
+    primary: { label: "Start Plan A" },
+    secondary: null,
+  };
+
+  const html = renderTodayScreen({ state, plan, decision, exerciseById: () => exercise, now });
+  assert.match(html, /Your week starts today/u);
+  assert.match(html, /3-session plan ready .* nothing is late/u);
+  assert.doesNotMatch(html, /0\/3 sessions/u);
 });
 
 test("active app has no password gate or visible founder picker", () => {
