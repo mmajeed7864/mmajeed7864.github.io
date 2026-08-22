@@ -19,8 +19,8 @@ const SOURCE_LABELS = Object.freeze({
   recent: "Re-logged",
   favorite: "Favorite",
   barcode: "Barcode",
-  photo_estimate: "Photo estimate · demo",
-  text_estimate: "Text estimate · demo",
+  photo_estimate: "Photo estimate · preview",
+  text_estimate: "Text estimate · preview",
 });
 
 const kcalRound = value => Math.round(value).toLocaleString();
@@ -112,7 +112,7 @@ export function renderNutritionScreen({ state, ui, now = new Date() }) {
 
     <section class="card nutrition-honesty"><header>${icon("info")}<span><small>HOW THESE NUMBERS WORK</small><h2>Estimates, honestly labeled</h2></span></header>
       <p>${escapeHtml(NUTRITION_DISCLAIMER)}</p>
-      <ul><li>Totals count confirmed entries only — drafts always count zero</li><li>Photo and text estimates are a deterministic preview demo, not computer vision</li><li>Targets are yours to set; FitCoach never prescribes a diet</li><li>Photos never leave this device and are never stored — only name and size metadata</li></ul>
+      <ul><li>Totals count confirmed entries only — drafts always count zero</li><li>Photo and text estimates are early previews and always require your review</li><li>Targets are yours to set; FitCoach never prescribes a diet</li><li>Photos never leave this device and are never stored — only name and size metadata</li></ul>
     </section>
   </div>`;
 }
@@ -128,7 +128,7 @@ function reviewSheet(modal, context) {
     eyebrow: "REVIEW BEFORE IT COUNTS",
     title: "Check this estimate",
     body: `
-      <div class="demo-banner">${icon("info")}<p><b>Preview estimate.</b> ${escapeHtml(ESTIMATOR_DISCLAIMER)}</p></div>
+      <div class="preview-banner">${icon("info")}<p><b>Preview estimate.</b> ${escapeHtml(ESTIMATOR_DISCLAIMER)}</p></div>
       ${previewUrl ? `<img class="review-photo" src="${escapeHtml(previewUrl)}" alt="Your meal photo (kept on this device only)">` : ""}
       <label class="field"><span>Food name</span><input id="review-name" maxlength="120" value="${escapeHtml(entry.name)}"></label>
       ${estimate?.candidates?.length > 1 ? `<div class="candidate-row" role="group" aria-label="Other guesses"><span>Other guesses</span>${estimate.candidates.slice(1).map(name => `<button class="choice-chip" data-action="nutrition-review-candidate" data-value="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}</div>` : ""}
@@ -146,11 +146,11 @@ function reviewSheet(modal, context) {
 function captureSheet(modal) {
   const slot = MEAL_SLOTS.includes(modal.slot) ? modal.slot : "";
   return {
-    eyebrow: "PHOTO ESTIMATE · PREVIEW DEMO",
+    eyebrow: "PHOTO ESTIMATE · EARLY PREVIEW",
     title: "Scan your food",
     body: `
-      <div class="demo-banner">${icon("info")}<p><b>No vision provider is connected in this build.</b> ${escapeHtml(ESTIMATOR_DISCLAIMER)}</p></div>
-      <p class="capture-copy">Take or choose a photo. It stays on this device, is never uploaded or stored, and the draft it creates counts zero until you confirm it.</p>
+      <div class="preview-banner">${icon("info")}<p><b>Photo recognition is not active yet.</b> This preview creates an editable example draft; it does not analyze the pixels in your image.</p></div>
+      <p class="capture-copy">Take or choose a photo and describe the meal. The image stays on this device, is never uploaded or stored, and the draft counts zero until you confirm it.</p>
       <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
       <label class="field"><span>Optional context (what is this? portion size?)</span><input id="nutrition-context" maxlength="200" placeholder="e.g. chicken salad, big bowl" value="${escapeHtml(modal.context || "")}"></label>
       <label class="photo-input-button">${icon("camera")}<span>Open camera or photo library</span><input id="nutrition-photo" type="file" accept="image/*" capture="environment" data-action="nutrition-photo" class="sr-only"></label>
@@ -193,11 +193,11 @@ function addSheet(modal, context) {
         <small>Uses verified product data where available. You still choose the portion before it counts.</small>
         ${modal.lookupError ? `<p class="form-error">${escapeHtml(modal.lookupError)}</p>` : ""}
       </div>
-      <label class="field search-field"><span class="sr-only">Search foods</span>${icon("search")}<input id="nutrition-search" maxlength="80" placeholder="Search demo foods, recents, favorites…" value="${escapeHtml(modal.query || "")}"></label>
+      <label class="field search-field"><span class="sr-only">Search foods</span>${icon("search")}<input id="nutrition-search" maxlength="80" placeholder="Search foods, recents, favorites…" value="${escapeHtml(modal.query || "")}"></label>
       ${showCustom ? `
       <div class="per-serving-grid custom-food-grid"><label><span>Name</span><input id="custom-name" maxlength="120" placeholder="e.g. Mom’s dal"></label><label><span>Serving label</span><input id="custom-serving" maxlength="80" placeholder="1 bowl"></label><label><span>kcal / serving</span><input id="custom-kcal" type="number" inputmode="numeric" min="0" max="5000"></label><label><span>Protein g</span><input id="custom-protein" type="number" inputmode="decimal" min="0" max="500" value="0"></label><label><span>Carbs g</span><input id="custom-carbs" type="number" inputmode="decimal" min="0" max="800" value="0"></label><label><span>Fat g</span><input id="custom-fat" type="number" inputmode="decimal" min="0" max="500" value="0"></label></div>
       ${button({ label: "Add custom food", action: "nutrition-add-custom", variant: "primary" })}` : `
-      <div class="food-results">${results.length ? results.map((item, index) => `<button class="food-row" data-action="nutrition-pick-food" data-value="${index}"><span class="food-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${escapeHtml(item.origin === "library" ? "demo list" : item.origin)}${item.origin !== "library" ? ` · last ${fmtMultiplier(item.multiplier)}×` : ""}</small></span><span class="food-kcal"><b>${Math.round(item.per.calories)}</b><small>kcal</small></span></button>`).join("") : `<p class="meal-slot-empty">No match in the demo list. Create it as a custom food instead.</p>`}</div>
+      <div class="food-results">${results.length ? results.map((item, index) => `<button class="food-row" data-action="nutrition-pick-food" data-value="${index}"><span class="food-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${escapeHtml(item.origin === "library" ? "starter list" : item.origin)}${item.origin !== "library" ? ` · last ${fmtMultiplier(item.multiplier)}×` : ""}</small></span><span class="food-kcal"><b>${Math.round(item.per.calories)}</b><small>kcal</small></span></button>`).join("") : `<p class="meal-slot-empty">No match yet. Create it as a custom food instead.</p>`}</div>
       <button class="text-button" data-action="nutrition-toggle-custom">Create a custom food</button>`}
     `,
     actions: button({ label: "Close", action: "close-modal", variant: "quiet" }),
@@ -216,7 +216,7 @@ function entrySheet(modal, context) {
       <div class="portion-stepper" role="group" aria-label="Portion size"><span>Portion</span><button class="icon-only" data-action="nutrition-entry-portion" data-value="-0.25" aria-label="Smaller portion">−</button><b>${fmtMultiplier(entry.multiplier)} ×</b><button class="icon-only" data-action="nutrition-entry-portion" data-value="0.25" aria-label="Larger portion">+</button><small>${escapeHtml(entry.servingLabel)}</small></div>
       <p class="counted-preview">Counting <b>${kcalRound(entry.nutrients.calories)} kcal</b> · ${entry.nutrients.protein} P / ${entry.nutrients.carbs} C / ${entry.nutrients.fat} F</p>
       <div class="receipt-box"><span>${icon("check")}</span><p><b>${escapeHtml(SOURCE_LABELS[entry.source] || entry.source)}</b><small>${escapeHtml(entry.confirmedAt ? `Confirmed ${entry.confirmedAt.slice(0, 10)}` : `Logged ${entry.createdAt.slice(0, 10)}`)}${entry.photo ? ` · photo metadata ${escapeHtml(entry.photo.hash)} (image not stored)` : ""}</small></p></div>
-      ${entry.estimate ? `<details class="assumption-box"><summary>Estimate receipt (${escapeHtml(entry.estimate.confidence)} confidence demo)</summary><ul><li>Provider: ${escapeHtml(entry.estimate.provider)}</li><li>Calorie range shown: ${fmtRange(entry.estimate.kcalRange)}</li>${entry.estimate.assumptions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}
+      ${entry.estimate ? `<details class="assumption-box"><summary>Estimate details · ${escapeHtml(entry.estimate.confidence)} confidence</summary><ul><li>Calorie range shown: ${fmtRange(entry.estimate.kcalRange)}</li>${entry.estimate.assumptions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}
       ${entry.history?.length ? `<details class="assumption-box"><summary>Edit history</summary><ul>${entry.history.map(item => `<li>${escapeHtml(item.change)} · ${escapeHtml(item.at.slice(0, 16).replace("T", " "))}</li>`).join("")}</ul></details>` : ""}
     `,
     actions: `<button class="button button-quiet" data-action="nutrition-favorite" data-value="${escapeHtml(entry.id)}">${icon("heart")}<span>${favorite ? "Unfavorite" : "Favorite"}</span></button>`

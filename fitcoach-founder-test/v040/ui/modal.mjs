@@ -19,13 +19,13 @@ const TUTORIAL_STEPS = Object.freeze([
     eyebrow: "TRAIN",
     title: "Every exercise has a guide",
     copy: "Open the movement, check setup and common mistakes, then log only the sets you actually complete.",
-    points: ["No stick-figure media in the active guide path", "Rest timers and active workout state stay local", "Swap or reduce only through visible controls"],
+    points: ["High-quality movement illustrations show each position", "Rest timers and active workout state stay local", "Swap or reduce only through visible controls"],
   }),
   Object.freeze({
     eyebrow: "COACH",
     title: "Your voice trainer stays in one thread",
     copy: "Use Voice Room when you want to talk. Supportive uses Nova by default, Strict uses Atlas, and Direct can use Bennett.",
-    points: ["DeepSeek text first, Qwen backup when configured", "ElevenLabs speaks bounded reply text only", "No microphone audio upload from FitCoach"],
+    points: ["Voice replies play automatically", "Tap once to interrupt the trainer", "FitCoach never uploads microphone audio"],
   }),
 ]);
 
@@ -47,16 +47,15 @@ const EQUIPMENT_OPTIONS = Object.freeze([
 ]);
 
 function renderAppleHealthPlan(state) {
-  const status = state.integrations?.appleHealth?.status || "native_required";
   return `<div class="health-sync-modal">
-    <div class="native-sync-hero">${icon("heart")}<span><b>Native iOS required</b><small>GitHub Pages cannot request HealthKit permissions. The real sync belongs in the App Store wrapper.</small></span></div>
+    <div class="native-sync-hero">${icon("heart")}<span><b>Coming with the iPhone app</b><small>Apple Health permissions are available only inside the native FitCoach app.</small></span></div>
     <div class="sync-benefit-list">
       <article>${icon("train")}<span><b>Write completed workouts</b><small>Only after a saved FitCoach receipt and explicit Health permission.</small></span></article>
       <article>${icon("flame")}<span><b>Read active energy</b><small>Used for progress context, never diagnosis or medical advice.</small></span></article>
       <article>${icon("progress")}<span><b>Read weight/body stats only if allowed</b><small>Optional, skippable, and visible in the profile.</small></span></article>
       <article>${icon("info")}<span><b>Manual mode remains first-class</b><small>Users can skip sync and still use training, nutrition, and Coach.</small></span></article>
     </div>
-    <p class="modal-note">Current state: ${escapeHtml(status.replaceAll("_", " "))}. This button records launch intent only; it does not access Apple Health from the web build.</p>
+    <p class="modal-note">Apple Health is not available in this web version. Saving this preference does not access or import any health data.</p>
   </div>`;
 }
 
@@ -66,14 +65,14 @@ function renderProPreview(state) {
   return `<div class="pro-preview-card">
     <div class="pro-logo">F</div>
     <h3>Try 7 days free</h3>
-    <p>${escapeHtml(planCopy)}. Prices are placeholders until Apple/Google/Stripe products exist.</p>
+    <p>${escapeHtml(planCopy)}. Final prices will always appear before a purchase.</p>
     <div class="billing-toggle" role="radiogroup" aria-label="Billing preview">
       <button class="${selected === "yearly" ? "active" : ""}" data-action="select-pro-plan" data-value="yearly">Yearly</button>
       <button class="${selected === "monthly" ? "active" : ""}" data-action="select-pro-plan" data-value="monthly">Monthly</button>
     </div>
     <div class="pro-benefit-list">
       <article>${icon("check")}<span><b>Adaptive progression</b><small>Reps, sets, and substitutions update from logged behavior.</small></span></article>
-      <article>${icon("check")}<span><b>Premium AI voice trainer</b><small>Mode-matched voice when ElevenLabs is configured; device voice fallback otherwise.</small></span></article>
+      <article>${icon("check")}<span><b>Premium AI voice trainer</b><small>Mode-matched natural voices with a device fallback.</small></span></article>
       <article>${icon("check")}<span><b>Camera nutrition drafts</b><small>Photo estimates stay drafts until the user confirms them.</small></span></article>
       <article>${icon("check")}<span><b>Apple Health sync</b><small>Native permission flow, not web scraping or hidden uploads.</small></span></article>
     </div>
@@ -86,7 +85,7 @@ function renderExerciseRoadmap() {
     <div class="roadmap-counter"><b>${EXERCISE_EXPANSION_TARGETS.length}</b><span>popular exercises mapped for premium motion guides</span></div>
     <div class="roadmap-categories">${EXERCISE_EXPANSION_CATEGORIES.map(item => `<span><b>${escapeHtml(item.category)}</b><small>${item.count} targets</small></span>`).join("")}</div>
     <div class="target-chip-cloud">${sampleTargets.map(item => `<span>${escapeHtml(item.name)}</span>`).join("")}</div>
-    <p class="modal-note">These are not live exercise guides yet. They define the production list so we can create consistent animated how-to assets instead of adding low-quality filler.</p>
+    <p class="modal-note">These guides are planned, not available yet. Each one must meet the same illustration, motion, coaching, and licensing standard as the current library.</p>
   </div>`;
 }
 
@@ -95,11 +94,11 @@ function renderGymSetup(state) {
   const selected = new Set(profile.equipment || []);
   return `<div class="gym-setup-modal">
     <label><span>Gym name</span><input id="gym-name" maxlength="120" value="${escapeHtml(profile.selectedGymName || "")}" placeholder="Crunch Fitness, Planet Fitness, home gym"></label>
-    <label><span>Address or note</span><input id="gym-address" maxlength="180" value="${escapeHtml(profile.selectedGymAddress || "")}" placeholder="Optional · keep broad in preview"></label>
+    <label><span>Address or note</span><input id="gym-address" maxlength="180" value="${escapeHtml(profile.selectedGymAddress || "")}" placeholder="Optional · keep this general"></label>
     <div class="equipment-stack">
       ${EQUIPMENT_OPTIONS.map(item => `<label><span>${escapeHtml(item)}</span><input type="checkbox" data-action="gym-toggle-equipment" data-value="${escapeHtml(item)}" ${selected.has(item) ? "checked" : ""}></label>`).join("")}
     </div>
-    <p class="modal-note">Location search and automatic gym-equipment lookup require native permissions and a reviewed provider. This preview stores only the manual profile above.</p>
+    <p class="modal-note">Automatic gym discovery is not available in this web version. Your manual equipment profile stays on this device.</p>
   </div>`;
 }
 
@@ -107,12 +106,12 @@ function renderCommunityDraft(context) {
   const modal = context.modal || {};
   return `<div class="community-draft-modal">
     <div class="draft-camera-box">
-      ${context.communityPreviewUrl ? `<img src="${escapeHtml(context.communityPreviewUrl)}" alt="Local progress photo preview">` : `<span>${icon("camera")}<b>Add a progress photo</b><small>The file is previewed only in memory and is not stored in localStorage.</small></span>`}
+      ${context.communityPreviewUrl ? `<img src="${escapeHtml(context.communityPreviewUrl)}" alt="Local progress photo preview">` : `<span>${icon("camera")}<b>Add a progress photo</b><small>The photo preview disappears when you close this draft.</small></span>`}
       <input type="file" accept="image/*" data-action="community-photo" aria-label="Choose a progress photo">
     </div>
     <label><span>Caption draft</span><textarea id="community-caption" maxlength="280" rows="4" placeholder="Example: Week 3 check-in. Better consistency, same plan.">${escapeHtml(modal.caption || "")}</textarea></label>
-    <label><span>Visibility preview</span><select id="community-visibility"><option value="private" ${modal.visibility === "private" ? "selected" : ""}>Private draft</option><option value="founders" ${modal.visibility === "founders" ? "selected" : ""}>Team only</option><option value="public_preview" ${modal.visibility === "public_preview" ? "selected" : ""}>Public later — disabled until backend review</option></select></label>
-    <p class="modal-note">No public feed, image upload, or social graph is active. This is the safe local drafting surface for the future community feature.</p>
+    <div class="community-visibility" role="radiogroup" aria-label="Draft visibility"><span>Who is this for?</span><div><button role="radio" aria-checked="${modal.visibility === "private"}" class="${modal.visibility === "private" ? "active" : ""}" data-action="community-visibility" data-value="private"><b>Only me</b><small>Private local draft</small></button><button role="radio" aria-checked="${modal.visibility === "founders"}" class="${modal.visibility === "founders" ? "active" : ""}" data-action="community-visibility" data-value="founders"><b>My team</b><small>Label only · no sharing yet</small></button><button role="radio" aria-checked="${modal.visibility === "public_preview"}" class="${modal.visibility === "public_preview" ? "active" : ""}" data-action="community-visibility" data-value="public_preview"><b>Community later</b><small>Publishing is not available</small></button></div></div>
+    <p class="modal-note">No public feed or image upload is active. This surface saves a local draft only.</p>
   </div>`;
 }
 
@@ -139,11 +138,11 @@ export function renderModal(modal, context) {
   }
   if (modal.type === "decision") {
     const decision = context.decision;
-    return shell("Why this action cleared",`<p>${escapeHtml(decision.why)}</p><div class="receipt-box"><span>${icon("check")}</span><p><b>${escapeHtml(decision.type.replaceAll("_"," "))}</b><small>Decision ${escapeHtml(decision.id.slice(0,12))} · deterministic rule · current local context</small></p></div><div class="approval-boundary">${icon("info")}<p>This is a concise rule explanation, not hidden model reasoning. The model does not choose the action.</p></div>`,button({label:"Got it",action:"close-modal",variant:"primary"}),{eyebrow:"DECISION RECEIPT"});
+    return shell("Why this action cleared",`<p>${escapeHtml(decision.why)}</p><div class="receipt-box"><span>${icon("check")}</span><p><b>${escapeHtml(decision.type.replaceAll("_"," "))}</b><small>Decision ${escapeHtml(decision.id.slice(0,12))} · current plan and training context</small></p></div><div class="approval-boundary">${icon("info")}<p>This is the short explanation for the action. Your trainer cannot choose or apply it.</p></div>`,button({label:"Got it",action:"close-modal",variant:"primary"}),{eyebrow:"DECISION RECEIPT"});
   }
   if (modal.type === "why-workout") {
     const plan = context.state.activePlan;
-    return shell("Why this workout?",`<p>This plan is generated locally from bounded inputs. It is not a medical recommendation or live form assessment.</p><div class="evidence-grid"><span><small>GOAL</small><b>${escapeHtml(context.state.profile.goal)}</b></span><span><small>TIME</small><b>${plan.minutes} minutes</b></span><span><small>LOCATION</small><b>${escapeHtml(plan.location)}</b></span><span><small>EQUIPMENT</small><b>${escapeHtml(plan.equipment)}</b></span><span><small>INTENSITY</small><b>${escapeHtml(plan.intensity)}</b></span><span><small>HISTORY</small><b>${context.state.sessions.length} sessions</b></span></div>`,button({label:"Open workout",action:"route",value:"train",variant:"primary"}),{eyebrow:"PLAN EVIDENCE"});
+    return shell("Why this workout?",`<p>This plan uses your saved goal, time, location, equipment, and workout history. It is not medical advice or live form assessment.</p><div class="evidence-grid"><span><small>GOAL</small><b>${escapeHtml(context.state.profile.goal)}</b></span><span><small>TIME</small><b>${plan.minutes} minutes</b></span><span><small>LOCATION</small><b>${escapeHtml(plan.location)}</b></span><span><small>EQUIPMENT</small><b>${escapeHtml(plan.equipment)}</b></span><span><small>INTENSITY</small><b>${escapeHtml(plan.intensity)}</b></span><span><small>HISTORY</small><b>${context.state.sessions.length} sessions</b></span></div>`,button({label:"Open workout",action:"route",value:"train",variant:"primary"}),{eyebrow:"PLAN EVIDENCE"});
   }
   if (modal.type === "finish-workout") {
     const workout = context.state.activeWorkout;
@@ -165,25 +164,25 @@ export function renderModal(modal, context) {
     return shell("Clear the Coach thread?","<p>This removes saved text messages from this local profile. Workout history and exercise preferences remain.</p>",button({label:"Keep thread",action:"close-modal",variant:"quiet"})+button({label:"Clear thread",action:"confirm-clear-chat",variant:"danger"}),{eyebrow:"LOCAL DATA"});
   }
   if (modal.type === "confirm-reset") {
-    return shell("Reset this local profile?","<p>This creates a fresh v0.4 profile and removes current v0.4 workouts, chat, settings, and preferences. The exact pre-migration v0.3.6 backup is preserved separately.</p>",button({label:"Cancel",action:"close-modal",variant:"quiet"})+button({label:"Reset v0.4 profile",action:"confirm-reset",variant:"danger"}),{eyebrow:"LOCAL RECOVERY"});
+    return shell("Reset FitCoach on this device?","<p>This removes your current workouts, Coach thread, settings, food diary, and exercise preferences from this local profile.</p>",button({label:"Cancel",action:"close-modal",variant:"quiet"})+button({label:"Reset FitCoach",action:"confirm-reset",variant:"danger"}),{eyebrow:"LOCAL DATA"});
   }
   if (modal.type === "offline") {
     return shell("Live Coach is offline","<p>Your workout, exercise library, timer, set logging, and local plans remain available. FitCoach will not queue or retry a voice transcript automatically.</p>",button({label:"Continue locally",action:"close-modal",variant:"primary"}),{eyebrow:"OFFLINE MODE"});
   }
   if (modal.type === "apple-health") {
-    return shell("Sync with Apple Health", renderAppleHealthPlan(context.state), button({ label: "Record for native build", action: "mark-apple-health-planned", variant: "primary" }) + button({ label: "Skip for now", action: "close-modal", variant: "quiet" }), { eyebrow: "NATIVE SYNC" });
+    return shell("Sync with Apple Health", renderAppleHealthPlan(context.state), button({ label: "Save my interest", action: "mark-apple-health-planned", variant: "primary" }) + button({ label: "Not now", action: "close-modal", variant: "quiet" }), { eyebrow: "APPLE HEALTH" });
   }
   if (modal.type === "pro-preview") {
-    return shell("FitCoach Pro preview", renderProPreview(context.state), button({ label: "Keep preview free", action: "close-modal", variant: "quiet" }) + button({ label: "Save trial plan", action: "mark-pro-preview", variant: "primary" }), { eyebrow: "MONETIZATION" });
+    return shell("FitCoach Pro", renderProPreview(context.state), button({ label: "Not now", action: "close-modal", variant: "quiet" }) + button({ label: "Save my preference", action: "mark-pro-preview", variant: "primary" }), { eyebrow: "MEMBERSHIP PREVIEW" });
   }
   if (modal.type === "exercise-roadmap") {
-    return shell("100-exercise guide roadmap", renderExerciseRoadmap(), button({ label: "Open live library", action: "open-library", variant: "primary" }) + button({ label: "Close", action: "close-modal", variant: "quiet" }), { eyebrow: "MOVEMENT LIBRARY", wide: true });
+    return shell("100-exercise guide expansion", renderExerciseRoadmap(), button({ label: "Open current library", action: "open-library", variant: "primary" }) + button({ label: "Close", action: "close-modal", variant:"quiet" }), { eyebrow: "MOVEMENT LIBRARY", wide: true });
   }
   if (modal.type === "gym-setup") {
     return shell("Gym and equipment setup", renderGymSetup(context.state), button({ label: "Save equipment profile", action: "save-gym-profile", variant: "primary" }) + button({ label: "Cancel", action: "close-modal", variant: "quiet" }), { eyebrow: "AVAILABLE EQUIPMENT", wide: true });
   }
   if (modal.type === "community-draft") {
-    return shell("Draft a progress post", renderCommunityDraft(modalContext), button({ label: "Save local draft", action: "save-community-draft", variant: "primary" }) + button({ label: "Cancel", action: "close-modal", variant: "quiet" }), { eyebrow: "COMMUNITY PREVIEW" });
+    return shell("Draft a progress post", renderCommunityDraft(modalContext), button({ label: "Save local draft", action: "save-community-draft", variant: "primary" }) + button({ label: "Cancel", action: "close-modal", variant: "quiet" }), { eyebrow: "PROGRESS DRAFT" });
   }
   return shell("FitCoach",`<p>${escapeHtml(modal.message || "Nothing to review.")}</p>`,button({label:"Close",action:"close-modal",variant:"primary"}));
 }

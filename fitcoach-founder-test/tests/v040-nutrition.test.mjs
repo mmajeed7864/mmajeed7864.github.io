@@ -356,7 +356,7 @@ test("nutrition screen renders dashboard, meal cards, drafts, and capture entry 
   assert.ok(!/😊|🎉/.test(html));
 });
 
-test("review, capture, add, and targets sheets render with honest preview-demo labeling", () => {
+test("review, capture, add, and targets sheets render with honest early-access labeling", () => {
   const state = createInitialState("mo", FIXED_NOW);
   const draft = addEntryToDay(state.nutrition, DATE_KEY, photoDraft());
   const context = { state, previewUrl: null };
@@ -369,7 +369,7 @@ test("review, capture, add, and targets sheets render with honest preview-demo l
   assert.match(review.actions, /nutrition-discard-entry/u);
 
   const capture = renderNutritionModalContent({ type: "nutrition-capture", slot: "lunch" }, context);
-  assert.match(capture.body, /No vision provider is connected/u, "capture sheet is honest about the demo");
+  assert.match(capture.body, /Photo recognition is not active yet/u, "capture sheet is honest about the current capability");
   assert.match(capture.body, /type="file" accept="image\/\*"/u, "camera/library input renders");
 
   const add = renderNutritionModalContent({ type: "nutrition-add", slot: "dinner", query: "chicken" }, context);

@@ -247,17 +247,28 @@ function filteredLibrary() {
 
 function coachConnection() {
   if (!navigator.onLine) return { label: "Browser offline", state: "offline" };
-  if (ui.chatBusy) return { label: "Connecting", state: "busy" };
+  if (ui.chatBusy) return { label: "Checking coach", state: "busy" };
   if (ui.chatNotice?.kind === "error") return { label: "Last request failed", state: "error" };
   if (state?.lastApi?.fallbackUsed) return { label: "Local fallback used", state: "fallback" };
   if (state?.lastApi?.at) return { label: "Live reply received", state: "live" };
-  return { label: "Browser online · Coach unverified", state: "unverified" };
+  return { label: "Coach status", state: "unverified" };
 }
 
 function renderHeader() {
-  const [kicker,title] = routeTitle(ui.route);
+  const [kicker, title] = routeTitle(ui.route);
   const connection = coachConnection();
-  return `<header class="app-header"><button class="brand-button" data-action="route" data-value="today" aria-label="FitCoach Today"><span>F</span></button><div><small>${kicker}</small><b>${escapeHtml(title)}</b></div><div class="header-actions"><button class="connection-pill" data-action="connection-info"><span class="status-dot ${escapeHtml(connection.state)}"></span>${escapeHtml(connection.label)}</button><button class="theme-quick" data-action="cycle-theme" aria-label="Change theme">${state.settings.theme === "dark" ? "☾" : state.settings.theme === "system" ? "◐" : "☀"}</button><button class="header-avatar" data-action="route" data-value="profile" aria-label="Open profile">${icon("profile")}</button></div></header>`;
+  return `<header class="app-header">
+    <button class="brand-button brand-lockup" data-action="route" data-value="today" aria-label="Open FitCoach Today">
+      <span class="brand-mark" aria-hidden="true"><span>F</span></span>
+      <span class="brand-wordmark"><b>FitCoach</b><small>AI personal trainer</small></span>
+    </button>
+    <div class="page-identity"><small>${escapeHtml(kicker)}</small><b>${escapeHtml(title)}</b></div>
+    <div class="header-actions">
+      <button class="connection-pill" data-action="connection-info" aria-label="Coach connection: ${escapeHtml(connection.label)}"><span class="status-dot ${escapeHtml(connection.state)}"></span><span>${escapeHtml(connection.label)}</span></button>
+      <button class="theme-quick" data-action="cycle-theme" aria-label="Change theme">${state.settings.theme === "dark" ? "☾" : state.settings.theme === "system" ? "◐" : "☀"}</button>
+      <button class="header-avatar" data-action="route" data-value="profile" aria-label="Open profile">${icon("profile")}</button>
+    </div>
+  </header>`;
 }
 
 function renderMiniWorkout() {
@@ -295,8 +306,9 @@ function renderAppScreen() {
   if (ui.route === "progress") screen = renderProgressScreen(context);
   if (ui.route === "profile") screen = renderProfileScreen(context);
   if (ui.route === "nutrition") screen = renderNutritionScreen(context);
-  dom.stage.innerHTML = `${ui.route === "train" && state.activeWorkout && ui.showActiveWorkout ? "" : renderHeader()}<main id="main-content" class="app-main">${screen}</main>`;
-  dom.nav.hidden = false;
+  const activeWorkoutFullscreen = ui.route === "train" && state.activeWorkout && ui.showActiveWorkout;
+  dom.stage.innerHTML = `${activeWorkoutFullscreen ? "" : renderHeader()}<main id="main-content" class="app-main">${screen}</main>`;
+  dom.nav.hidden = activeWorkoutFullscreen;
   dom.nav.querySelectorAll("[data-route]").forEach(button => {
     const active = button.dataset.route === ui.route;
     button.classList.toggle("active", active);
@@ -337,9 +349,19 @@ function maybeOpenTutorial() {
 
 function renderVoiceRoot() {
   const voiceState = voiceController.getState();
+  const previousVoiceAction = dom.voice.contains(document.activeElement)
+    ? document.activeElement?.dataset?.action
+    : null;
   dom.voice.innerHTML = renderVoiceRoom(voiceState, state);
   dom.voice.hidden = !voiceState.active;
   document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || voiceState.active);
+  if (voiceState.active) {
+    const preservedControl = previousVoiceAction
+      ? dom.voice.querySelector(`[data-action="${previousVoiceAction}"]`)
+      : null;
+    const phaseControl = dom.voice.querySelector('[data-action="voice-consent"], [data-action="voice-resume"], [data-action="voice-retry"], .voice-room-orb, .voice-text-exit, [data-action="voice-exit"]');
+    (preservedControl || phaseControl)?.focus({ preventScroll: true });
+  }
 }
 
 function openModal(modal) {
@@ -412,7 +434,7 @@ function stageCandidate(candidate, reason, changes) {
 
 function proposePlan(field, value) {
   const parsed = field === "minutes" ? Number(value) : value;
-  const proposal = createPlanProposal(state, EXERCISES, { [field]: parsed, reason: `Today’s ${field} changed. FitCoach rebuilt only the affected deterministic plan inputs.` });
+  const proposal = createPlanProposal(state, EXERCISES, { [field]: parsed, reason: `Today’s ${field} changed. FitCoach rebuilt only the affected part of your plan.` });
   stageProposal(proposal);
 }
 
@@ -1018,7 +1040,7 @@ function handleCommunityPhoto(input) {
   communityPreviewUrl = URL.createObjectURL(file);
   if (ui.modal?.type === "community-draft") {
     ui.modal.caption = document.querySelector("#community-caption")?.value || ui.modal.caption || "";
-    ui.modal.visibility = document.querySelector("#community-visibility")?.value || ui.modal.visibility || "private";
+    ui.modal.visibility = ui.modal.visibility || "private";
   }
   input.value = "";
   renderModalRoot();
@@ -1096,8 +1118,14 @@ function handleClick(event) {
   if (action === "ask-about-exercise") { const exercise=getExerciseById(value);ui.chatDraft=`Explain how ${exercise?.name || "this exercise"} fits my current plan without changing it.`;navigate("coach");return; }
   if (action === "open-library") { ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
   if (action === "set-theme") { state=store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
+  if (action === "profile-edit") { ui.profileEditing=ui.profileEditing===value?null:value;render();return; }
+  if (action === "profile-field" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.profile[target.dataset.field]=value;});render();toast("Profile saved. Review a proposal before changing today’s plan.");return; }
+  if (action === "profile-number" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.profile[target.dataset.field]=Number(value);});render();toast("Preference saved. The active plan did not change.");return; }
+  if (action === "setting-field" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.settings[target.dataset.field]=value;});render();return; }
   if (action === "cycle-theme") { const order=["light","dark","system"];const next=order[(order.indexOf(state.settings.theme)+1)%order.length];state=store.update(draft=>{draft.settings.theme=next;});applyTheme(next);render();toast(`${next[0].toUpperCase()+next.slice(1)} theme selected.`);return; }
   if (action === "set-tone" && target.tagName === "BUTTON") { state=store.update(draft=>applyTonePreference(draft,value));stopSpeech({renderCoach:false});render();return; }
+  if (action === "set-answer-depth" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.settings.coachMode=value;});render();return; }
+  if (action === "set-voice-persona" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.settings.voicePersona=value;});stopSpeech({renderCoach:false});render();return; }
   if (action === "quick-prompt") { if(value==="I only have 20 minutes."){proposePlan("minutes",20);ui.chatNotice={kind:"info",title:"20-minute option is ready for review",message:"FitCoach opened a deterministic proposal. Approve it before today’s plan changes."};render();return;}void sendChat(value);return; }
   if (action === "send-chat") { void sendChat();return; }
   if (action === "coach-message-action") {
@@ -1127,7 +1155,7 @@ function handleClick(event) {
   if (action === "voice-interrupt") { voiceController.interrupt();return; }
   if (action === "voice-mute") { voiceController.setMuted(!voiceController.getState().muted);return; }
   if (action === "voice-replay") { if(!voiceController.replayLast())toast("Replay is unavailable in this voice state.");return; }
-  if (action === "connection-info") { if(!navigator.onLine)openModal({type:"offline"});else toast("Live text uses DeepSeek first, configured Qwen backup second, then local safe copy.");return; }
+  if (action === "connection-info") { if(!navigator.onLine)openModal({type:"offline"});else toast("Live coaching is ready. If the live service is unavailable, FitCoach falls back to safe local guidance.");return; }
   if (action === "open-apple-health-plan") { openModal({ type: "apple-health" }); return; }
   if (action === "mark-apple-health-planned") { state=store.update(draft=>{draft.integrations.appleHealth.status="planned";draft.integrations.appleHealth.syncMode="manual_until_ios";draft.integrations.appleHealth.requestedAt=new Date().toISOString();});closeModal();render();toast("Apple Health sync marked for the native iOS build.");return; }
   if (action === "open-pro-preview") { openModal({ type: "pro-preview" }); return; }
@@ -1137,7 +1165,8 @@ function handleClick(event) {
   if (action === "open-gym-setup") { openModal({ type: "gym-setup" }); return; }
   if (action === "save-gym-profile") { const selected=[...document.querySelectorAll('[data-action="gym-toggle-equipment"]:checked')].map(node=>node.dataset.value).filter(Boolean);state=store.update(draft=>{draft.gymProfile.selectedGymName=(document.querySelector("#gym-name")?.value || "").trim().slice(0,120);draft.gymProfile.selectedGymAddress=(document.querySelector("#gym-address")?.value || "").trim().slice(0,180);draft.gymProfile.equipment=selected.slice(0,60);draft.gymProfile.source="manual";});closeModal();render();toast("Equipment profile saved locally.");return; }
   if (action === "open-community-draft") { openModal({ type: "community-draft", caption: "", visibility: "private" }); return; }
-  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=document.querySelector("#community-visibility")?.value || "private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");state=store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:uid("social-draft"),status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});closeModal();render();toast("Saved as a local draft. No photo was uploaded.");return; }
+  if (action === "community-visibility") { if (ui.modal?.type === "community-draft") { ui.modal.caption=document.querySelector("#community-caption")?.value || ui.modal.caption || "";ui.modal.visibility=["private","founders","public_preview"].includes(value)?value:"private";renderModalRoot(); } return; }
+  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=["private","founders","public_preview"].includes(ui.modal?.visibility)?ui.modal.visibility:"private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");state=store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:uid("social-draft"),status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});closeModal();render();toast("Saved as a local draft. No photo was uploaded.");return; }
   if (action === "open-tutorial") { ui.modal={type:"tutorial",step:0};renderModalRoot();return; }
   if (action === "tutorial-next") { ui.modal={type:"tutorial",step:Math.min(2,Number(target.dataset.step || 0)+1)};renderModalRoot();return; }
   if (action === "tutorial-back") { ui.modal={type:"tutorial",step:Math.max(0,Number(target.dataset.step || 0)-1)};renderModalRoot();return; }

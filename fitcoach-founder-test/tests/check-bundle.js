@@ -5,7 +5,8 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0413";
+const GENERATION = "0415";
+const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
 
@@ -40,10 +41,15 @@ function moduleGraph(entry) {
   return [...seen].sort();
 }
 
-function swAssets(source) {
-  return [...source.matchAll(/["'](\.\/[^"']+\?v=0413|\.[^"']+)["']/g)]
-    .map(match => match[1].replace(/^\.\//, "").replace(/\?v=0413$/, ""))
-    .filter(value => value && !value.includes("${"));
+function requestUrl(specifier) {
+  return new URL(specifier, APP_SCOPE).href;
+}
+
+function swAssetUrls(source) {
+  return new Set([...source.matchAll(/["'](\.\/[^"']*)["']/g)]
+    .map(match => match[1])
+    .filter(value => value && !value.includes("${"))
+    .map(requestUrl));
 }
 
 function syntaxCheck(file) {
@@ -57,8 +63,8 @@ function syntaxCheck(file) {
 
 (async () => {
   const html = read("index.html");
-  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0413["']/);
-  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0413 as a module");
+  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0415["']/);
+  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0415 as a module");
   else ok("index.html loads the v0.4 module entry");
 
   const entry = moduleMatch?.[1] || "v040/app.js";
@@ -73,30 +79,41 @@ function syntaxCheck(file) {
   if (corrupted.length) bad(`module graph contains corruption bytes: ${corrupted.join(", ")}`);
   else ok("module graph contains no corruption bytes");
 
-  if (!exists("v040/styles.css") || read("v040/styles.css").trim().length < 1_000) bad("v040/styles.css must exist and be nonempty");
-  else ok("v040/styles.css exists and is nonempty");
+  for (const stylesheet of ["v040/styles.css", "v040/premium-redesign.css"]) {
+    if (!exists(stylesheet) || read(stylesheet).trim().length < 1_000) bad(`${stylesheet} must exist and be nonempty`);
+    else ok(`${stylesheet} exists and is nonempty`);
+  }
 
   const manifest = JSON.parse(read("manifest.webmanifest"));
   const constants = read("v040/core/constants.mjs");
   const sw = read("sw.js");
   if (!html.includes(`v=${GENERATION}`) || !manifest.start_url.includes(`v=${GENERATION}`) || !sw.includes(`v${GENERATION}`) || !constants.includes(`CACHE_GENERATION = "${GENERATION}"`)) {
-    bad("index, manifest, service worker, and constants must agree on 0413");
-  } else ok("document, manifest, service worker, and constants agree on 0413");
+    bad("index, manifest, service worker, and constants must agree on 0415");
+  } else ok("document, manifest, service worker, and constants agree on 0415");
 
-  const precached = new Set(swAssets(sw));
-  const graphMissingFromSw = graph.filter(file => !precached.has(file));
+  const precached = swAssetUrls(sw);
+  const graphMissingFromSw = graph.filter(file => {
+    const runtimeRequest = file === entry
+      ? requestUrl(`./${file}?v=${GENERATION}`)
+      : requestUrl(`./${file}`);
+    return !precached.has(runtimeRequest);
+  });
   if (graphMissingFromSw.length) bad(`service worker missing module graph file(s): ${graphMissingFromSw.join(", ")}`);
   else ok("service-worker required graph contains complete module graph");
 
-  if (!precached.has("v040/styles.css")) bad("service worker must precache v040/styles.css");
-  else ok("service worker precaches v040/styles.css");
+  for (const stylesheet of ["v040/styles.css", "v040/premium-redesign.css"]) {
+    const stylesheetRequest = requestUrl(`./${stylesheet}?v=${GENERATION}`);
+    if (!precached.has(stylesheetRequest)) bad(`service worker must precache exact stylesheet request ${stylesheetRequest}`);
+    else ok(`service worker precaches ${stylesheet}`);
+  }
 
   const { EXERCISE_MEDIA_MANIFEST } = await import(pathToFileURL(path.join(APP_ROOT, "v040/data/exercise-media-manifest.mjs")).href);
   if (EXERCISE_MEDIA_MANIFEST.length !== 16) bad("media manifest must contain sixteen local exercise guides");
   for (const media of EXERCISE_MEDIA_MANIFEST) {
     const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
+    const runtimeRequest = requestUrl(media.path);
     if (!exists(file)) bad(`missing exercise media file: ${file}`);
-    if (!precached.has(file)) bad(`service worker does not precache exercise media: ${file}`);
+    if (!precached.has(runtimeRequest)) bad(`service worker does not precache exact runtime exercise request: ${runtimeRequest}`);
     if (media.type !== "png-two-position-guide" || !file.endsWith("-premium-v1.png")) {
       bad(`${media.id} must use an approved premium two-position PNG`);
     }

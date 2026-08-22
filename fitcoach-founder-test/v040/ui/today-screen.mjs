@@ -63,13 +63,13 @@ export function renderTodayScreen({ state, plan, decision, exerciseById, now = n
     ? `${target}-session plan ready · nothing is late`
     : remaining ? `${remaining} remaining · every valid version counts` : "Weekly target complete";
   return `<div class="page today-page">
-    <section class="today-intro"><div><span class="eyebrow">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</span><h1>${now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening"}</h1><p>Your plan is ready. Change the context, and FitCoach will preview the exact difference before anything moves.</p></div><div class="readiness-orb" style="--score:${ready.score}" aria-label="Readiness ${ready.score}, ${ready.label}"><strong>${ready.score}</strong><small>${ready.label}</small></div></section>
+    <section class="today-intro"><div><span class="eyebrow">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</span><h1>${now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening"}</h1><p>Your plan is ready. Change the context, and FitCoach will preview the exact difference before anything moves.</p></div>${isStartingWeek ? `<div class="readiness-orb baseline" aria-label="New training baseline"><strong>NEW</strong><small>baseline</small></div>` : `<div class="readiness-orb" style="--score:${ready.score}" aria-label="Readiness ${ready.score}, ${ready.label}"><strong>${ready.score}</strong><small>${ready.label}</small></div>`}</section>
 
     <section class="coach-decision-card tone-${escapeHtml(state.profile.tone.toLowerCase())}">
       <div class="coach-mark" aria-hidden="true"><span></span></div>
       <div class="decision-copy"><span class="eyebrow">TODAY’S COACH DECISION</span><h2>${escapeHtml(decision.title)}</h2><p>${escapeHtml(decision.message)}</p>
         <div class="decision-actions">${button({ label: decision.primary.label, action: "decision", value: "primary", variant: "primary" })}${decision.secondary ? button({ label: decision.secondary.label, action: "decision", value: "secondary", variant: "quiet" }) : ""}<button class="text-button" data-action="explain-decision">Why this?</button></div>
-        <footer><span class="status-dot"></span>${escapeHtml(decision.type.replaceAll("_", " "))} · deterministic action</footer>
+        <footer><span class="status-dot"></span>Based on your current plan and today’s check-in</footer>
       </div>
     </section>
 

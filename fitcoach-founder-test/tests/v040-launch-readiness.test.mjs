@@ -16,6 +16,10 @@ import {
   ONBOARDING_STEP_COUNT,
   renderOnboarding,
 } from "../v040/ui/onboarding.mjs";
+import { renderCoachScreen } from "../v040/ui/coach-screen.mjs";
+import { renderModal } from "../v040/ui/modal.mjs";
+import { renderProfileScreen } from "../v040/ui/profile-screen.mjs";
+import { renderProgressScreen } from "../v040/ui/progress-screen.mjs";
 import { renderTodayScreen } from "../v040/ui/today-screen.mjs";
 
 class MemoryStorage {
@@ -88,6 +92,40 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
   }
 });
 
+test("default and expanded Profile setup use premium radio choices without native dropdowns", () => {
+  const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
+  const views = {
+    default: renderProfileScreen({ state, ui: {} }),
+    training: renderProfileScreen({ state, ui: { profileEditing: "training" } }),
+    coach: renderProfileScreen({ state, ui: { profileEditing: "coach" } }),
+  };
+
+  for (const [name, html] of Object.entries(views)) {
+    assert.doesNotMatch(html, /<select\b/i, `${name} Profile must not use a dropdown`);
+    assert.doesNotMatch(html, /<option\b/i, `${name} Profile must not use native select options`);
+  }
+
+  assert.equal((views.training.match(/<section class="profile-plan-field"/gu) || []).length, 7);
+  assert.equal((views.training.match(/class="profile-plan-options" role="radiogroup"/gu) || []).length, 7);
+  assert.match(views.training, /data-action="profile-field" data-field="goal" data-value="build muscle"/u);
+  assert.match(views.training, /data-action="profile-number" data-field="duration" data-value="45"/u);
+  assert.match(views.training, /data-action="setting-field" data-field="units" data-value="lb"/u);
+  assert.match(views.training, /role="radio" aria-checked="true"/u);
+});
+
+test("progress-post visibility uses premium choices instead of a dropdown", () => {
+  const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
+  const html = renderModal(
+    { type: "community-draft", visibility: "private", caption: "" },
+    { state, communityPreviewUrl: null },
+  );
+
+  assert.doesNotMatch(html, /<select\b|<option\b/iu);
+  assert.equal((html.match(/data-action="community-visibility"/gu) || []).length, 3);
+  assert.match(html, /role="radiogroup" aria-label="Draft visibility"/u);
+  assert.match(html, /role="radio" aria-checked="true"/u);
+});
+
 test("a profile with no training history never gets a zero-of-target score", () => {
   const now = new Date("2026-08-20T14:00:00.000Z");
   const state = createInitialState("mo", new Date("2026-08-01T14:00:00.000Z"));
@@ -147,7 +185,43 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.4\.3/u);
+  assert.match(html, /FitCoach v0\.4\.4/u);
+});
+
+test("premium shell keeps five focused tabs and moves Profile into the header", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const labels = [...html.matchAll(/<span>(Today|Train|Coach|Food|Progress|Profile)<\/span>/gu)].map(match => match[1]);
+
+  assert.deepEqual(labels, ["Today", "Train", "Coach", "Food", "Progress"]);
+  assert.doesNotMatch(html, /data-route="profile"/u);
+  assert.match(readFileSync(new URL("../v040/app.js", import.meta.url), "utf8"), /data-action="route" data-value="profile"/u);
+});
+
+test("first-day Progress, Coach, and Profile avoid prototype-facing UI", () => {
+  const now = new Date("2026-08-20T14:00:00.000Z");
+  const state = createInitialState("mo", now);
+  const decision = { title: "Start with one honest session", message: "Build the first baseline." };
+  const ui = { chatBusy: false, chatDraft: "", pendingMessage: "", chatNotice: null, speakingMessageId: null };
+  const coach = renderCoachScreen({ state, decision, ui, coachConnection: { label: "Coach status", state: "unverified" } });
+  const progress = renderProgressScreen({ state, now });
+  const profile = renderProfileScreen({ state, ui: {} });
+  const visibleProfileText = profile.replace(/<[^>]*>/gu, " ");
+
+  assert.doesNotMatch(coach, /<select\b|DeepSeek|Qwen|browser online|coach unverified|deterministic action/iu);
+  assert.match(coach, /Talk naturally\. Hear the answer\./u);
+  assert.match(progress, /No fake history\. Your first workout creates the baseline\./u);
+  assert.doesNotMatch(progress, /0\/3|weekly target<\/small>/u);
+  assert.doesNotMatch(profile, /<select\b/iu);
+  assert.doesNotMatch(visibleProfileText, /roadmap|founder|DeepSeek|Qwen/iu);
+  assert.match(profile, /Help and local data/u);
+});
+
+test("unverified coach status never claims readiness", () => {
+  const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
+
+  assert.match(app, /return \{ label: "Coach status", state: "unverified" \}/u);
+  assert.match(app, /return \{ label: "Checking coach", state: "busy" \}/u);
+  assert.doesNotMatch(app, /Coach ready/u);
 });
 
 test("the document owns service-worker upgrades and modules refresh network-first", () => {
@@ -155,11 +229,18 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0413", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0415", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);
   assert.match(worker, /if \(versioned \|\| moduleAsset\) \{\s*event\.respondWith\(networkOrCached/u);
+});
+
+test("Voice Room takes focus when its dialog opens", () => {
+  const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
+  assert.match(app, /previousVoiceAction/u);
+  assert.match(app, /data-action=\\?"voice-consent/u);
+  assert.match(app, /focus\(\{ preventScroll: true \}\)/u);
 });
 
 test("normalization keeps photo drafts as metadata only and drops corrupt drafts", () => {
