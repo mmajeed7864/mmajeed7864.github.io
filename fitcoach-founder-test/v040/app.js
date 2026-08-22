@@ -219,7 +219,7 @@ function applyTheme(preference) {
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
   localStorage.setItem("fitcoach-theme", preference);
-  const color = resolved === "dark" ? "#071116" : "#F6F9FB";
+  const color = resolved === "dark" ? "#061126" : "#F5F8FF";
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
 }
 

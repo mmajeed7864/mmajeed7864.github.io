@@ -33,8 +33,14 @@ function matchedExercise(message, exercises) {
   const normalized = message.toLowerCase();
   return [...(exercises || [])]
     .map(exercise => ({ exercise, names: searchableExerciseNames(exercise) }))
-    .filter(entry => entry.names.some(name => normalized.includes(name)))
-    .sort((left, right) => Math.max(...right.names.map(name => name.length)) - Math.max(...left.names.map(name => name.length)))
+    .map(entry => ({ ...entry, matchedNames: entry.names.filter(name => normalized.includes(name)) }))
+    .filter(entry => entry.matchedNames.length > 0)
+    .sort((left, right) => {
+      const matchedLength = Math.max(...right.matchedNames.map(name => name.length)) - Math.max(...left.matchedNames.map(name => name.length));
+      if (matchedLength) return matchedLength;
+      if (left.exercise.guideStatus !== right.exercise.guideStatus) return left.exercise.guideStatus === "visual-guide" ? -1 : 1;
+      return String(left.exercise.id).localeCompare(String(right.exercise.id), "en");
+    })
     .at(0)?.exercise || null;
 }
 
@@ -53,7 +59,9 @@ export function deriveTrainerAction({ state, message, exercises }) {
       kind: "open_exercise",
       value: exercise.id,
       label: `Open ${exercise.name} guide`,
-      detail: "Local illustrated setup, movement, and mistake guide",
+      detail: exercise.guideStatus === "visual-guide"
+        ? "Local illustrated setup, movement, and mistake guide"
+        : "Local written setup, movement, and cue guide",
     });
   }
 

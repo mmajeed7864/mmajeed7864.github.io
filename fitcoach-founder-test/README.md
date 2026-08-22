@@ -15,7 +15,7 @@ FitCoach v0.4.4 is the active runtime (cache generation 0415 carries the premium
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
 
 - `core/`: constants, storage, migration, unit helpers, stable utility functions
-- `data/`: exercise library, local premium two-position guide manifest, schema validators
+- `data/`: 100-movement exercise library, local premium visual-guide manifest, written-guide contracts, and schema validators
 - `domain/`: deterministic workout planning, intervention decisions, and the nutrition diary (confirmed-only totals; the photo/text estimator is an honestly-labeled deterministic preview demo; no vision provider exists in this build)
 - `services/`: bounded trainer text and spoken-reply API payload mapping
 - `ui/`: five-tab browser UI (Today, Train, Coach, Food, Progress), header-accessible profile, modals, exercise detail, active workout, and progress
@@ -45,9 +45,9 @@ When spoken replies are enabled, the browser may send only the bounded coach rep
 
 The model may render conversational wording only. It cannot choose safety outcomes, apply plans, write memory, activate actions, or access raw workout logs, identifiers, measurements, medication details, or raw audio.
 
-## Exercise media
+## Exercise library and media
 
-The current exercise visuals are sixteen local, original, static premium PNG two-position guides. They show start and finish positions with illustrated human athletes—never stick figures. They are not animations, videos, form analysis, medical assessment, or competitor media.
+The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. Sixteen movements currently have local, original, static premium PNG two-position guides with illustrated human athletes—never stick figures. The other 84 expose structured written setup, execution, cue, and alternative guidance and are explicitly labelled as written guides until commissioned motion media exists. None are animations, videos, form analysis, medical assessment, or competitor media.
 
 ## Required checks
 

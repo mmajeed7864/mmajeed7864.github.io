@@ -1,5 +1,6 @@
 import { EXERCISE_SCHEMA_VERSION } from "./exercise-schema.mjs";
 import { getExerciseMedia } from "./exercise-media-manifest.mjs";
+import { EXERCISE_EXPANSION_TARGETS } from "./exercise-expansion-targets.mjs";
 
 const DATA_LICENSE = "FitCoach project-authored exercise copy; all rights reserved by the FitCoach project owner.";
 
@@ -10,10 +11,12 @@ function deepFreeze(value) {
 }
 
 function exercise(definition) {
+  const { media = getExerciseMedia(definition.id), guideStatus = "visual-guide", ...record } = definition;
   return deepFreeze({
     schemaVersion: EXERCISE_SCHEMA_VERSION,
-    ...definition,
-    media: getExerciseMedia(definition.id),
+    ...record,
+    guideStatus,
+    media,
     license: DATA_LICENSE,
     attribution: null,
   });
@@ -23,7 +26,7 @@ function exercise(definition) {
  * describe exercise presentation and logging metadata; they do not diagnose,
  * evaluate technique, or authorize an automatic plan change.
  */
-export const EXERCISES = Object.freeze([
+const PREMIUM_GUIDE_EXERCISES = Object.freeze([
   exercise({
     id: "air-squat",
     name: "Air Squat",
@@ -378,6 +381,128 @@ export const EXERCISES = Object.freeze([
   }),
 ]);
 
+const STRUCTURED_GYM_EXCLUSIONS = new Set([
+  "tempo-air-squat",
+  "wall-sit",
+  "pike-push-up",
+  "handstand-hold",
+  "band-pulldown",
+  "curtsy-lunge",
+  "cossack-squat",
+  "front-plank",
+  "side-plank",
+  "mountain-climber",
+]);
+
+const PATTERN_GUIDE = Object.freeze({
+  squat: Object.freeze({
+    setup: "Set the load and support points so the whole repetition can stay controlled.",
+    execution: "Lower and stand through a range you can repeat without rushing the change of direction.",
+    cue: "Keep pressure balanced through the feet and keep the load path predictable.",
+  }),
+  hinge: Object.freeze({
+    setup: "Set the load close to the body and make sure the floor space is clear before the first rep.",
+    execution: "Move from the hips with a steady torso position, then return the load under control.",
+    cue: "Keep the load close and stop each repetition before control changes.",
+  }),
+  "horizontal-push": Object.freeze({
+    setup: "Adjust the bench, machine, or handles before loading the movement.",
+    execution: "Press through a smooth path, pause briefly in control, then return without dropping the load.",
+    cue: "Keep the wrists and elbows in a position you can control throughout the set.",
+  }),
+  "horizontal-pull": Object.freeze({
+    setup: "Set the seat, chest support, or stance so the first pull starts from a stable position.",
+    execution: "Draw the handle or load toward the torso, then return it slowly without using momentum.",
+    cue: "Let the torso stay steady while the working arm path stays clear.",
+  }),
+  "vertical-push": Object.freeze({
+    setup: "Set the seat, rack height, or stance before bringing the load into the start position.",
+    execution: "Press upward with a clear path, then bring the load back to the start under control.",
+    cue: "Use a load you can return safely to the rack, shoulder, or support.",
+  }),
+  "vertical-pull": Object.freeze({
+    setup: "Set the cable, assistance, or grip before creating tension.",
+    execution: "Pull through a smooth path and return the handle or body position without a sudden release.",
+    cue: "Keep the moving handle and cable path clear of the face.",
+  }),
+  lunge: Object.freeze({
+    setup: "Choose a clear lane and a stable support point if balance assistance is useful.",
+    execution: "Step or lower into a controllable split stance, then return to a balanced standing position.",
+    cue: "Keep each foot planted long enough to control the return.",
+  }),
+  core: Object.freeze({
+    setup: "Set up on a clear surface or machine with a range you can control without rushing.",
+    execution: "Move smoothly through the chosen range, reset as needed, and avoid using momentum.",
+    cue: "Keep the working range controlled rather than chasing a larger range.",
+  }),
+  accessory: Object.freeze({
+    setup: "Choose a manageable starting load and a stable position before the first repetition.",
+    execution: "Use a smooth repetition path, pause in control, and lower without swinging the load.",
+    cue: "Keep the target area doing the work instead of adding momentum.",
+  }),
+  conditioning: Object.freeze({
+    setup: "Set the resistance and clear the training area before starting the interval or repetition.",
+    execution: "Begin at a pace you can control and adjust or stop if the movement becomes unsteady.",
+    cue: "Keep the effort repeatable; the goal is controlled work, not a rushed finish.",
+  }),
+});
+
+const ALTERNATIVE_BY_PATTERN = Object.freeze({
+  squat: "goblet-squat",
+  hinge: "hip-hinge",
+  "horizontal-push": "dumbbell-floor-press",
+  "horizontal-pull": "one-arm-dumbbell-row",
+  "vertical-push": "half-kneeling-press",
+  "vertical-pull": "band-lat-pulldown",
+  lunge: "reverse-lunge",
+  core: "dead-bug",
+  accessory: "dumbbell-curl",
+  conditioning: "marching-jacks",
+});
+
+function structuredGymExercise(target) {
+  const guide = PATTERN_GUIDE[target.movementPattern] || PATTERN_GUIDE.accessory;
+  const alternative = ALTERNATIVE_BY_PATTERN[target.movementPattern] || "air-squat";
+  const isHomeCompatible = target.equipment.every(item => ["bodyweight", "dumbbell", "dumbbells", "kettlebell", "kettlebells", "resistance band"].includes(item));
+  const equipmentLabel = target.equipment.join(" · ");
+  return exercise({
+    id: target.id,
+    name: target.name,
+    aliases: [target.name.toLowerCase(), ...target.name.toLowerCase().split(/[- ]+/).filter(word => word.length > 3)],
+    movementPattern: target.movementPattern,
+    equipment: [...target.equipment],
+    location: isHomeCompatible ? ["gym", "home"] : ["gym"],
+    primaryMuscles: [...target.primaryMuscles],
+    secondaryMuscles: ["supporting musculature"],
+    difficulty: target.difficulty,
+    guideStatus: "written-guide",
+    media: [],
+    instructions: `${target.name} has a structured FitCoach setup and cue guide for use with ${equipmentLabel}.`,
+    setupSteps: [guide.setup, `Check that the ${equipmentLabel} setup is stable and ready before adding working load.`],
+    executionSteps: [guide.execution, "Finish or stop the set while the movement remains controlled."],
+    breathing: "Use a steady breath pattern that does not make the repetition rushed or unstable.",
+    keyCues: [guide.cue, "Choose a range and load you can control for every planned repetition."],
+    commonMistakes: ["Starting before the equipment setup is stable.", "Adding speed or load after control changes."],
+    safetyNotes: ["This guide is educational, not form assessment. Stop the set if the movement is painful or you feel unwell."],
+    alternatives: [alternative],
+    progressions: ["Add a small amount of load only after repeatable, controlled sets."],
+    regressions: [`Use ${alternative.replaceAll("-", " ")} or reduce the load and range.`],
+    equipmentSubstitutions: [{ insteadOf: target.equipment[0], use: "the listed exercise alternative", adjustment: "Choose the alternative only if it matches your available equipment and can be done with control." }],
+  });
+}
+
+const starterIds = new Set(PREMIUM_GUIDE_EXERCISES.map(item => item.id));
+const structuredGymExercises = EXERCISE_EXPANSION_TARGETS
+  .filter(target => !starterIds.has(target.id) && !STRUCTURED_GYM_EXCLUSIONS.has(target.id))
+  .map(structuredGymExercise);
+
+/**
+ * One hundred real, filterable movements. Sixteen have project-authored visual
+ * guides today; the other gym-focused records deliberately use written setup
+ * and cue guides until their commissioned motion media is ready.
+ */
+export const EXERCISES = Object.freeze([...PREMIUM_GUIDE_EXERCISES, ...structuredGymExercises]);
+
 const EXERCISE_BY_ID = new Map(EXERCISES.map((item) => [item.id, item]));
 
 /** @param {string} id */
@@ -395,6 +520,9 @@ export function getExerciseById(id) {
  */
 export function filterExercises(filters = {}) {
   const normalizedQuery = String(filters.query || "").trim().toLocaleLowerCase();
+  const normalizedEquipment = String(filters.equipment || "").trim().toLocaleLowerCase()
+    .replace(/dumbbells?/g, "dumbbell")
+    .replace(/kettlebells?/g, "kettlebell");
   return EXERCISES.filter((item) => {
     const searchText = [item.name, ...item.aliases, ...item.primaryMuscles, ...item.secondaryMuscles]
       .join(" ")
@@ -403,7 +531,9 @@ export function filterExercises(filters = {}) {
       (!normalizedQuery || searchText.includes(normalizedQuery)) &&
       (!filters.primaryMuscle || item.primaryMuscles.includes(filters.primaryMuscle)) &&
       (!filters.secondaryMuscle || item.secondaryMuscles.includes(filters.secondaryMuscle)) &&
-      (!filters.equipment || item.equipment.includes(filters.equipment)) &&
+      (!normalizedEquipment || item.equipment.some(equipment => String(equipment).toLocaleLowerCase()
+        .replace(/dumbbells?/g, "dumbbell")
+        .replace(/kettlebells?/g, "kettlebell") === normalizedEquipment)) &&
       (!filters.location || item.location.includes(filters.location)) &&
       (!filters.movementPattern || item.movementPattern === filters.movementPattern) &&
       (!filters.difficulty || item.difficulty === filters.difficulty)

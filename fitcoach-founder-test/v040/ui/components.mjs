@@ -40,7 +40,7 @@ export function exercisePoster(exercise, { className = "", eager = false, label 
   const poster = media?.path || exercise?.snapshot?.mediaPoster || "";
   const name = exercise?.name || exercise?.snapshot?.name || "Exercise";
   if (!poster) {
-    return `<div class="exercise-poster media-fallback ${escapeHtml(className)}" role="img" aria-label="${escapeHtml(name)} visual unavailable"><span>${escapeHtml(name.slice(0, 1))}</span></div>`;
+    return `<div class="exercise-poster media-fallback ${escapeHtml(className)}" role="img" aria-label="${escapeHtml(name)} written coaching guide"><span class="guide-mark">FC</span><span class="guide-copy"><b>WRITTEN GUIDE</b><small>Setup · cues · options</small></span></div>`;
   }
   return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${media?.width || 320}" height="${media?.height || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
 }
@@ -50,7 +50,7 @@ export function renderExerciseCard(exercise, preferences, { action = "open-exerc
   return `<article class="exercise-card ${compact ? "compact" : ""}" data-exercise-id="${escapeHtml(exercise.id)}">
     <button class="exercise-card-open" data-action="${escapeHtml(action)}" data-value="${escapeHtml(exercise.id)}" aria-label="Open ${escapeHtml(exercise.name)}">
       ${exercisePoster(exercise)}
-      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml((exercise.equipment || []).join(" · "))}</em></span>
+      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml((exercise.equipment || []).join(" · "))}</em><i class="guide-status ${exercise.guideStatus === "visual-guide" ? "visual" : "written"}">${exercise.guideStatus === "visual-guide" ? "Visual guide" : "Written guide"}</i></span>
     </button>
     <button class="favorite-button ${favorite ? "active" : ""}" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="${favorite ? "Remove from" : "Add to"} favorites" aria-pressed="${favorite}">${icon("heart")}</button>
   </article>`;

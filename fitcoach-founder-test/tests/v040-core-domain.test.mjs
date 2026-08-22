@@ -299,6 +299,8 @@ test("planner ranks every movement pattern and unknown patterns sort last", () =
     "triceps-extension",
     "lateral-raise",
     "cardio-warm-up",
+    "accessory",
+    "conditioning",
   ]);
 
   const state = createInitialState("mo", FIXED_NOW);
@@ -407,6 +409,11 @@ test("equipment compatibility beats preferences and exclusions remain hard", () 
   const excluded = state.exercisePreferences.excluded[0];
   plan = buildPlan(state, EXERCISES, { planId: "A", minutes: 45 });
   assert.equal(plan.exercises.some(item => item.exerciseId === excluded), false);
+
+  state.profile.equipment = "full gym";
+  state.exercisePreferences.excluded = [];
+  plan = buildPlan(state, EXERCISES, { planId: "A", minutes: 45 });
+  assert.ok(plan.exercises.some(item => item.snapshot.equipment.some(value => /barbell|machine|cable/i.test(value))));
 });
 
 test("goal and experience have restrained deterministic effects", () => {

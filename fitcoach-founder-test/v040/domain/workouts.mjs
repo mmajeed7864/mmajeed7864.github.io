@@ -20,6 +20,8 @@ export const PATTERN_ORDER = Object.freeze([
   "triceps-extension",
   "lateral-raise",
   "cardio-warm-up",
+  "accessory",
+  "conditioning",
 ]);
 
 const PATTERN_RANK = new Map(PATTERN_ORDER.map((pattern, index) => [pattern, index]));
@@ -49,7 +51,7 @@ const EQUIPMENT_CAPABILITIES = Object.freeze({
   bodyweight: new Set(["bodyweight", "mat", "stable-surface"]),
   "dumbbells only": new Set(["bodyweight", "mat", "stable-surface", "dumbbell", "kettlebell"]),
   "home gym": new Set(["bodyweight", "mat", "stable-surface", "dumbbell", "kettlebell", "band", "band-anchor"]),
-  "full gym": new Set(["bodyweight", "mat", "stable-surface", "dumbbell", "kettlebell", "band", "band-anchor", "machine", "barbell"]),
+  "full gym": new Set(["bodyweight", "mat", "stable-surface", "dumbbell", "kettlebell", "band", "band-anchor", "machine", "barbell", "plates", "rack", "trap-bar", "box", "wedge", "bench", "cable", "dip-station", "bar", "rings", "pullup-station", "landmine", "wall", "sled", "ab-wheel", "plate", "jump-rope", "rower", "bike", "treadmill", "battle-ropes", "medicine-ball"]),
 });
 
 const EQUIPMENT_ALIASES = Object.freeze({
@@ -66,6 +68,32 @@ const EQUIPMENT_ALIASES = Object.freeze({
   "resistance band": "band",
   band: "band",
   "overhead band anchor": "band-anchor",
+  cable: "cable",
+  machine: "machine",
+  barbell: "barbell",
+  plates: "plates",
+  "squat rack": "rack",
+  rack: "rack",
+  "trap bar": "trap-bar",
+  box: "box",
+  wedge: "wedge",
+  "dip station": "dip-station",
+  bar: "bar",
+  rings: "rings",
+  "pull-up bar": "pullup-station",
+  landmine: "landmine",
+  wall: "wall",
+  sled: "sled",
+  "ab wheel": "ab-wheel",
+  plate: "plate",
+  "jump rope": "jump-rope",
+  rower: "rower",
+  bike: "bike",
+  treadmill: "treadmill",
+  "battle ropes": "battle-ropes",
+  "medicine ball": "medicine-ball",
+  handles: "stable-surface",
+  kettlebells: "kettlebell",
 });
 
 function patternRank(pattern) {
@@ -99,6 +127,12 @@ function supportsContext(exercise, state) {
   return !(state.exercisePreferences?.excluded || []).includes(exercise.id);
 }
 
+function isGymSpecific(exercise) {
+  const locations = exercise.location || exercise.locations || [];
+  const equipment = exerciseEquipment(exercise);
+  return locations.length === 1 && locations[0] === "gym" && equipment.some(token => ["barbell", "machine", "cable", "rack", "sled", "trap-bar", "landmine", "rower", "bike", "treadmill"].includes(token));
+}
+
 function selectExercises(state, library, count) {
   const compatible = library.filter(exercise => supportsContext(exercise, state));
   const preferred = new Set(state.exercisePreferences?.preferred || []);
@@ -113,6 +147,8 @@ function selectExercises(state, library, count) {
         if (experience === "beginner" && exercise.difficulty === "beginner") value -= 8;
         if (experience === "beginner" && exercise.difficulty !== "beginner") value += 18;
         if (experience === "advanced" && exercise.difficulty !== "beginner") value -= 4;
+        if (state.profile.equipment === "full gym" && isGymSpecific(exercise)) value -= 16;
+        if (exercise.guideStatus === "visual-guide") value -= 12;
         return value;
       };
       const scoreDelta = score(left) - score(right);

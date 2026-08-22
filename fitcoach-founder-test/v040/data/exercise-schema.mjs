@@ -20,9 +20,12 @@ export const MOVEMENT_PATTERNS = Object.freeze([
   "lateral-raise",
   "core",
   "cardio-warm-up",
+  "accessory",
+  "conditioning",
 ]);
 
-export const DIFFICULTIES = Object.freeze(["beginner", "intermediate"]);
+export const DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
+export const GUIDE_STATUSES = Object.freeze(["visual-guide", "written-guide"]);
 export const LOCATIONS = Object.freeze(["home", "gym", "outdoors"]);
 export const MEDIA_TYPES = Object.freeze([
   "poster",
@@ -149,6 +152,7 @@ export function validateExerciseLibrary(exercises, mediaEntries) {
       errors.push(`${label}.movementPattern is unsupported.`);
     }
     if (!DIFFICULTIES.includes(exercise.difficulty)) errors.push(`${label}.difficulty is unsupported.`);
+    if (!GUIDE_STATUSES.includes(exercise.guideStatus)) errors.push(`${label}.guideStatus is unsupported.`);
     if (!isNonEmptyString(exercise.instructions)) errors.push(`${label}.instructions is required.`);
     if (!isNonEmptyString(exercise.breathing)) errors.push(`${label}.breathing is required.`);
     if (!isNonEmptyString(exercise.license)) errors.push(`${label}.license is required.`);
@@ -159,8 +163,12 @@ export function validateExerciseLibrary(exercises, mediaEntries) {
     if (!exercise.location?.every((location) => LOCATIONS.includes(location))) {
       errors.push(`${label}.location includes an unsupported value.`);
     }
-    if (!Array.isArray(exercise.media) || exercise.media.length === 0) {
-      errors.push(`${label}.media must include at least one asset reference.`);
+    if (!Array.isArray(exercise.media)) {
+      errors.push(`${label}.media must be an array.`);
+    } else if (exercise.guideStatus === "visual-guide" && exercise.media.length === 0) {
+      errors.push(`${label}.visual-guide must include at least one asset reference.`);
+    } else if (exercise.guideStatus === "written-guide" && exercise.media.length !== 0) {
+      errors.push(`${label}.written-guide must not claim an unfinished visual asset.`);
     } else {
       for (const mediaReference of exercise.media) {
         const assetId = typeof mediaReference === "string" ? mediaReference : mediaReference?.id;

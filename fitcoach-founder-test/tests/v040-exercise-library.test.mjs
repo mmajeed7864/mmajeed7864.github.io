@@ -25,16 +25,20 @@ function localAssetPath(media) {
   return path.join(APP_ROOT, appRelativePath);
 }
 
-test("starter library has 16 stable, immutable exercise records", () => {
-  assert.equal(EXERCISES.length, 16);
-  assert.equal(new Set(EXERCISES.map((item) => item.id)).size, 16);
+test("library has 100 stable, immutable exercise records with honest guide status", () => {
+  assert.equal(EXERCISES.length, 100);
+  assert.equal(new Set(EXERCISES.map((item) => item.id)).size, 100);
   assert.ok(Object.isFrozen(EXERCISES));
   assert.ok(EXERCISES.every((item) => Object.isFrozen(item) && Object.isFrozen(item.setupSteps)));
   assert.equal(getExerciseById("air-squat")?.name, "Air Squat");
+  assert.equal(getExerciseById("barbell-back-squat")?.guideStatus, "written-guide");
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 16);
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 84);
+  assert.ok(EXERCISES.every((item) => item.location.includes("gym")));
   assert.equal(getExerciseById("missing-exercise"), null);
 });
 
-test("starter library covers every declared movement pattern", () => {
+test("library covers every declared movement pattern", () => {
   const representedPatterns = new Set(EXERCISES.map((item) => item.movementPattern));
   assert.deepEqual([...representedPatterns].sort(), [...MOVEMENT_PATTERNS].sort());
 });
@@ -45,17 +49,18 @@ test("exercise schema and internal references validate", () => {
   assert.deepEqual(result.errors, []);
 });
 
-test("media/license manifest validates and maps one local asset per exercise", () => {
+test("media/license manifest validates and maps one local visual asset per visual guide", () => {
   const result = validateExerciseMediaManifest(EXERCISE_MEDIA_MANIFEST);
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(EXERCISE_MEDIA_MANIFEST.length, EXERCISES.length);
-  assert.equal(new Set(EXERCISE_MEDIA_MANIFEST.map((entry) => entry.exerciseId)).size, EXERCISES.length);
+  const visualGuides = EXERCISES.filter((item) => item.guideStatus === "visual-guide");
+  assert.equal(EXERCISE_MEDIA_MANIFEST.length, visualGuides.length);
+  assert.equal(new Set(EXERCISE_MEDIA_MANIFEST.map((entry) => entry.exerciseId)).size, visualGuides.length);
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.temporaryOriginal === true));
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.attributionRequired === false));
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.license.includes("project-authored original")));
 });
 
-test("every active exercise guide uses the approved premium illustration system", () => {
+test("every visual exercise guide uses the approved premium illustration system", () => {
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.type === "png-two-position-guide"));
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.path.endsWith("-premium-v1.png")));
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.width === 1448 && entry.height === 1086));
@@ -88,10 +93,13 @@ test("local exercise guides have valid inert formats without remote links", asyn
 
 test("search and filters are deterministic and match aliases and facets", () => {
   assert.deepEqual(filterExercises({ query: "BODYWEIGHT SQUAT" }).map((item) => item.id), ["air-squat"]);
-  assert.deepEqual(filterExercises({ movementPattern: "hinge" }).map((item) => item.id), ["hip-hinge", "glute-bridge"]);
+  assert.ok(filterExercises({ movementPattern: "hinge" }).map((item) => item.id).includes("conventional-deadlift"));
+  assert.ok(filterExercises({ movementPattern: "hinge" }).map((item) => item.id).includes("hip-hinge"));
   assert.deepEqual(filterExercises({ primaryMuscle: "lats", equipment: "resistance band" }).map((item) => item.id), ["band-row", "band-lat-pulldown"]);
   assert.equal(filterExercises({ location: "outdoors" }).length, 6);
-  assert.deepEqual(filterExercises({ difficulty: "intermediate" }).map((item) => item.id), ["half-kneeling-press", "overhead-triceps-extension"]);
+  assert.ok(filterExercises({ difficulty: "intermediate" }).some((item) => item.id === "half-kneeling-press"));
+  assert.ok(filterExercises({ equipment: "cable" }).some((item) => item.id === "lat-pulldown"));
+  assert.ok(filterExercises({ equipment: "dumbbell" }).some((item) => item.id === "dumbbell-bench-press"));
 });
 
 test("validators reject a competitor hotlink and a missing media reference", () => {

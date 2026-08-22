@@ -324,6 +324,16 @@ test("local trainer actions open exact exercise guides without provider-authored
     label: "Open Goblet Squat guide",
     detail: "Local illustrated setup, movement, and mistake guide",
   });
+  assert.deepEqual(deriveTrainerAction({
+    state: trainerState(),
+    message: "Open the barbell back squat guide.",
+    exercises: EXERCISES,
+  }), {
+    kind: "open_exercise",
+    value: "barbell-back-squat",
+    label: "Open Barbell Back Squat guide",
+    detail: "Local written setup, movement, and cue guide",
+  });
   assert.equal(isTrainerAction(action), true);
   assert.equal(isTrainerAction({ kind: "write_memory", value: "x", label: "Do it", detail: "" }), false);
 });

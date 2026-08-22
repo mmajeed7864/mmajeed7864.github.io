@@ -53,6 +53,14 @@ test("exercise expansion target list maps 100 quality movements without claiming
   assert.equal(validation.valid, true, validation.errors.join("\n"));
 });
 
+test("premium surface uses the approved blue system rather than the retired teal palette", () => {
+  const css = readFileSync(new URL("../v040/premium-redesign.css", import.meta.url), "utf8");
+  assert.match(css, /--primary:\s*#246bfd/i);
+  assert.match(css, /linear-gradient\(145deg, #244fa5, #0b1d46/i);
+  assert.doesNotMatch(css, /--primary:\s*#08796f/i);
+  assert.doesNotMatch(css, /#0a746c|#0b756d|#07575b/i);
+});
+
 test("expansion validator rejects duplicate ids and premature live-guide claims", () => {
   const [first] = EXERCISE_EXPANSION_TARGETS;
   const result = validateExerciseExpansionTargets([
