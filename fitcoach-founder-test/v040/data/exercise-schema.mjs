@@ -65,7 +65,7 @@ export function validateExerciseMediaManifest(entries) {
   }
 
   const ids = new Set();
-  const exerciseIds = new Set();
+  const exerciseMediaTypes = new Set();
   for (const [index, entry] of entries.entries()) {
     const label = `media[${index}]`;
     if (!entry || typeof entry !== "object") {
@@ -76,17 +76,27 @@ export function validateExerciseMediaManifest(entries) {
     if (ids.has(entry.id)) errors.push(`${label}.id duplicates ${entry.id}.`);
     ids.add(entry.id);
     if (!isExerciseId(entry.exerciseId)) errors.push(`${label}.exerciseId is invalid.`);
-    if (exerciseIds.has(entry.exerciseId)) {
-      errors.push(`${label}.exerciseId duplicates ${entry.exerciseId}.`);
-    }
-    exerciseIds.add(entry.exerciseId);
     if (!MEDIA_TYPES.includes(entry.type)) errors.push(`${label}.type is unsupported.`);
+    const exerciseMediaType = `${entry.exerciseId}:${entry.type}`;
+    if (exerciseMediaTypes.has(exerciseMediaType)) {
+      errors.push(`${label} duplicates ${entry.type} media for ${entry.exerciseId}.`);
+    }
+    exerciseMediaTypes.add(exerciseMediaType);
     if (!isNonEmptyString(entry.path) || !entry.path.startsWith(OWNED_MEDIA_PREFIX)) {
       errors.push(`${label}.path must be a local FitCoach v0.4 exercise asset.`);
     }
     if (/^https?:\/\//i.test(entry.path || "")) errors.push(`${label}.path must not hotlink.`);
     if (!Number.isInteger(entry.width) || entry.width <= 0) errors.push(`${label}.width is invalid.`);
     if (!Number.isInteger(entry.height) || entry.height <= 0) errors.push(`${label}.height is invalid.`);
+    if (["mp4", "webm"].includes(entry.type)) {
+      if (!Number.isFinite(entry.durationSeconds) || entry.durationSeconds <= 0 || entry.durationSeconds > 20) {
+        errors.push(`${label}.durationSeconds must be between 0 and 20 for motion media.`);
+      }
+      if (entry.hasAudio !== false) errors.push(`${label}.hasAudio must be false for exercise motion media.`);
+      if (entry.motionReviewStatus !== "approved") {
+        errors.push(`${label}.motionReviewStatus must be approved before publication.`);
+      }
+    }
     if (!isNonEmptyString(entry.view)) errors.push(`${label}.view is required.`);
     if (!CACHE_POLICIES.includes(entry.offlineCachePolicy)) {
       errors.push(`${label}.offlineCachePolicy is unsupported.`);

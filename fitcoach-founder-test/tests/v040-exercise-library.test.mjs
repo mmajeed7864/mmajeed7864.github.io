@@ -16,7 +16,7 @@ import {
   getExerciseById,
 } from "../v040/data/exercise-library.mjs";
 import { EXERCISE_MEDIA_MANIFEST } from "../v040/data/exercise-media-manifest.mjs";
-import { exerciseVideoSearchUrl, muscleMap } from "../v040/ui/components.mjs";
+import { exerciseMotionGuide, exerciseMotionMedia, muscleMap } from "../v040/ui/components.mjs";
 
 const APP_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const COMPETITOR_OR_REMOTE_PATTERN = /https?:\/\/|fitbod|fitness[ -]?online/i;
@@ -39,17 +39,33 @@ test("library has 100 stable, immutable exercise records with honest guide statu
   assert.equal(getExerciseById("missing-exercise"), null);
 });
 
-test("all 100 exercises expose safe tutorial discovery and a local muscle map", () => {
+test("all 100 exercises expose a local muscle map without remote tutorial links", () => {
   for (const exercise of EXERCISES) {
-    const url = new URL(exerciseVideoSearchUrl(exercise));
-    assert.equal(url.origin, "https://www.youtube.com");
-    assert.equal(url.pathname, "/results");
-    assert.match(url.searchParams.get("search_query") || "", new RegExp(exercise.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "i"));
     const map = muscleMap(exercise);
     assert.match(map, /class="muscle-map"/u);
     assert.match(map, /Primary/u);
     assert.match(map, /Secondary/u);
   }
+  assert.doesNotMatch(JSON.stringify(EXERCISES), /youtube|youtu\.be|https?:\/\//iu);
+});
+
+test("motion guides use local muted looping playback with a poster fallback", () => {
+  const exercise = {
+    ...EXERCISES[0],
+    media: [
+      ...EXERCISES[0].media,
+      { type: "mp4", path: "/fitcoach-founder-test/v040/assets/exercises/motion/air-squat-motion-v1.mp4", width: 720, height: 720, durationSeconds: 8, hasAudio: false, motionReviewStatus: "approved", alt: "Air squat motion guide." },
+    ],
+  };
+  assert.equal(exerciseMotionMedia(exercise)?.type, "mp4");
+  const playing = exerciseMotionGuide(exercise, { eager: true });
+  assert.match(playing, /<video/u);
+  assert.match(playing, /muted loop playsinline autoplay/u);
+  assert.match(playing, /poster="\/fitcoach-founder-test\/v040\/assets\/exercises\/air-squat-premium-v1\.png"/u);
+  assert.doesNotMatch(exerciseMotionGuide(exercise, { paused: true }), / autoplay/u);
+  assert.match(exerciseMotionGuide(EXERCISES[0]), /<figure class="exercise-poster/u);
+  const unreviewed = { ...exercise, media: exercise.media.map(entry => entry.type === "mp4" ? { ...entry, motionReviewStatus: "pending" } : entry) };
+  assert.equal(exerciseMotionMedia(unreviewed), null);
 });
 
 test("library covers every declared movement pattern", () => {
@@ -63,11 +79,10 @@ test("exercise schema and internal references validate", () => {
   assert.deepEqual(result.errors, []);
 });
 
-test("media/license manifest validates and maps one local visual asset per visual guide", () => {
+test("media/license manifest validates and every visual guide has local media", () => {
   const result = validateExerciseMediaManifest(EXERCISE_MEDIA_MANIFEST);
   assert.equal(result.valid, true, result.errors.join("\n"));
   const visualGuides = EXERCISES.filter((item) => item.guideStatus === "visual-guide");
-  assert.equal(EXERCISE_MEDIA_MANIFEST.length, visualGuides.length);
   assert.equal(new Set(EXERCISE_MEDIA_MANIFEST.map((entry) => entry.exerciseId)).size, visualGuides.length);
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.temporaryOriginal === true));
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.attributionRequired === false));
@@ -75,9 +90,10 @@ test("media/license manifest validates and maps one local visual asset per visua
 });
 
 test("every visual exercise guide uses the approved premium illustration system", () => {
-  assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.type === "png-two-position-guide"));
-  assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.path.endsWith("-premium-v1.png")));
-  assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.width === 1448 && entry.height === 1086));
+  const illustrations = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "png-two-position-guide");
+  assert.equal(illustrations.length, 17);
+  assert.ok(illustrations.every((entry) => entry.path.endsWith("-premium-v1.png")));
+  assert.ok(illustrations.every((entry) => entry.width === 1448 && entry.height === 1086));
 });
 
 test("every declared exercise guide exists and its size and SHA-256 match the manifest", async () => {
@@ -99,8 +115,12 @@ test("local exercise guides have valid inert formats without remote links", asyn
       assert.match(svg, /role="img"/i, `${media.id} needs an image role`);
       const withoutStandardSvgNamespace = svg.replace("http://www.w3.org/2000/svg", "");
       assert.doesNotMatch(withoutStandardSvgNamespace, /<script\b|\bon(?:load|click|error)\s*=|\bhref\s*=|https?:\/\//i, `${media.id} must remain inert and local`);
-    } else {
+    } else if (media.type === "png-two-position-guide" || media.type === "poster") {
       assert.equal(contents.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", `${media.id} must be a valid PNG`);
+    } else if (media.type === "mp4") {
+      assert.equal(contents.subarray(4, 8).toString("ascii"), "ftyp", `${media.id} must be a valid MP4`);
+    } else if (media.type === "webm") {
+      assert.equal(contents.subarray(0, 4).toString("hex"), "1a45dfa3", `${media.id} must be a valid WebM`);
     }
   }
 });
@@ -129,4 +149,25 @@ test("validators reject a competitor hotlink and a missing media reference", () 
 
   const serializedDomain = JSON.stringify({ exercises: EXERCISES, media: EXERCISE_MEDIA_MANIFEST });
   assert.doesNotMatch(serializedDomain, COMPETITOR_OR_REMOTE_PATTERN);
+});
+
+test("media validator permits one poster plus one motion file and rejects duplicate types", () => {
+  const poster = EXERCISE_MEDIA_MANIFEST[0];
+  const motion = {
+    ...poster,
+    id: "air-squat-motion",
+    type: "mp4",
+    path: "/fitcoach-founder-test/v040/assets/exercises/motion/air-squat-motion-v1.mp4",
+    durationSeconds: 8,
+    hasAudio: false,
+    motionReviewStatus: "approved",
+  };
+  assert.equal(validateExerciseMediaManifest([poster, motion]).valid, true);
+  const duplicate = { ...motion, id: "air-squat-motion-two" };
+  const result = validateExerciseMediaManifest([poster, motion, duplicate]);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes("duplicates mp4 media")));
+  const unsafeAudio = validateExerciseMediaManifest([{ ...motion, hasAudio: true }]);
+  assert.equal(unsafeAudio.valid, false);
+  assert.ok(unsafeAudio.errors.some((error) => error.includes("hasAudio must be false")));
 });

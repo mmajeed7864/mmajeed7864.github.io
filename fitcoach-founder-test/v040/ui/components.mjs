@@ -36,7 +36,7 @@ export function button({ label, action, value = "", variant = "secondary", iconN
 }
 
 export function exercisePoster(exercise, { className = "", eager = false, label = true } = {}) {
-  const media = exercise?.media?.[0];
+  const media = exercise?.media?.find?.(entry => ["poster", "png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
   const poster = media?.path || exercise?.snapshot?.mediaPoster || "";
   const name = exercise?.name || exercise?.snapshot?.name || "Exercise";
   if (!poster) {
@@ -45,9 +45,24 @@ export function exercisePoster(exercise, { className = "", eager = false, label 
   return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${media?.width || 320}" height="${media?.height || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
 }
 
-export function exerciseVideoSearchUrl(exercise) {
-  const name = String(exercise?.name || "exercise").slice(0, 100);
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} exercise tutorial technique`)}`;
+export function exerciseMotionMedia(exercise) {
+  return exercise?.media?.find?.(entry =>
+    ["mp4", "webm"].includes(entry.type)
+    && entry.hasAudio === false
+    && entry.motionReviewStatus === "approved"
+  ) || null;
+}
+
+export function exerciseMotionGuide(exercise, { className = "", eager = false, paused = false } = {}) {
+  const motion = exerciseMotionMedia(exercise);
+  if (!motion) return exercisePoster(exercise, { className, eager });
+  const poster = exercise?.media?.find?.(entry => ["poster", "png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
+  const name = exercise?.name || "Exercise";
+  return `<figure class="exercise-motion ${escapeHtml(className)}">
+    <video data-media-video src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" ${eager ? 'preload="auto"' : 'preload="metadata"'} muted loop playsinline ${paused ? "" : "autoplay"} aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
+    <button class="motion-toggle" data-action="toggle-exercise-motion" aria-label="${paused ? "Play" : "Pause"} ${escapeHtml(name)} movement guide">${icon(paused ? "play" : "pause")}<span>${paused ? "Play motion" : "Pause motion"}</span></button>
+    <span class="media-fallback-label">Motion guide unavailable</span>
+  </figure>`;
 }
 
 function activeMuscleGroups(exercise) {

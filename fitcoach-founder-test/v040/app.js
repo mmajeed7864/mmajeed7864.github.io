@@ -1347,10 +1347,10 @@ function bootstrap() {
   document.addEventListener("change",handleChange);
   document.addEventListener("input",handleInput);
   document.addEventListener("error",event=>{
-    const image=event.target?.closest?.("[data-media-image]");
-    if(!image)return;
-    image.hidden=true;
-    image.closest("figure")?.classList.add("media-error");
+    const media=event.target?.closest?.("[data-media-image],[data-media-video]");
+    if(!media)return;
+    media.hidden=true;
+    media.closest("figure")?.classList.add("media-error");
   },true);
   document.addEventListener("keydown",event=>{
     if((event.key==="Enter"||event.key===" ")&&event.target?.classList?.contains("voice-room-orb")){event.preventDefault();voiceController.interrupt();}

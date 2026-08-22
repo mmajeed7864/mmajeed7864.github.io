@@ -190,8 +190,14 @@ export const EXERCISE_MEDIA_MANIFEST = Object.freeze([
   }),
 ]);
 
+const groupedMedia = new Map();
+for (const entry of EXERCISE_MEDIA_MANIFEST) {
+  const media = groupedMedia.get(entry.exerciseId) || [];
+  media.push(entry);
+  groupedMedia.set(entry.exerciseId, media);
+}
 const MEDIA_BY_EXERCISE = new Map(
-  EXERCISE_MEDIA_MANIFEST.map((entry) => [entry.exerciseId, Object.freeze([entry])]),
+  [...groupedMedia].map(([exerciseId, entries]) => [exerciseId, Object.freeze(entries)]),
 );
 
 /** @param {string} exerciseId */
