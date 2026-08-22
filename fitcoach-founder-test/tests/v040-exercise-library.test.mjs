@@ -16,6 +16,7 @@ import {
   getExerciseById,
 } from "../v040/data/exercise-library.mjs";
 import { EXERCISE_MEDIA_MANIFEST } from "../v040/data/exercise-media-manifest.mjs";
+import { exerciseVideoSearchUrl, muscleMap } from "../v040/ui/components.mjs";
 
 const APP_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const COMPETITOR_OR_REMOTE_PATTERN = /https?:\/\/|fitbod|fitness[ -]?online/i;
@@ -32,10 +33,23 @@ test("library has 100 stable, immutable exercise records with honest guide statu
   assert.ok(EXERCISES.every((item) => Object.isFrozen(item) && Object.isFrozen(item.setupSteps)));
   assert.equal(getExerciseById("air-squat")?.name, "Air Squat");
   assert.equal(getExerciseById("barbell-back-squat")?.guideStatus, "written-guide");
-  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 16);
-  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 84);
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 17);
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 83);
   assert.ok(EXERCISES.every((item) => item.location.includes("gym")));
   assert.equal(getExerciseById("missing-exercise"), null);
+});
+
+test("all 100 exercises expose safe tutorial discovery and a local muscle map", () => {
+  for (const exercise of EXERCISES) {
+    const url = new URL(exerciseVideoSearchUrl(exercise));
+    assert.equal(url.origin, "https://www.youtube.com");
+    assert.equal(url.pathname, "/results");
+    assert.match(url.searchParams.get("search_query") || "", new RegExp(exercise.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "i"));
+    const map = muscleMap(exercise);
+    assert.match(map, /class="muscle-map"/u);
+    assert.match(map, /Primary/u);
+    assert.match(map, /Secondary/u);
+  }
 });
 
 test("library covers every declared movement pattern", () => {

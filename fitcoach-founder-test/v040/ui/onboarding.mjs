@@ -14,6 +14,7 @@ const BLOCKERS = [
   ["all-or-nothing","All or nothing","One miss can turn into a lost week"],
   ["uncertainty","Second-guessing","You keep changing the plan"],
 ];
+const GYM_EQUIPMENT = ["dumbbells", "kettlebells", "barbells", "plates", "squat rack", "benches", "cables", "machines", "pull-up bar", "resistance bands", "cardio machines", "smith machine"];
 
 function trainerBubble(title, copy = "") {
   return `<div class="trainer-interview-row"><span class="trainer-setup-orb"><i></i></span><div class="trainer-bubble"><b>${escapeHtml(title)}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</div></div>`;
@@ -23,7 +24,7 @@ function chipOption({ value, title, copy, field, active, iconName = "" }) {
   return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="onboarding-choice" data-field="${escapeHtml(field)}" data-value="${escapeHtml(value)}">${iconName ? icon(iconName) : ""}<span><b>${escapeHtml(title)}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span></button>`;
 }
 
-export const ONBOARDING_STEP_COUNT = 13;
+export const ONBOARDING_STEP_COUNT = 15;
 
 function choiceBubbleGroup({ label, field, action, options, selected, hint = "" }) {
   return `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="${escapeHtml(label)}">${options.map(option => {
@@ -73,6 +74,16 @@ function scheduleSummaryStep(draft) {
   return questionStep({ eyebrow: "YOUR FIRST PLAN", title: "Here’s the rhythm I’ll build around.", copy: "Full, reduced, and minimum versions will share one plan thread.", question: "Does this starting rhythm look right?", answer: `<div class="schedule-preview premium-summary answer-bubble single-answer"><span>${icon("clock")}</span><p><b>${draft.profile.days} sessions · ${draft.profile.duration} minutes</b><small>${escapeHtml(draft.profile.experience)} · ${escapeHtml(draft.profile.equipment)} · ${escapeHtml(draft.profile.location)}</small></p></div>` });
 }
 
+function gymNameStep(draft) {
+  const value = draft.gymProfile?.selectedGymName || "";
+  return questionStep({ eyebrow: "YOUR TRAINING SPACE", title: "Make every workout fit the room.", copy: "A gym name is optional. It helps your trainer remember which equipment profile to use.", question: "Where do you train most often?", answer: `<label class="single-answer onboarding-text-answer"><span>Gym or setup name</span><input data-action="onboarding-gym-name" maxlength="120" value="${escapeHtml(value)}" placeholder="Example: Planet Fitness or home garage"><small>Stored only on this device in this web build.</small></label>` });
+}
+
+function gymEquipmentStep(draft) {
+  const selected = new Set(draft.gymProfile?.equipment || []);
+  return questionStep({ eyebrow: "QUICK EQUIPMENT SCAN", title: "Tell Nova what is actually available.", copy: "Tap everything you can use. The plan and substitutions can then avoid equipment you do not have.", question: "What does this training space have?", answer: `<div class="single-answer equipment-scan-grid" role="group" aria-label="Available gym equipment">${GYM_EQUIPMENT.map(value => `<button class="equipment-scan-option ${selected.has(value) ? "active" : ""}" aria-pressed="${selected.has(value)}" data-action="onboarding-gym-equipment" data-value="${escapeHtml(value)}"><span>${icon(value.includes("cardio") ? "progress" : "equipment")}</span><b>${escapeHtml(value)}</b></button>`).join("")}</div>` });
+}
+
 function blockerStep(draft) {
   return questionStep({ eyebrow: "THE TRAINER RELATIONSHIP", title: "Make the plan honest about real life.", copy: "This helps the trainer choose a useful fallback instead of giving you a speech.", question: "What gets in the way most often?", answer: `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="Training blocker">${BLOCKERS.map(([value,title,copy])=>chipOption({ value, title, copy, field: "blocker", active: draft.profile.blocker===value })).join("")}</div>` });
 }
@@ -113,7 +124,7 @@ function boundaryStep(draft) {
 }
 
 export function renderOnboarding({step,draft}) {
-  const pages = [goalStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
+  const pages = [goalStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), gymNameStep, gymEquipmentStep, blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
   const safeStep = Math.min(Math.max(Number(step) || 0, 0), pages.length - 1);
   return `<section class="onboarding-screen ai-setup-screen"><header><button class="icon-only" data-action="exit-onboarding" aria-label="Exit onboarding">${icon("chevron")}</button><div><b>Let’s get started</b><div class="onboarding-progress segmented">${Array.from({length: ONBOARDING_STEP_COUNT}, (_, index) => `<span class="${index < safeStep + 1 ? "active" : ""}"></span>`).join("")}</div></div><small>Step ${safeStep+1} of ${ONBOARDING_STEP_COUNT}</small></header><main>${pages[safeStep](draft)}</main><footer>${button({label:"Back",action:"onboarding-back",variant:"quiet",disabled:safeStep===0})}${button({label:safeStep===ONBOARDING_STEP_COUNT-1?"Enter FitCoach":"Continue",action:"onboarding-next",variant:"primary",disabled:safeStep===ONBOARDING_STEP_COUNT-1&&!draft.consent})}</footer></section>`;
 }

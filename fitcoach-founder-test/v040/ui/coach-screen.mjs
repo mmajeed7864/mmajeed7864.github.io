@@ -74,16 +74,24 @@ const PHASE_COPY = Object.freeze({
   safety_stop: ["Voice stopped for safety", "Follow the on-screen safety guidance. FitCoach will not automatically resume."],
 });
 
-export function renderVoiceRoom(voiceState, state) {
+export function renderVoiceRoom(voiceState, state, { docked = false } = {}) {
   if (!voiceState?.active) return "";
   const [title, copy] = PHASE_COPY[voiceState.phase] || PHASE_COPY.paused;
   const transcript = voiceState.interimTranscript || voiceState.pendingTranscript || voiceState.lastTranscript;
   const trainerText = voiceState.currentReply || voiceState.lastReply;
+  const trainerName = (VOICE_LABELS[state.settings.voicePersona] || VOICE_LABELS.nova).split(" · ")[0];
+  if (docked) {
+    return `<aside class="voice-dock" role="region" aria-label="Active trainer voice session" data-phase="${escapeHtml(voiceState.phase)}">
+      <button class="voice-dock-main" data-action="voice-expand" aria-label="Expand Voice Room"><span class="voice-dock-orb"><i></i><b></b></span><span><small>${escapeHtml(title)}</small><b>${escapeHtml(trainerName)} · ${escapeHtml(state.profile.tone)}</b><em>${escapeHtml(trainerText || transcript || "Voice session stays active while you use FitCoach.")}</em></span></button>
+      <button class="voice-dock-control" data-action="voice-mute" aria-pressed="${voiceState.muted}" aria-label="${voiceState.muted ? "Unmute trainer" : "Mute trainer"}">${icon(voiceState.muted ? "volume" : "mic")}</button>
+      <button class="voice-dock-control end" data-action="voice-exit" aria-label="End Voice Room">${icon("close")}</button>
+    </aside>`;
+  }
   return `<section id="voice-room" class="voice-room" role="dialog" aria-modal="true" aria-labelledby="voice-room-title" data-phase="${escapeHtml(voiceState.phase)}" data-tone="${escapeHtml(state.profile.tone.toLowerCase())}">
-    <header><button class="voice-text-exit" data-action="voice-text-mode">Text view</button><span><b>${escapeHtml((VOICE_LABELS[state.settings.voicePersona] || VOICE_LABELS.nova).split(" · ")[0])}</b><small>${escapeHtml(state.profile.tone)} trainer</small></span><button class="voice-end" data-action="voice-exit">End</button></header>
+    <header><button class="voice-text-exit" data-action="voice-text-mode">Use app</button><span><b>${escapeHtml(trainerName)}</b><small>${escapeHtml(state.profile.tone)} trainer</small></span><button class="voice-end" data-action="voice-exit">End</button></header>
     <main><div class="voice-room-orb" data-action="voice-interrupt" role="button" tabindex="0" aria-label="${voiceState.phase === "speaking" ? "Interrupt trainer" : "Voice status"}"><i></i><b></b><span></span></div><p class="voice-state-label">${escapeHtml(title)}</p><h2 id="voice-room-title">${escapeHtml(copy)}</h2><div class="voice-captions" aria-live="polite">${transcript ? `<p class="voice-user-caption"><span>You</span>${escapeHtml(transcript)}</p>` : ""}${trainerText ? `<p class="voice-trainer-caption"><span>${escapeHtml((VOICE_LABELS[state.settings.voicePersona] || VOICE_LABELS.nova).split(" · ")[0])}</span>${escapeHtml(trainerText)}</p>` : `<p class="voice-status-caption">${escapeHtml(voiceState.caption?.text || "Captions will appear here.")}</p>`}</div></main>
     ${voiceState.phase === "consent" ? `<section class="voice-consent"><div class="voice-consent-points"><span>${icon("mic")}<b>FitCoach uploads no audio</b></span><span>${icon("volume")}<b>Replies speak automatically</b></span><span>${icon("close")}<b>End anytime</b></span></div>${button({label:"Start talking",action:"voice-consent",variant:"primary",iconName:"mic"})}<details><summary>Voice privacy</summary><p>Your browser or operating system may process speech to create a transcript. FitCoach itself sends only the resulting limited text for a trainer reply, then may send the safe reply text to the speech service. FitCoach does not upload microphone audio. Avoid private medical details, identifiers, and credentials.</p></details></section>` : ""}
     <footer><button data-action="voice-mute" aria-pressed="${voiceState.muted}">${icon(voiceState.muted ? "volume" : "mic")}<span>${voiceState.muted ? "Unmute voice" : "Mute replies"}</span></button>${voiceState.phase === "paused" ? `<button data-action="voice-resume">${icon("play")}<span>Resume</span></button>` : ""}${voiceState.phase === "retryable_error" ? `<button data-action="voice-retry">${icon("spark")}<span>Retry</span></button>` : ""}${voiceState.lastReply ? `<button data-action="voice-replay">${icon("volume")}<span>Replay</span></button>` : ""}<button data-action="voice-exit">${icon("close")}<span>Stop trainer</span></button></footer>
-    <small class="voice-privacy">Automatic voice reply · device fallback · captions stay in this chat</small>
+    <small class="voice-privacy">Automatic voice reply · compatible audio engine · captions stay in this chat</small>
   </section>`;
 }

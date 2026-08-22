@@ -45,6 +45,39 @@ export function exercisePoster(exercise, { className = "", eager = false, label 
   return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${media?.width || 320}" height="${media?.height || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
 }
 
+export function exerciseVideoSearchUrl(exercise) {
+  const name = String(exercise?.name || "exercise").slice(0, 100);
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} exercise tutorial technique`)}`;
+}
+
+function activeMuscleGroups(exercise) {
+  const primary = new Set((exercise?.primaryMuscles || []).map(value => String(value).toLowerCase()));
+  const secondary = new Set((exercise?.secondaryMuscles || []).map(value => String(value).toLowerCase()));
+  const matches = (set, terms) => [...set].some(value => terms.some(term => value.includes(term)));
+  const status = terms => matches(primary, terms) ? "primary" : matches(secondary, terms) ? "secondary" : "";
+  return {
+    chest: status(["chest", "pectoral"]), shoulders: status(["shoulder", "delt"]), arms: status(["biceps", "triceps", "forearm"]),
+    back: status(["back", "lat", "trape", "rhomboid", "erector"]), core: status(["core", "ab", "trunk", "oblique"]),
+    glutes: status(["glute"]), quads: status(["quad"]), hamstrings: status(["hamstring"]), calves: status(["calf", "calves"]),
+  };
+}
+
+export function muscleMap(exercise) {
+  const group = activeMuscleGroups(exercise);
+  return `<div class="muscle-map" role="img" aria-label="Muscle target map for ${escapeHtml(exercise?.name || "exercise")}">
+    <svg viewBox="0 0 320 250" aria-hidden="true">
+      <g class="body front" transform="translate(42 12)"><circle cx="56" cy="22" r="17"/><path d="M42 42Q56 35 70 42L80 94 70 139 65 223H47L42 139 32 94Z"/><path d="M35 50 12 103 22 111 47 68M77 50l23 53-10 8-25-43"/></g>
+      <g class="body back" transform="translate(178 12)"><circle cx="56" cy="22" r="17"/><path d="M42 42Q56 35 70 42L80 94 70 139 65 223H47L42 139 32 94Z"/><path d="M35 50 12 103 22 111 47 68M77 50l23 53-10 8-25-43"/></g>
+      <g class="muscles front" transform="translate(42 12)">
+        <path class="${group.shoulders}" d="M35 47q8-10 17-4l-6 20-12 4zm42 0q-8-10-17-4l6 20 12 4z"/><path class="${group.chest}" d="M45 57q11-8 22 0l-2 25q-9 6-18 0z"/><path class="${group.arms}" d="M31 62 16 102l9 4 20-40zm50 0 15 40-9 4-20-40z"/><path class="${group.core}" d="M46 85h20l4 41-14 12-14-12z"/><path class="${group.quads}" d="M43 139h13l-3 75H45zm14 0h13l-2 75h-9z"/><path class="${group.calves}" d="M45 184h9l-1 39H45zm15 0h9l-1 39h-9z"/>
+      </g>
+      <g class="muscles back" transform="translate(178 12)">
+        <path class="${group.shoulders}" d="M34 48q10-10 19-4l-6 20-13 3zm44 0q-10-10-19-4l6 20 13 3z"/><path class="${group.back}" d="M44 56h24l7 47-19 24-19-24z"/><path class="${group.arms}" d="M31 62 16 102l9 4 20-40zm50 0 15 40-9 4-20-40z"/><path class="${group.glutes}" d="M42 119q14-9 28 0l1 23q-15 10-30 0z"/><path class="${group.hamstrings}" d="M43 143h13l-3 55h-9zm14 0h13l-2 55h-10z"/><path class="${group.calves}" d="M44 185h10l-1 38h-9zm16 0h10l-2 38h-9z"/>
+      </g>
+    </svg><div class="muscle-map-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Secondary</span></div>
+  </div>`;
+}
+
 export function renderExerciseCard(exercise, preferences, { action = "open-exercise", compact = false } = {}) {
   const favorite = (preferences?.favorites || []).includes(exercise.id);
   return `<article class="exercise-card ${compact ? "compact" : ""}" data-exercise-id="${escapeHtml(exercise.id)}">

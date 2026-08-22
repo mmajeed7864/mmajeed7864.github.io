@@ -1,14 +1,14 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0415";
+const CACHE = "fitcoach-symbio-v0416";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0415",
-  "./manifest.webmanifest?v=0415",
-  "./assets/icon-symbio.svg?v=0415",
-  "./v040/styles.css?v=0415",
-  "./v040/premium-redesign.css?v=0415",
-  "./v040/app.js?v=0415",
+  "./index.html?v=0416",
+  "./manifest.webmanifest?v=0416",
+  "./assets/icon-symbio.svg?v=0416",
+  "./v040/styles.css?v=0416",
+  "./v040/premium-redesign.css?v=0416",
+  "./v040/app.js?v=0416",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -44,6 +44,7 @@ const EXERCISE_ASSETS = Object.freeze([
   "./v040/assets/exercises/air-squat-premium-v1.png",
   "./v040/assets/exercises/band-lat-pulldown-premium-v1.png",
   "./v040/assets/exercises/band-row-premium-v1.png",
+  "./v040/assets/exercises/barbell-bench-press-premium-v1.png",
   "./v040/assets/exercises/dead-bug-premium-v1.png",
   "./v040/assets/exercises/dumbbell-curl-premium-v1.png",
   "./v040/assets/exercises/dumbbell-floor-press-premium-v1.png",
@@ -122,12 +123,12 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0415")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0416")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0415";
+  const versioned = url.searchParams.get("v") === "0416";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   if (versioned || moduleAsset) {

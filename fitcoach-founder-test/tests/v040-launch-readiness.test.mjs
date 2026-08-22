@@ -86,7 +86,7 @@ test("launch integrations and draft surfaces are explicit non-production contrac
 
 test("onboarding answers use premium tap bubbles instead of native dropdowns", () => {
   const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
-  const draft = { profile: state.profile, settings: state.settings, consent: true };
+  const draft = { profile: state.profile, settings: state.settings, gymProfile: state.gymProfile, consent: true };
 
   for (let step = 0; step < ONBOARDING_STEP_COUNT; step += 1) {
     const html = renderOnboarding({ step, draft });
@@ -94,10 +94,12 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
     assert.doesNotMatch(html, /<option\b/i, `step ${step + 1} must not use native select options`);
   }
 
-  for (const step of [2, 3, 4, 5, 6, 8, 9, 10, 11]) {
+  for (const step of [2, 3, 4, 5, 6, 9, 10, 11, 12, 13]) {
     const html = renderOnboarding({ step, draft });
     assert.match(html, /answer-option/, `step ${step + 1} must render custom answer bubbles`);
   }
+  assert.match(renderOnboarding({ step: 7, draft }), /onboarding-gym-name/u);
+  assert.match(renderOnboarding({ step: 8, draft }), /equipment-scan-option/u);
 });
 
 test("default and expanded Profile setup use premium radio choices without native dropdowns", () => {
@@ -132,6 +134,15 @@ test("progress-post visibility uses premium choices instead of a dropdown", () =
   assert.equal((html.match(/data-action="community-visibility"/gu) || []).length, 3);
   assert.match(html, /role="radiogroup" aria-label="Draft visibility"/u);
   assert.match(html, /role="radio" aria-checked="true"/u);
+});
+
+test("Progress exposes a private photo timeline without claiming public publishing", () => {
+  const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
+  const html = renderProgressScreen({ state, now: new Date("2026-08-20T14:00:00.000Z"), communityPreviews: new Map() });
+  assert.match(html, /PROGRESS STUDIO/u);
+  assert.match(html, /Add progress photo/u);
+  assert.match(html, /public community is intentionally locked/u);
+  assert.doesNotMatch(html, /Publish now|Post publicly/u);
 });
 
 test("a profile with no training history never gets a zero-of-target score", () => {
@@ -193,7 +204,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.4\.4/u);
+  assert.match(html, /FitCoach v0\.4\.5/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -237,7 +248,7 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0415", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0416", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

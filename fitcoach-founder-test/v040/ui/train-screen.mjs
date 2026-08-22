@@ -6,8 +6,10 @@ import {
   emptyState,
   exercisePoster,
   icon,
+  muscleMap,
   planExerciseRow,
   renderExerciseCard,
+  exerciseVideoSearchUrl,
 } from "./components.mjs";
 
 function segmentControl(segment) {
@@ -111,9 +113,9 @@ function exerciseDetail({ state, exercise, motionPaused = false, replacing = fal
   return `<article class="exercise-detail">
     <header class="exercise-detail-nav"><button class="back-button" data-action="close-exercise" aria-label="Back to exercise library">←</button><strong>${escapeHtml(exercise.name)}</strong><button class="icon-only favorite-large" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="Toggle favorite">${icon("heart")}</button></header>
     <section class="exercise-detail-visual card static-guide"><div class="guide-stage">${exercisePoster(exercise,{className:"large concept-art",eager:true})}</div><div class="media-facts"><span>${escapeHtml(visualGuide ? `${media?.view || "side/front"} visual guide` : "Written coaching guide")}</span><span>${visualGuide ? "Original local art" : "Motion visual in development"}</span><span>Not form analysis</span></div><span class="media-license">${escapeHtml(visualGuide ? (media?.alt || "Original local guide") : "Use the setup, execution, and cue sections below before starting.")}</span></section>
-    <header class="exercise-detail-header"><span class="eyebrow">${escapeHtml(exercise.movementPattern.replaceAll("-"," ").toUpperCase())}</span><h1>${escapeHtml(exercise.name)}</h1><p>${escapeHtml(exercise.primaryMuscles.join(" · "))} · ${escapeHtml(exercise.equipment.join(" · "))} · ${escapeHtml(exercise.difficulty)}</p><div>${button({label:replacing ? "Replace current exercise" : "Add to workout",action:replacing ? "confirm-exercise-replacement" : "add-exercise-to-plan",value:exercise.id,variant:"primary",iconName:"plus"})}</div></header>
+    <header class="exercise-detail-header"><span class="eyebrow">${escapeHtml(exercise.movementPattern.replaceAll("-"," ").toUpperCase())}</span><h1>${escapeHtml(exercise.name)}</h1><p>${escapeHtml(exercise.primaryMuscles.join(" · "))} · ${escapeHtml(exercise.equipment.join(" · "))} · ${escapeHtml(exercise.difficulty)}</p><div>${button({label:replacing ? "Replace current exercise" : "Add to workout",action:replacing ? "confirm-exercise-replacement" : "add-exercise-to-plan",value:exercise.id,variant:"primary",iconName:"plus"})}<a class="button button-secondary video-tutorial-link" href="${escapeHtml(exerciseVideoSearchUrl(exercise))}" target="_blank" rel="noopener noreferrer">${icon("play")}<span>Find video tutorial</span></a></div><small class="external-tutorial-note">Opens a YouTube search for this movement. Review the source before following it.</small></header>
     <div class="exercise-detail-grid">
-      <section class="card muscle-panel"><span class="eyebrow">MUSCLE FOCUS</span><div class="muscle-cloud">${exercise.primaryMuscles.map(value => `<strong>${escapeHtml(value)}</strong>`).join("")}${exercise.secondaryMuscles.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div><p>Highlighted labels describe intended training focus, not live muscle or form sensing.</p></section>
+      <section class="card muscle-panel"><span class="eyebrow">MUSCLE FOCUS</span>${muscleMap(exercise)}<div class="muscle-cloud">${exercise.primaryMuscles.map(value => `<strong>${escapeHtml(value)}</strong>`).join("")}${exercise.secondaryMuscles.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div><p>Highlighted areas describe intended training focus, not live muscle or form sensing.</p></section>
       <section class="card"><span class="eyebrow">SETUP</span><ol class="instruction-list">${exercise.setupSteps.map(step => `<li>${escapeHtml(step)}</li>`).join("")}</ol></section>
       <section class="card"><span class="eyebrow">EXECUTION</span><ol class="instruction-list">${exercise.executionSteps.map(step => `<li>${escapeHtml(step)}</li>`).join("")}</ol><div class="breathing-note"><b>Breathing</b><span>${escapeHtml(exercise.breathing)}</span></div></section>
       <section class="card"><span class="eyebrow">TRAINER CUES</span><div class="cue-list">${exercise.keyCues.map(cue => `<span>${icon("check")}${escapeHtml(cue)}</span>`).join("")}</div></section>

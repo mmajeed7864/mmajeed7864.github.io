@@ -22,10 +22,19 @@ test("Voice Room speaks trainer replies automatically while text chat respects s
   );
 });
 
-test("Voice Room primes one persistent audio element from a user gesture", () => {
+test("Voice Room primes persistent browser audio engines from a user gesture", () => {
   assert.match(appSource, /const sharedPremiumAudio = typeof Audio === "function" \? new Audio\(\) : null/u);
-  assert.match(appSource, /audioFactory: url => \{[\s\S]*sharedPremiumAudio\.src = url/u);
+  assert.match(appSource, /audioFactory: \(url, \{ blob \} = \{\}\) => \{[\s\S]*sharedPremiumAudio\.src = url/u);
+  assert.match(appSource, /function voiceAudioContext\(\)/u);
+  assert.match(appSource, /function webAudioHandle\(blob, context\)/u);
   assert.match(appSource, /function unlockVoicePlayback\(\)/u);
   assert.match(appSource, /function openVoiceRoom\(\) \{[\s\S]{0,260}unlockVoicePlayback\(\)/u);
   assert.match(appSource, /action === "voice-consent"\) \{ unlockVoicePlayback\(\)/u);
+});
+
+test("Voice Room can dock while deterministic trainer actions navigate the app", () => {
+  assert.match(appSource, /renderVoiceRoom\(voiceState, state, \{ docked: ui\.voiceDocked \}\)/u);
+  assert.match(appSource, /if \(fromVoice\) ui\.voiceDocked = true/u);
+  assert.match(appSource, /queueMicrotask\(\(\) => executeTrainerAction\(trainerAction, \{ fromVoice: true \}\)\)/u);
+  assert.match(appSource, /action === "voice-text-mode"\) \{ ui\.voiceDocked=true/u);
 });

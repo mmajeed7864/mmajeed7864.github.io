@@ -95,6 +95,7 @@ const ui = {
   nutritionDate: null,
   speakingMessageId: null,
   voiceProvider: "premium-ready",
+  voiceDocked: false,
   lastFailedChatDraft: "",
 };
 
@@ -112,6 +113,7 @@ let voiceReturnFocus = null;
 // Photo previews live ONLY in this object URL — never in state or localStorage.
 let nutritionPreviewUrl = null;
 let communityPreviewUrl = null;
+const communityPreviews = new Map();
 
 function releaseNutritionPreview() {
   if (!nutritionPreviewUrl) return;
@@ -133,21 +135,79 @@ const trainerClient = createTrainerClient();
 const nutritionClient = createNutritionClient();
 const SILENT_AUDIO_URI = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 const sharedPremiumAudio = typeof Audio === "function" ? new Audio() : null;
+let sharedVoiceAudioContext = null;
 if (sharedPremiumAudio) {
   sharedPremiumAudio.preload = "auto";
   sharedPremiumAudio.setAttribute("playsinline", "");
 }
+function voiceAudioContext() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return null;
+  if (!sharedVoiceAudioContext || sharedVoiceAudioContext.state === "closed") {
+    sharedVoiceAudioContext = new AudioContextConstructor({ latencyHint: "interactive" });
+  }
+  return sharedVoiceAudioContext;
+}
+
+function webAudioHandle(blob, context) {
+  let source = null;
+  let cancelled = false;
+  const handle = {
+    preload: "auto",
+    onended: null,
+    onerror: null,
+    async play() {
+      try {
+        await context.resume();
+        const bytes = await blob.arrayBuffer();
+        const buffer = await context.decodeAudioData(bytes.slice(0));
+        if (cancelled) return;
+        source = context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(context.destination);
+        source.onended = () => { if (!cancelled) handle.onended?.(); };
+        source.start(0);
+      } catch (error) {
+        if (!cancelled) handle.onerror?.(error);
+        throw error;
+      }
+    },
+    pause() {
+      cancelled = true;
+      try { source?.stop?.(); } catch {}
+      try { source?.disconnect?.(); } catch {}
+      source = null;
+    },
+  };
+  return handle;
+}
+
 const premiumVoice = createPremiumVoiceClient({
-  audioFactory: url => {
+  audioFactory: (url, { blob } = {}) => {
+    const context = sharedVoiceAudioContext;
+    if (blob && context?.state === "running") return webAudioHandle(blob, context);
     if (!sharedPremiumAudio) return new Audio(url);
     sharedPremiumAudio.src = url;
     sharedPremiumAudio.preload = "auto";
+    sharedPremiumAudio.loop = false;
+    sharedPremiumAudio.muted = false;
+    sharedPremiumAudio.volume = 1;
     return sharedPremiumAudio;
   },
 });
 
 function unlockVoicePlayback() {
+  const context = voiceAudioContext();
+  try { void context?.resume?.(); } catch {}
   try { speechSynthesis?.resume?.(); } catch {}
+  try {
+    if ("SpeechSynthesisUtterance" in window && speechSynthesis?.speak) {
+      const primer = new SpeechSynthesisUtterance(" ");
+      primer.volume = 0;
+      primer.rate = 10;
+      speechSynthesis.speak(primer);
+    }
+  } catch {}
   if (!sharedPremiumAudio || sharedPremiumAudio.dataset.fitcoachUnlocked === "true") return;
   try {
     sharedPremiumAudio.muted = true;
@@ -297,6 +357,7 @@ function renderAppScreen() {
     filteredExercises: filteredLibrary(),
     ui,
     coachConnection: coachConnection(),
+    communityPreviews,
     now: new Date(),
   };
   let screen;
@@ -338,7 +399,7 @@ function render() {
 function renderModalRoot() {
   dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl, communityPreviewUrl });
   dom.modal.hidden = !ui.modal;
-  document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || voiceController.getState().active);
+  document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || (voiceController.getState().active && !ui.voiceDocked));
   if (ui.modal) requestAnimationFrame(() => dom.modal.querySelector("button:not([disabled]),input,select,textarea")?.focus());
 }
 
@@ -352,10 +413,11 @@ function renderVoiceRoot() {
   const previousVoiceAction = dom.voice.contains(document.activeElement)
     ? document.activeElement?.dataset?.action
     : null;
-  dom.voice.innerHTML = renderVoiceRoom(voiceState, state);
+  dom.voice.innerHTML = renderVoiceRoom(voiceState, state, { docked: ui.voiceDocked });
   dom.voice.hidden = !voiceState.active;
-  document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || voiceState.active);
-  if (voiceState.active) {
+  dom.voice.classList.toggle("docked", Boolean(voiceState.active && ui.voiceDocked));
+  document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || (voiceState.active && !ui.voiceDocked));
+  if (voiceState.active && !ui.voiceDocked) {
     const preservedControl = previousVoiceAction
       ? dom.voice.querySelector(`[data-action="${previousVoiceAction}"]`)
       : null;
@@ -779,6 +841,7 @@ const voiceController = createVoiceRoomController({
       draft.lastApi = { at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", fallbackUsed: Boolean(meta.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
     });
     voiceLastMetadata = null;
+    if (trainerAction) queueMicrotask(() => executeTrainerAction(trainerAction, { fromVoice: true }));
   },
   onStateChange: () => renderVoiceRoot(),
   onSafety: () => { ui.chatNotice = { kind: "safety", title: "Voice stopped for safety", message: "Follow the safety guidance shown in Voice Room. The intercepted transcript was not added to chat." }; },
@@ -790,10 +853,33 @@ function openVoiceRoom() {
   stopSpeech({ renderCoach: false });
   unlockVoicePlayback();
   voiceReturnFocus = document.activeElement;
+  ui.voiceDocked = false;
   ui.route = "coach";
   render();
   voiceController.open({ consentGranted: state.settings.voiceConsent });
   renderVoiceRoot();
+}
+
+function executeTrainerAction(trainerAction, { fromVoice = false } = {}) {
+  if (!trainerAction) return false;
+  if (fromVoice) ui.voiceDocked = true;
+  const { kind, value } = trainerAction;
+  if (kind === "open_exercise") openExercise(value);
+  else if (kind === "open_workout") { ui.trainSegment = "schedule"; navigate("train"); }
+  else if (kind === "propose_minutes") proposePlan("minutes", Number(value));
+  else if (kind === "open_progress") navigate("progress");
+  else if (kind === "open_voice") {
+    if (!voiceController.getState().active) openVoiceRoom();
+    else { ui.voiceDocked = false; renderVoiceRoot(); }
+  }
+  else if (kind === "open_nutrition") { closeModal(); navigate("nutrition"); }
+  else if (kind === "nutrition_draft") {
+    ui.nutritionDate = null;
+    const estimate = estimateTextMeal(value, new Date());
+    createDraftFromEstimate(estimate, estimate.suggestedSlot);
+  } else return false;
+  renderVoiceRoot();
+  return true;
 }
 
 function openExercise(exerciseId) {
@@ -1058,12 +1144,19 @@ function handleClick(event) {
   if (action === "onboarding-number") { ui.onboardingDraft.profile[target.dataset.field]=Number(value); render(); return; }
   if (action === "onboarding-setting-toggle") { ui.onboardingDraft.settings[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }
   if (action === "onboarding-toggle") { ui.onboardingDraft.profile[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }
+  if (action === "onboarding-gym-equipment") {
+    const equipment = new Set(ui.onboardingDraft.gymProfile?.equipment || []);
+    if (equipment.has(value)) equipment.delete(value); else equipment.add(value);
+    ui.onboardingDraft.gymProfile = { ...ui.onboardingDraft.gymProfile, equipment: [...equipment].slice(0, 60), source: "manual" };
+    render();
+    return;
+  }
   if (action === "onboarding-consent") { ui.onboardingDraft.consent=target.checked; render(); return; }
   if (action === "onboarding-back") { ui.onboardingStep=Math.max(0,ui.onboardingStep-1); render(); return; }
   if (action === "onboarding-next") {
     if (ui.onboardingStep < ONBOARDING_STEP_COUNT - 1) { ui.onboardingStep+=1; render(); return; }
     if (!ui.onboardingDraft.consent) return;
-    state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile}},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
+    state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.gymProfile={...draft.gymProfile,...ui.onboardingDraft.gymProfile,source:"manual"};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile},gymProfile:draft.gymProfile},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Training space: ${draft.gymProfile.selectedGymName || draft.profile.location}`,`${draft.gymProfile.equipment.length} equipment types available`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
     applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();maybeOpenTutorial();render();return;
   }
   if (action === "route") { closeModal(); navigate(value); return; }
@@ -1129,27 +1222,16 @@ function handleClick(event) {
   if (action === "quick-prompt") { if(value==="I only have 20 minutes."){proposePlan("minutes",20);ui.chatNotice={kind:"info",title:"20-minute option is ready for review",message:"FitCoach opened a deterministic proposal. Approve it before today’s plan changes."};render();return;}void sendChat(value);return; }
   if (action === "send-chat") { void sendChat();return; }
   if (action === "coach-message-action") {
-    const kind = target.dataset.kind;
-    if (kind === "open_exercise") openExercise(value);
-    else if (kind === "open_workout") navigate("train");
-    else if (kind === "propose_minutes") proposePlan("minutes",Number(value));
-    else if (kind === "open_progress") navigate("progress");
-    else if (kind === "open_voice") openVoiceRoom();
-    else if (kind === "open_nutrition") { closeModal(); navigate("nutrition"); }
-    else if (kind === "nutrition_draft") {
-      // Coach hook: drafts ONLY. The review sheet + explicit user confirm
-      // remain the sole path into the day's totals.
-      ui.nutritionDate = null;
-      const estimate = estimateTextMeal(value, new Date());
-      createDraftFromEstimate(estimate, estimate.suggestedSlot);
-    }
+    executeTrainerAction({ kind: target.dataset.kind, value });
     return;
   }
   if (action === "restore-chat-draft") { ui.chatDraft=ui.lastFailedChatDraft;ui.chatNotice=null;render();requestAnimationFrame(()=>document.querySelector("#coach-input")?.focus());return; }
   if (action === "speak-message") { const message=state.chat.find(item=>item.id===value);if(!message)return;if(ui.speakingMessageId===value)stopSpeech();else speakText(message.text,{messageId:value});return; }
   if (action === "open-voice-room") { openVoiceRoom();return; }
   if (action === "voice-consent") { unlockVoicePlayback();state=store.update(draft=>{draft.settings.voiceConsent=true;});voiceController.grantConsent();renderVoiceRoot();return; }
-  if (action === "voice-exit" || action === "voice-text-mode") { voiceController.exit();renderVoiceRoot();ui.route="coach";render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;return; }
+  if (action === "voice-text-mode") { ui.voiceDocked=true;render();return; }
+  if (action === "voice-expand") { ui.voiceDocked=false;renderVoiceRoot();return; }
+  if (action === "voice-exit") { voiceController.exit();ui.voiceDocked=false;renderVoiceRoot();render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;return; }
   if (action === "voice-resume") { unlockVoicePlayback();voiceController.resume();return; }
   if (action === "voice-retry") { voiceController.retry();return; }
   if (action === "voice-interrupt") { voiceController.interrupt();return; }
@@ -1166,7 +1248,8 @@ function handleClick(event) {
   if (action === "save-gym-profile") { const selected=[...document.querySelectorAll('[data-action="gym-toggle-equipment"]:checked')].map(node=>node.dataset.value).filter(Boolean);state=store.update(draft=>{draft.gymProfile.selectedGymName=(document.querySelector("#gym-name")?.value || "").trim().slice(0,120);draft.gymProfile.selectedGymAddress=(document.querySelector("#gym-address")?.value || "").trim().slice(0,180);draft.gymProfile.equipment=selected.slice(0,60);draft.gymProfile.source="manual";});closeModal();render();toast("Equipment profile saved locally.");return; }
   if (action === "open-community-draft") { openModal({ type: "community-draft", caption: "", visibility: "private" }); return; }
   if (action === "community-visibility") { if (ui.modal?.type === "community-draft") { ui.modal.caption=document.querySelector("#community-caption")?.value || ui.modal.caption || "";ui.modal.visibility=["private","founders","public_preview"].includes(value)?value:"private";renderModalRoot(); } return; }
-  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=["private","founders","public_preview"].includes(ui.modal?.visibility)?ui.modal.visibility:"private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");state=store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:uid("social-draft"),status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});closeModal();render();toast("Saved as a local draft. No photo was uploaded.");return; }
+  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=["private","founders","public_preview"].includes(ui.modal?.visibility)?ui.modal.visibility:"private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");const draftId=uid("social-draft");state=store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:draftId,status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});if(communityPreviewUrl){communityPreviews.set(draftId,communityPreviewUrl);communityPreviewUrl=null;}closeModal();render();toast("Saved privately on this device. Public posting stays locked until accounts and moderation exist.");return; }
+  if (action === "delete-community-draft") { const preview=communityPreviews.get(value);if(preview){try{URL.revokeObjectURL(preview);}catch{}communityPreviews.delete(value);}state=store.update(draft=>{draft.socialDrafts=(draft.socialDrafts||[]).filter(item=>item.id!==value);});render();toast("Local progress draft deleted.");return; }
   if (action === "open-tutorial") { ui.modal={type:"tutorial",step:0};renderModalRoot();return; }
   if (action === "tutorial-next") { ui.modal={type:"tutorial",step:Math.min(2,Number(target.dataset.step || 0)+1)};renderModalRoot();return; }
   if (action === "tutorial-back") { ui.modal={type:"tutorial",step:Math.max(0,Number(target.dataset.step || 0)-1)};renderModalRoot();return; }
@@ -1174,7 +1257,7 @@ function handleClick(event) {
   if (action === "clear-chat") { openModal({type:"confirm-clear-chat"});return; }
   if (action === "confirm-clear-chat") { state=store.update(draft=>{draft.chat=[];});closeModal();render();return; }
   if (action === "reset-profile") { openModal({type:"confirm-reset"});return; }
-  if (action === "confirm-reset") { state=store.reset();applyTheme(state.settings.theme);ui.onboardingStep=0;ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),consent:false};ui.mode="onboarding";closeModal();render();return; }
+  if (action === "confirm-reset") { state=store.reset();applyTheme(state.settings.theme);ui.onboardingStep=0;ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};ui.mode="onboarding";closeModal();render();return; }
   if (action === "export-data") { exportData();return; }
   if (action === "force-refresh") { void forceRefresh();return; }
   if (action === "open-nutrition") { closeModal(); navigate("nutrition"); return; }
@@ -1231,6 +1314,9 @@ function handleChange(event) {
 
 function handleInput(event) {
   const target=event.target;
+  if (target.dataset.action === "onboarding-gym-name") {
+    ui.onboardingDraft.gymProfile = { ...ui.onboardingDraft.gymProfile, selectedGymName: target.value.slice(0, 120), source: "manual" };
+  }
   if (target.id === "exercise-search") { ui.exerciseFilters.query=target.value;render();requestAnimationFrame(()=>{const input=document.querySelector("#exercise-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
   if (target.dataset.action === "set-field") updateSetField(target);
   if (target.id === "workout-notes") state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
@@ -1242,7 +1328,7 @@ function handleInput(event) {
 
 function trapDialogFocus(event) {
   if (event.key !== "Tab") return;
-  const root = voiceController.getState().active ? dom.voice : ui.modal ? dom.modal : null;
+  const root = voiceController.getState().active && !ui.voiceDocked ? dom.voice : ui.modal ? dom.modal : null;
   if (!root) return;
   const focusable=[...root.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]')].filter(node=>!node.hidden);
   if (!focusable.length) return;
@@ -1254,7 +1340,7 @@ function trapDialogFocus(event) {
 function bootstrap() {
   createStore(ui.founder);
   ui.mode=state.profile.onboarded?"app":"onboarding";
-  ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),consent:false};
+  ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};
   const route=new URLSearchParams(location.search).get("route");
   if(ROUTES.includes(route))ui.route=route;
   document.addEventListener("click",handleClick);
@@ -1268,7 +1354,7 @@ function bootstrap() {
   },true);
   document.addEventListener("keydown",event=>{
     if((event.key==="Enter"||event.key===" ")&&event.target?.classList?.contains("voice-room-orb")){event.preventDefault();voiceController.interrupt();}
-    if(event.key==="Escape"){if(voiceController.getState().active){voiceController.exit();render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;}else if(ui.modal)closeModal();}
+    if(event.key==="Escape"){if(voiceController.getState().active){voiceController.exit();ui.voiceDocked=false;render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;}else if(ui.modal)closeModal();}
     if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat();}
     trapDialogFocus(event);
   });

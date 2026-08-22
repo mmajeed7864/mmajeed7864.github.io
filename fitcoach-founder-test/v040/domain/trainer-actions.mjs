@@ -13,13 +13,13 @@ export const TRAINER_ACTION_KINDS = Object.freeze([
 
 const INTENT = Object.freeze({
   exercise: /\b(?:show|open|guide|teach|learn|explain|how\s+(?:do|to)|instructions?|setup|form|mistakes?)\b/i,
-  workout: /\b(?:today(?:'s)?\s+workout|my\s+workout|workout\s+today|what\s+should\s+i\s+(?:train|do)|open\s+(?:the\s+)?(?:plan|workout)|start\s+(?:the\s+)?(?:plan|workout))\b/i,
+  workout: /(?:\b(?:today(?:'s)?\s+workout|my\s+workout|workout\s+today|what\s+should\s+i\s+(?:train|do)(?:\s+today)?)\b|\b(?:open|pull\s+up|show|start)\b[\s\S]{0,36}\b(?:plan|workout|training\s+week|leg\s+day|push\s+day|pull\s+day)\b)/i,
   duration: /\b(?:shorter|quick(?:er)?|only\s+have|fit\s+into|make\s+(?:it|today|the\s+workout))\b/i,
   progress: /\b(?:progress|history|personal\s+best|prs?|volume|consistency|completed\s+workouts?)\b/i,
   voice: /\b(?:voice\s+(?:room|mode|coach|trainer)|talk\s+to\s+(?:you|my\s+trainer)|speak\s+(?:with|to)|start\s+voice)\b/i,
   nutritionDraft: /(?:\b(?:log|record|track)\b[\s\S]{0,60}\b(?:food|meal|breakfast|lunch|dinner|snack|calories?|protein|ate)\b|\bi\s+(?:just\s+)?(?:ate|had)\s+\S|\blog\s+this\s+as\s+a\s+draft\b)/i,
   proteinGap: /\bprotein\s+gap\b|\b(?:enough|how\s+much)\s+protein\b/i,
-  nutrition: /\b(?:nutrition|calorie?s?|macros?|food\s+(?:log|diary)|diet\s+diary|what\s+should\s+i\s+eat)\b/i,
+  nutrition: /\b(?:nutrition|calorie?s?|macros?|food\s+(?:log|diary)|diet\s+diary|what\s+should\s+i\s+eat|what\s+did\s+i\s+eat|show\s+(?:my\s+)?(?:food|breakfast|lunch|dinner|snacks?)|pull\s+up\s+(?:my\s+)?food)\b/i,
 });
 
 function searchableExerciseNames(exercise) {

@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0415";
+const GENERATION = "0416";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -63,8 +63,8 @@ function syntaxCheck(file) {
 
 (async () => {
   const html = read("index.html");
-  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0415["']/);
-  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0415 as a module");
+  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0416["']/);
+  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0416 as a module");
   else ok("index.html loads the v0.4 module entry");
 
   const entry = moduleMatch?.[1] || "v040/app.js";
@@ -88,8 +88,8 @@ function syntaxCheck(file) {
   const constants = read("v040/core/constants.mjs");
   const sw = read("sw.js");
   if (!html.includes(`v=${GENERATION}`) || !manifest.start_url.includes(`v=${GENERATION}`) || !sw.includes(`v${GENERATION}`) || !constants.includes(`CACHE_GENERATION = "${GENERATION}"`)) {
-    bad("index, manifest, service worker, and constants must agree on 0415");
-  } else ok("document, manifest, service worker, and constants agree on 0415");
+    bad("index, manifest, service worker, and constants must agree on 0416");
+  } else ok("document, manifest, service worker, and constants agree on 0416");
 
   const precached = swAssetUrls(sw);
   const graphMissingFromSw = graph.filter(file => {
@@ -108,7 +108,7 @@ function syntaxCheck(file) {
   }
 
   const { EXERCISE_MEDIA_MANIFEST } = await import(pathToFileURL(path.join(APP_ROOT, "v040/data/exercise-media-manifest.mjs")).href);
-  if (EXERCISE_MEDIA_MANIFEST.length !== 16) bad("media manifest must contain sixteen local exercise guides");
+  if (EXERCISE_MEDIA_MANIFEST.length !== 17) bad("media manifest must contain seventeen local exercise guides");
   for (const media of EXERCISE_MEDIA_MANIFEST) {
     const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
     const runtimeRequest = requestUrl(media.path);
@@ -118,7 +118,7 @@ function syntaxCheck(file) {
       bad(`${media.id} must use an approved premium two-position PNG`);
     }
   }
-  if (!failures.some(value => value.includes("exercise media") || value.includes("local guide") || value.includes("premium two-position"))) ok("all sixteen premium exercise guides exist and are precached");
+  if (!failures.some(value => value.includes("exercise media") || value.includes("local guide") || value.includes("premium two-position"))) ok("all seventeen premium exercise guides exist and are precached");
 
   const activeSource = graph.map(read).join("\n");
   const forbiddenActive = [

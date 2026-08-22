@@ -465,6 +465,7 @@ function structuredGymExercise(target) {
   const alternative = ALTERNATIVE_BY_PATTERN[target.movementPattern] || "air-squat";
   const isHomeCompatible = target.equipment.every(item => ["bodyweight", "dumbbell", "dumbbells", "kettlebell", "kettlebells", "resistance band"].includes(item));
   const equipmentLabel = target.equipment.join(" · ");
+  const media = getExerciseMedia(target.id);
   return exercise({
     id: target.id,
     name: target.name,
@@ -475,8 +476,8 @@ function structuredGymExercise(target) {
     primaryMuscles: [...target.primaryMuscles],
     secondaryMuscles: ["supporting musculature"],
     difficulty: target.difficulty,
-    guideStatus: "written-guide",
-    media: [],
+    guideStatus: media.length ? "visual-guide" : "written-guide",
+    media,
     instructions: `${target.name} has a structured FitCoach setup and cue guide for use with ${equipmentLabel}.`,
     setupSteps: [guide.setup, `Check that the ${equipmentLabel} setup is stable and ready before adding working load.`],
     executionSteps: [guide.execution, "Finish or stop the set while the movement remains controlled."],
@@ -497,7 +498,7 @@ const structuredGymExercises = EXERCISE_EXPANSION_TARGETS
   .map(structuredGymExercise);
 
 /**
- * One hundred real, filterable movements. Sixteen have project-authored visual
+ * One hundred real, filterable movements. Seventeen have project-authored visual
  * guides today; the other gym-focused records deliberately use written setup
  * and cue guides until their commissioned motion media is ready.
  */

@@ -179,6 +179,15 @@ export const EXERCISE_MEDIA_MANIFEST = Object.freeze([
     bytes: 1099493,
     sha256: "7d6ca533e9c7db0bf2971073a7bd606f209c02b2c0f8296d648e598a0f66c765",
   }),
+  ownedGeneratedPng({
+    id: "barbell-bench-press-poster",
+    exerciseId: "barbell-bench-press",
+    file: "barbell-bench-press-premium-v1.png",
+    view: "side",
+    alt: "Premium two-position illustration of a barbell bench press from arms extended to the bar lowered under control.",
+    bytes: 1336008,
+    sha256: "3d950123e188ab681efda9c44a367ebb23352e5d2a20215c60c469ac70af4057",
+  }),
 ]);
 
 const MEDIA_BY_EXERCISE = new Map(

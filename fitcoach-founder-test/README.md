@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.4.4 is the active runtime (cache generation 0415 carries the premium shell redesign):
+FitCoach v0.4.5 is the active runtime (cache generation 0416 carries the persistent Voice Dock and training-space update):
 
-- document shell: `index.html?v=0415`
-- stylesheets: `v040/styles.css?v=0415` and `v040/premium-redesign.css?v=0415`
-- ES-module entry: `v040/app.js?v=0415`
-- service worker cache: `fitcoach-symbio-v0415`
+- document shell: `index.html?v=0416`
+- stylesheets: `v040/styles.css?v=0416` and `v040/premium-redesign.css?v=0416`
+- ES-module entry: `v040/app.js?v=0416`
+- service worker cache: `fitcoach-symbio-v0416`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
@@ -47,7 +47,7 @@ The model may render conversational wording only. It cannot choose safety outcom
 
 ## Exercise library and media
 
-The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. Sixteen movements currently have local, original, static premium PNG two-position guides with illustrated human athletes—never stick figures. The other 84 expose structured written setup, execution, cue, and alternative guidance and are explicitly labelled as written guides until commissioned motion media exists. None are animations, videos, form analysis, medical assessment, or competitor media.
+The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. Seventeen movements currently have local, original, static premium PNG two-position guides with illustrated human athletes—never stick figures. The other 83 expose structured written setup, execution, cue, and alternative guidance and are explicitly labelled as written guides until commissioned motion media exists. Every exercise can open a clearly labelled external YouTube tutorial search; FitCoach does not claim that external videos are vetted. None of the local assets are animations, form analysis, medical assessment, or competitor media.
 
 ## Required checks
 

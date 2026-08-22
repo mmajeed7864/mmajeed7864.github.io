@@ -192,7 +192,7 @@ export function createPremiumVoiceClient({
         if (!blob?.size || blob.size > MAX_SPEECH_AUDIO_BYTES) throw new Error("PREMIUM_VOICE_RESPONSE_INVALID");
         if (cancelled) return;
         objectUrl = createObjectURL(blob);
-        audio = audioFactory(objectUrl);
+        audio = audioFactory(objectUrl, Object.freeze({ blob }));
         audio.preload = "auto";
         audio.onended = () => finish("end");
         audio.onerror = error => useDeviceFallback(error);

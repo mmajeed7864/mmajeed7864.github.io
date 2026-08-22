@@ -1,5 +1,5 @@
 /*
- * FitCoach Premium Redesign — v0.4.4
+ * FitCoach Premium Redesign — v0.4.5
  *
  * This file is intentionally the final visual layer. The existing stylesheet
  * continues to provide structural fallbacks while this layer gives every
@@ -369,6 +369,54 @@
     background: linear-gradient(135deg, #79a8ff, #2c68eb 58%, #173b9a);
     box-shadow: 0 20px 48px rgba(36, 107, 253, .28);
   }
+  .onboarding-text-answer {
+    display: grid;
+    gap: 8px;
+    padding: 18px;
+    border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--border));
+    border-radius: 24px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .onboarding-text-answer > span { color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .onboarding-text-answer input { width: 100%; min-height: 58px; padding: 0 17px; border: 1px solid var(--border); border-radius: 18px; color: var(--text); background: var(--surface-2); font: inherit; font-size: 1rem; }
+  .onboarding-text-answer small { color: var(--muted); font-size: .72rem; }
+  .equipment-scan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .equipment-scan-option { min-height: 64px; display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 19px; color: var(--text); background: var(--surface); text-align: left; }
+  .equipment-scan-option span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 11px; color: var(--primary); background: var(--primary-soft); }
+  .equipment-scan-option b { min-width: 0; font-size: .82rem; text-transform: capitalize; }
+  .equipment-scan-option.active { color: #fff; border-color: transparent; background: linear-gradient(145deg, #2e82ff, #174cc5); box-shadow: 0 12px 28px rgba(36,107,253,.2); }
+  .equipment-scan-option.active span { color: #fff; background: rgba(255,255,255,.14); }
+  .exercise-detail-header > div { display: flex; flex-wrap: wrap; gap: 9px; }
+  .video-tutorial-link { text-decoration: none; }
+  .external-tutorial-note { display: block; max-width: 48rem; margin-top: 9px; color: var(--muted); font-size: .7rem; }
+  .muscle-map { display: grid; gap: 8px; justify-items: center; margin: 8px 0 14px; }
+  .muscle-map svg { width: min(100%, 360px); height: auto; overflow: visible; }
+  .muscle-map .body { fill: #e7edf4; stroke: #526477; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  html[data-theme="dark"] .muscle-map .body { fill: #1c2a3c; stroke: #7790ab; }
+  .muscle-map .muscles path { fill: transparent; stroke: transparent; }
+  .muscle-map .muscles path.primary { fill: #246bfd; stroke: #1748b5; stroke-width: 1.5; }
+  .muscle-map .muscles path.secondary { fill: #77b7ff; stroke: #438ee6; stroke-width: 1.2; }
+  .muscle-map-legend { display: flex; gap: 16px; color: var(--muted); font-size: .68rem; font-weight: 700; }
+  .muscle-map-legend span { display: flex; gap: 6px; align-items: center; }
+  .muscle-map-legend i { width: 11px; height: 11px; border-radius: 4px; background: #246bfd; }
+  .muscle-map-legend i.secondary { background: #77b7ff; }
+  .progress-studio { display: grid; gap: 15px; }
+  .progress-studio > p { max-width: 48rem; color: var(--muted); }
+  .progress-studio-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .progress-studio-actions > span { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: .7rem; }
+  .progress-draft-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .progress-draft-grid article { overflow: hidden; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-2); }
+  .progress-draft-grid img, .progress-photo-placeholder { width: 100%; aspect-ratio: 4/5; object-fit: cover; }
+  .progress-photo-placeholder { display: grid; place-items: center; align-content: center; gap: 8px; color: var(--muted); background: linear-gradient(145deg, var(--surface-2), var(--primary-soft)); }
+  .progress-photo-placeholder .icon { width: 30px; height: 30px; }
+  .progress-draft-grid article > div:last-child { display: grid; gap: 5px; padding: 12px; }
+  .progress-draft-grid small { color: var(--muted); font-size: .64rem; }
+  .progress-draft-grid b { line-height: 1.3; }
+  .progress-draft-grid button { width: max-content; margin-top: 5px; color: #b3342c; font-size: .68rem; font-weight: 760; }
+  .progress-studio-empty { min-height: 100px; display: flex; gap: 12px; align-items: center; justify-content: center; border: 1px dashed var(--border); border-radius: 20px; color: var(--muted); background: var(--surface-2); }
+  .progress-studio-empty > span { display: grid; gap: 2px; }
+  .progress-studio-empty small { font-size: .7rem; }
   .premium-boundaries { gap: 10px; }
   .premium-boundaries article, .premium-consent {
     border-radius: 18px;
@@ -940,6 +988,54 @@
   .voice-room[data-phase="consent"] > footer { display: none; }
   .voice-room footer button { min-height: 62px; border-radius: 18px; font-size: .72rem; }
   .voice-privacy { font-size: .67rem; }
+
+  #voice-root.docked {
+    inset: auto auto calc(92px + var(--safe-bottom)) 50%;
+    width: min(calc(100% - 20px), 500px);
+    height: auto;
+    z-index: 65;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .voice-dock {
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    gap: 7px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid rgba(155, 210, 255, .32);
+    border-radius: 22px;
+    background: color-mix(in srgb, #071932 94%, transparent);
+    box-shadow: 0 18px 52px rgba(4, 19, 47, .32), inset 0 1px rgba(255,255,255,.12);
+    backdrop-filter: blur(22px) saturate(135%);
+  }
+  .voice-dock-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 9px;
+    align-items: center;
+    padding: 2px 4px;
+    color: #fff;
+    text-align: left;
+  }
+  .voice-dock-orb {
+    width: 42px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #e8f7ff, #55b6ff 27%, #236bfc 58%, #061b43 80%);
+    box-shadow: 0 0 24px rgba(70, 166, 255, .52);
+    animation: voiceDockPulse 1.7s ease-in-out infinite;
+  }
+  .voice-dock-copy { min-width: 0; display: grid; gap: 1px; }
+  .voice-dock-copy small { color: #8dcbff; font-size: .58rem; font-weight: 820; letter-spacing: .09em; text-transform: uppercase; }
+  .voice-dock-copy b, .voice-dock-copy em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .voice-dock-copy b { font-size: .84rem; }
+  .voice-dock-copy em { color: rgba(255,255,255,.68); font-size: .68rem; font-style: normal; }
+  .voice-dock-control { min-width: 44px; min-height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 15px; color: #fff; background: rgba(255,255,255,.08); }
+  .voice-dock-control.end { color: #ffd8d3; background: rgba(197, 60, 49, .28); }
+  @keyframes voiceDockPulse { 50% { transform: scale(.94); filter: saturate(1.18); } }
 
   .mini-player {
     bottom: calc(88px + var(--safe-bottom));
