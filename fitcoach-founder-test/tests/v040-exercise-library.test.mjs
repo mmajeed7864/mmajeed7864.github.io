@@ -80,6 +80,13 @@ test("a reviewed production exercise renders its real motion asset muted and inl
   assert.match(guide, /data-action="toggle-exercise-motion"/u);
 });
 
+test("motion exercises advertise their guide in workout surfaces", async () => {
+  const components = await import("../v040/ui/components.mjs");
+  const exercise = getExerciseById("barbell-back-squat");
+  assert.match(components.renderExerciseCard(exercise, {}), /Motion guide/u);
+  assert.match(components.planExerciseRow({ exerciseId: exercise.id, target: { sets: 3, reps: 8, restSeconds: 90 } }, 0, exercise), /Motion guide/u);
+});
+
 test("library covers every declared movement pattern", () => {
   const representedPatterns = new Set(EXERCISES.map((item) => item.movementPattern));
   assert.deepEqual([...representedPatterns].sort(), [...MOVEMENT_PATTERNS].sort());

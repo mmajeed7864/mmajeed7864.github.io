@@ -95,10 +95,11 @@ export function muscleMap(exercise) {
 
 export function renderExerciseCard(exercise, preferences, { action = "open-exercise", compact = false } = {}) {
   const favorite = (preferences?.favorites || []).includes(exercise.id);
+  const motion = exerciseMotionMedia(exercise);
   return `<article class="exercise-card ${compact ? "compact" : ""}" data-exercise-id="${escapeHtml(exercise.id)}">
     <button class="exercise-card-open" data-action="${escapeHtml(action)}" data-value="${escapeHtml(exercise.id)}" aria-label="Open ${escapeHtml(exercise.name)}">
       ${exercisePoster(exercise)}
-      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml((exercise.equipment || []).join(" · "))}</em><i class="guide-status ${exercise.guideStatus === "visual-guide" ? "visual" : "written"}">${exercise.guideStatus === "visual-guide" ? "Visual guide" : "Written guide"}</i></span>
+      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml((exercise.equipment || []).join(" · "))}</em><i class="guide-status ${motion ? "visual motion" : exercise.guideStatus === "visual-guide" ? "visual" : "written"}">${motion ? "Motion guide" : exercise.guideStatus === "visual-guide" ? "Visual guide" : "Written guide"}</i></span>
     </button>
     <button class="favorite-button ${favorite ? "active" : ""}" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="${favorite ? "Remove from" : "Add to"} favorites" aria-pressed="${favorite}">${icon("heart")}</button>
   </article>`;
@@ -108,10 +109,11 @@ export function planExerciseRow(item, index, exercise, units = "lb", { editable 
   const name = item.snapshot?.name || exercise?.name || "Exercise";
   const muscles = item.snapshot?.primaryMuscles || exercise?.primaryMuscles || [];
   const suggested = item.target?.suggestedWeight || 0;
+  const motion = exerciseMotionMedia(exercise);
   return `<article class="plan-exercise-row" data-plan-exercise="${index}">
     ${editable ? `<button class="grip-button" data-action="reorder-exercise" data-value="${index}" aria-label="Move ${escapeHtml(name)}">${icon("grip")}</button>` : ""}
     ${exercisePoster(exercise || item, { className: "thumb" })}
-    <button class="plan-exercise-copy" data-action="open-exercise" data-value="${escapeHtml(item.exerciseId)}"><small>${escapeHtml(muscles.join(" · ") || "Full body")}</small><b>${escapeHtml(name)}</b><span>${item.target?.sets || 0} × ${item.target?.reps || 0}${suggested ? ` · ${suggested}${escapeHtml(units)}` : ""} · ${item.target?.restSeconds || 90}s rest</span></button>
+    <button class="plan-exercise-copy" data-action="open-exercise" data-value="${escapeHtml(item.exerciseId)}"><small>${escapeHtml(muscles.join(" · ") || "Full body")}</small><b>${escapeHtml(name)}</b><span>${item.target?.sets || 0} × ${item.target?.reps || 0}${suggested ? ` · ${suggested}${escapeHtml(units)}` : ""} · ${item.target?.restSeconds || 90}s rest</span>${motion ? `<i class="guide-status visual motion">Motion guide</i>` : ""}</button>
     ${editable ? `<span class="plan-row-actions"><button class="icon-only" data-action="swap-plan-exercise" data-value="${index}" aria-label="Swap ${escapeHtml(name)}">${icon("swap")}</button><button class="icon-only" data-action="remove-plan-exercise" data-value="${index}" aria-label="Remove ${escapeHtml(name)}">${icon("close")}</button></span>` : ""}
   </article>`;
 }
