@@ -108,17 +108,27 @@ function syntaxCheck(file) {
   }
 
   const { EXERCISE_MEDIA_MANIFEST } = await import(pathToFileURL(path.join(APP_ROOT, "v040/data/exercise-media-manifest.mjs")).href);
-  if (EXERCISE_MEDIA_MANIFEST.length !== 17) bad("media manifest must contain seventeen local exercise guides");
+  const posterGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "png-two-position-guide");
+  const motionGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "mp4");
+  if (posterGuides.length !== 17) bad("media manifest must retain all seventeen premium poster guides");
+  if (motionGuides.length !== 20) bad("media manifest must contain all twenty reviewed motion guides in this pilot");
   for (const media of EXERCISE_MEDIA_MANIFEST) {
     const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
     const runtimeRequest = requestUrl(media.path);
     if (!exists(file)) bad(`missing exercise media file: ${file}`);
-    if (!precached.has(runtimeRequest)) bad(`service worker does not precache exact runtime exercise request: ${runtimeRequest}`);
-    if (media.type !== "png-two-position-guide" || !file.endsWith("-premium-v1.png")) {
-      bad(`${media.id} must use an approved premium two-position PNG`);
+    if (media.offlineCachePolicy === "precache" && !precached.has(runtimeRequest)) {
+      bad(`service worker does not precache exact exercise request: ${runtimeRequest}`);
+    }
+    if (media.type === "png-two-position-guide" && !file.endsWith("-premium-v1.png")) {
+      bad(`${media.id} must use an approved premium two-position PNG filename`);
+    }
+    if (media.type === "mp4" && (!file.includes("/motion/") || !file.endsWith("-motion-v1.mp4"))) {
+      bad(`${media.id} must use an approved local motion MP4 filename`);
     }
   }
-  if (!failures.some(value => value.includes("exercise media") || value.includes("local guide") || value.includes("premium two-position"))) ok("all seventeen premium exercise guides exist and are precached");
+  if (!failures.some(value => value.includes("exercise media") || value.includes("poster guide") || value.includes("motion guide") || value.includes("exercise request") || value.includes("motion MP4"))) {
+    ok("all declared premium exercise guides exist with their intended cache policy");
+  }
 
   const activeSource = graph.map(read).join("\n");
   const forbiddenActive = [

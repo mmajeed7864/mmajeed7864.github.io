@@ -47,7 +47,7 @@ The model may render conversational wording only. It cannot choose safety outcom
 
 ## Exercise library and media
 
-The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. Seventeen movements currently have local, original, static premium PNG two-position guides with illustrated human athletes—never stick figures. The other 83 expose structured written setup, execution, cue, and alternative guidance and are explicitly labelled as written guides until commissioned motion media exists. Every exercise can open a clearly labelled external YouTube tutorial search; FitCoach does not claim that external videos are vetted. None of the local assets are animations, form analysis, medical assessment, or competitor media.
+The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. Thirty-three movements have local original visual media, including 20 reviewed, muted motion guides and 17 premium PNG two-position guides with illustrated human athletes—never stick figures. The remaining 67 expose structured written setup, execution, cue, and alternative guidance until their motion media passes review. The local guides are demonstrations, not live form analysis, medical assessment, or competitor media.
 
 ## Required checks
 

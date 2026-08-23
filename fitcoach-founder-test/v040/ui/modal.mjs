@@ -1,5 +1,6 @@
 import { escapeHtml } from "../core/utils.mjs";
 import { EXERCISE_EXPANSION_CATEGORIES, EXERCISE_EXPANSION_TARGETS } from "../data/exercise-expansion-targets.mjs";
+import { EXERCISE_MEDIA_MANIFEST } from "../data/exercise-media-manifest.mjs";
 import { isValidCompletedSet } from "../domain/workouts.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
 import { renderNutritionModalContent } from "./nutrition-screen.mjs";
@@ -80,12 +81,18 @@ function renderProPreview(state) {
 }
 
 function renderExerciseRoadmap() {
-  const sampleTargets = EXERCISE_EXPANSION_TARGETS.slice(0, 14);
+  const liveMotionExerciseIds = new Set(
+    EXERCISE_MEDIA_MANIFEST
+      .filter(item => item.type === "mp4" && item.motionReviewStatus === "approved")
+      .map(item => item.exerciseId),
+  );
+  const remainingTargets = EXERCISE_EXPANSION_TARGETS.filter(item => !liveMotionExerciseIds.has(item.id));
+  const sampleTargets = remainingTargets.slice(0, 14);
   return `<div class="exercise-roadmap">
-    <div class="roadmap-counter"><b>${EXERCISE_EXPANSION_TARGETS.length}</b><span>popular exercises mapped for premium motion guides</span></div>
+    <div class="roadmap-counter"><b>${liveMotionExerciseIds.size}</b><span>reviewed motion guides live · ${remainingTargets.length} remaining</span></div>
     <div class="roadmap-categories">${EXERCISE_EXPANSION_CATEGORIES.map(item => `<span><b>${escapeHtml(item.category)}</b><small>${item.count} targets</small></span>`).join("")}</div>
     <div class="target-chip-cloud">${sampleTargets.map(item => `<span>${escapeHtml(item.name)}</span>`).join("")}</div>
-    <p class="modal-note">These guides are planned, not available yet. Each one must meet the same illustration, motion, coaching, and licensing standard as the current library.</p>
+    <p class="modal-note">The 20 live guides are reviewed, muted, local motion loops. The remaining movements keep their written coaching until each replacement passes movement, equipment, visual, and licensing review.</p>
   </div>`;
 }
 

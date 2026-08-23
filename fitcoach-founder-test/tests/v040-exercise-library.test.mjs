@@ -32,9 +32,9 @@ test("library has 100 stable, immutable exercise records with honest guide statu
   assert.ok(Object.isFrozen(EXERCISES));
   assert.ok(EXERCISES.every((item) => Object.isFrozen(item) && Object.isFrozen(item.setupSteps)));
   assert.equal(getExerciseById("air-squat")?.name, "Air Squat");
-  assert.equal(getExerciseById("barbell-back-squat")?.guideStatus, "written-guide");
-  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 17);
-  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 83);
+  assert.equal(getExerciseById("barbell-back-squat")?.guideStatus, "visual-guide");
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 33);
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 67);
   assert.ok(EXERCISES.every((item) => item.location.includes("gym")));
   assert.equal(getExerciseById("missing-exercise"), null);
 });
@@ -68,6 +68,18 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   assert.equal(exerciseMotionMedia(unreviewed), null);
 });
 
+test("a reviewed production exercise renders its real motion asset muted and inline", () => {
+  const exercise = getExerciseById("barbell-back-squat");
+  const motion = exerciseMotionMedia(exercise);
+  assert.equal(motion?.path, "/fitcoach-founder-test/v040/assets/exercises/motion/barbell-back-squat-motion-v1.mp4");
+  assert.equal(motion?.hasAudio, false);
+  assert.equal(motion?.motionReviewStatus, "approved");
+  const guide = exerciseMotionGuide(exercise, { eager: true });
+  assert.match(guide, /<video/u);
+  assert.match(guide, /muted loop playsinline autoplay/u);
+  assert.match(guide, /data-action="toggle-exercise-motion"/u);
+});
+
 test("library covers every declared movement pattern", () => {
   const representedPatterns = new Set(EXERCISES.map((item) => item.movementPattern));
   assert.deepEqual([...representedPatterns].sort(), [...MOVEMENT_PATTERNS].sort());
@@ -94,6 +106,16 @@ test("every visual exercise guide uses the approved premium illustration system"
   assert.equal(illustrations.length, 17);
   assert.ok(illustrations.every((entry) => entry.path.endsWith("-premium-v1.png")));
   assert.ok(illustrations.every((entry) => entry.width === 1448 && entry.height === 1086));
+});
+
+test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () => {
+  const motions = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "mp4");
+  assert.equal(motions.length, 20);
+  assert.ok(motions.every((entry) => entry.path.includes("/assets/exercises/motion/")));
+  assert.ok(motions.every((entry) => entry.path.endsWith("-motion-v1.mp4")));
+  assert.ok(motions.every((entry) => entry.hasAudio === false));
+  assert.ok(motions.every((entry) => entry.motionReviewStatus === "approved"));
+  assert.ok(motions.every((entry) => entry.offlineCachePolicy === "runtime"));
 });
 
 test("every declared exercise guide exists and its size and SHA-256 match the manifest", async () => {
