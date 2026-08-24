@@ -1132,6 +1132,38 @@ function handleCommunityPhoto(input) {
   renderModalRoot();
 }
 
+function setMotionState(figure, state, label) {
+  if (!figure) return;
+  figure.dataset.motionStatus = state;
+  const status = figure.querySelector("[data-motion-status-label]");
+  if (status && label) status.textContent = label;
+}
+
+function playMotionVideo(figure, video) {
+  if (!figure || !video) return;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  setMotionState(figure, "loading", "Loading motion guide");
+  const attempt = video.play?.();
+  if (attempt?.then) {
+    attempt.then(() => {
+      figure.classList.remove("media-paused", "media-error");
+      setMotionState(figure, "playing", "Motion playing");
+    }).catch(() => {
+      // iOS may reject autoplay while still allowing a user-initiated tap.
+      // Treat that as paused, not as a broken asset.
+      if (video.error?.code) {
+        figure.classList.add("media-error");
+        setMotionState(figure, "error", "Motion unavailable — use the preview");
+      } else {
+        figure.classList.add("media-paused");
+        setMotionState(figure, "paused", "Tap play to start the motion guide");
+      }
+    });
+  }
+}
+
 function handleClick(event) {
   const target = event.target.closest("[data-action]");
   if (!target) return;
@@ -1200,15 +1232,14 @@ function handleClick(event) {
     if(!video)return;
     const button=figure.querySelector(".motion-toggle");
     if(video.paused){
-      const attempt=video.play?.();
-      if(attempt?.catch)attempt.catch(()=>figure.classList.add("media-paused"));
-      figure.classList.remove("media-paused");
+      playMotionVideo(figure, video);
       button?.setAttribute("aria-pressed","true");
       if(button)button.innerHTML=`${icon("pause")}<span>Pause motion</span>`;
       button?.setAttribute("aria-label",`Pause ${video.getAttribute("aria-label")||"exercise"} movement guide`);
     }else{
       video.pause?.();
       figure.classList.add("media-paused");
+      setMotionState(figure, "paused", "Motion paused");
       button?.setAttribute("aria-pressed","false");
       if(button)button.innerHTML=`${icon("play")}<span>Play motion</span>`;
       button?.setAttribute("aria-label",`Play ${video.getAttribute("aria-label")||"exercise"} movement guide`);
@@ -1222,8 +1253,7 @@ function handleClick(event) {
     figure.classList.remove("media-error", "media-paused");
     video.hidden = false;
     video.load?.();
-    const attempt = video.play?.();
-    if (attempt?.catch) attempt.catch(() => figure.classList.add("media-error"));
+    playMotionVideo(figure, video);
     return;
   }
   if (action === "toggle-favorite") { toggleFavorite(value);return; }
@@ -1380,14 +1410,29 @@ function bootstrap() {
   document.addEventListener("canplay",event=>{
     const video=event.target?.closest?.("[data-media-video]");
     if(!video || ui.motionPaused) return;
-    const attempt=video.play?.();
-    if(attempt?.catch) attempt.catch(()=>video.closest(".exercise-motion")?.classList.add("media-paused"));
+    const figure = video.closest(".exercise-motion");
+    playMotionVideo(figure, video);
+  },true);
+  document.addEventListener("playing", event=>{
+    const video=event.target?.closest?.("[data-media-video]");
+    if(!video) return;
+    const figure=video.closest(".exercise-motion");
+    figure?.classList.remove("media-paused", "media-error");
+    setMotionState(figure, "playing", "Motion playing");
+  },true);
+  document.addEventListener("pause", event=>{
+    const video=event.target?.closest?.("[data-media-video]");
+    if(!video) return;
+    const figure=video.closest(".exercise-motion");
+    if (figure && !figure.classList.contains("media-error")) setMotionState(figure, "paused", "Motion paused");
   },true);
   document.addEventListener("error",event=>{
     const media=event.target?.closest?.("[data-media-image],[data-media-video]");
     if(!media)return;
     media.hidden=true;
-    media.closest("figure")?.classList.add("media-error");
+    const figure = media.closest("figure");
+    figure?.classList.add("media-error");
+    if (figure?.classList.contains("exercise-motion")) setMotionState(figure, "error", "Motion unavailable — use the preview");
   },true);
   document.addEventListener("keydown",event=>{
     if((event.key==="Enter"||event.key===" ")&&event.target?.classList?.contains("voice-room-orb")){event.preventDefault();voiceController.interrupt();}

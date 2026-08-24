@@ -1188,6 +1188,23 @@
     background: linear-gradient(145deg, #10264d, #081733);
   }
   .exercise-detail-visual .exercise-motion video { max-height: 25rem; object-fit: contain; }
+  .motion-status {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 2;
+    padding: 6px 9px;
+    border: 1px solid rgba(180, 215, 255, .2);
+    border-radius: 999px;
+    color: #d9eaff;
+    background: rgba(4, 16, 39, .68);
+    font-size: .64rem;
+    font-weight: 780;
+    letter-spacing: .02em;
+    backdrop-filter: blur(12px);
+  }
+  .exercise-motion[data-motion-status="playing"] .motion-status { color: #b9f3d4; }
+  .exercise-motion[data-motion-status="error"] .motion-status { color: #ffd2cf; }
   .exercise-detail-visual .media-facts { justify-content: flex-start; gap: 7px; }
   .exercise-detail-visual .media-facts span {
     color: #d7e7ff;
@@ -1471,12 +1488,36 @@
 .exercise-detail-page .exercise-detail-grid > .card:not(.muscle-panel) small,
 .exercise-detail-page .exercise-detail-grid > .card:not(.muscle-panel) li { color: rgba(211, 227, 255, .76); }
 .exercise-detail-page .exercise-detail-visual {
-  order: 4;
+  order: 3;
   margin-top: 2px;
   border-color: rgba(113, 164, 247, .34);
 }
+.exercise-detail-page .exercise-detail-visual .guide-stage { min-height: 0; }
+.exercise-detail-page .exercise-detail-visual .exercise-motion,
+.exercise-detail-page .exercise-detail-visual .exercise-poster {
+  min-height: clamp(20rem, 92vw, 30rem);
+}
+.exercise-detail-page .exercise-detail-visual .exercise-motion video {
+  width: 100%;
+  min-height: clamp(20rem, 92vw, 30rem);
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background: #071936;
+}
+.exercise-detail-page .exercise-detail-visual .exercise-poster img {
+  width: 100%;
+  min-height: clamp(20rem, 92vw, 30rem);
+  object-fit: cover;
+}
+.exercise-detail-page .exercise-detail-visual .media-play-hint {
+  display: block;
+  left: 12px;
+  bottom: 12px;
+  color: #edf5ff;
+  background: rgba(4, 16, 39, .7);
+}
 .exercise-detail-page .preference-controls {
-  order: 5;
+  order: 6;
   color: #eaf2ff;
   border-color: rgba(139, 177, 236, .2);
   background: rgba(16, 39, 80, .72);
@@ -1485,9 +1526,10 @@
 .exercise-detail-page .preference-controls .filter-chip { color: #cfe1ff; border-color: rgba(143, 183, 245, .2); background: rgba(49, 92, 161, .32); }
 .exercise-detail-page .preference-controls .filter-chip.active { color: #07152f; background: #8dc8ff; border-color: transparent; }
 .exercise-detail-page .muscle-panel {
-  order: -1;
+  order: 0;
   box-shadow: 0 20px 58px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.08);
 }
+.exercise-detail-page .exercise-detail-grid { order: 4; }
 .exercise-detail-page .muscle-panel .muscle-map { margin-top: 10px; }
 
 @media (max-width: 430px) {
@@ -1500,5 +1542,9 @@
   .exercise-detail-page .segment-control { top: calc(8px + var(--safe-top)); }
   .exercise-detail-page .exercise-detail-header h1 { font-size: clamp(2.15rem, 11vw, 3rem); }
   .exercise-detail-page .exercise-detail-header .button-primary { width: 100%; }
+  .exercise-detail-page .exercise-detail-visual .exercise-motion,
+  .exercise-detail-page .exercise-detail-visual .exercise-poster,
+  .exercise-detail-page .exercise-detail-visual .exercise-motion video,
+  .exercise-detail-page .exercise-detail-visual .exercise-poster img { min-height: 19rem; }
   .exercise-detail-page .muscle-panel { padding: 14px; }
 }

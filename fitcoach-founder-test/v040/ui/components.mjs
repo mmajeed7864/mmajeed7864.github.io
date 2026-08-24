@@ -65,9 +65,10 @@ export function exerciseMotionGuide(exercise, { className = "", eager = false, p
   const posterMarkup = poster?.path
     ? `<img class="motion-fallback-poster" src="${escapeHtml(poster.path)}" width="${poster.width || 320}" height="${poster.height || 240}" alt="${escapeHtml(poster.alt || `${name} technique preview`)}">`
     : `<div class="motion-fallback-art" aria-hidden="true"><span>${icon("play")}</span><b>${escapeHtml(name)}</b></div>`;
-  return `<figure class="exercise-motion ${escapeHtml(className)}">
-    <video data-media-video data-motion-id="${escapeHtml(motion.id || motion.exerciseId || name)}" src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" ${eager ? 'preload="auto"' : 'preload="metadata"'} muted loop playsinline ${paused ? "" : "autoplay"} aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
+  return `<figure class="exercise-motion ${escapeHtml(className)}" data-motion-status="loading">
+    <video data-media-video data-motion-id="${escapeHtml(motion.id || motion.exerciseId || name)}" src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" preload="auto" muted loop playsinline ${paused ? "" : "autoplay"} controlslist="nodownload noplaybackrate" disablepictureinpicture aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
     <button class="motion-toggle" data-action="toggle-exercise-motion" aria-label="${paused ? "Play" : "Pause"} ${escapeHtml(name)} movement guide" aria-pressed="${!paused}">${icon(paused ? "play" : "pause")}<span>${paused ? "Play motion" : "Pause motion"}</span></button>
+    <span class="motion-status" data-motion-status-label aria-live="polite">${paused ? "Motion paused" : "Loading motion guide"}</span>
     <span class="media-play-hint">Tap to pause the silent technique loop</span>
     <div class="motion-fallback-card">${posterMarkup}<div class="motion-fallback-copy"><span class="eyebrow">TECHNIQUE PREVIEW</span><strong>${escapeHtml(name)}</strong><small>The visual guide is taking a moment. Use the movement notes below while it loads.</small><button class="button button-secondary" data-action="retry-exercise-motion" data-value="${escapeHtml(motion.id || motion.exerciseId || name)}">Try video again</button></div></div>
   </figure>`;
