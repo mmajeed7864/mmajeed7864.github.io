@@ -21,6 +21,7 @@ const MODULE_ASSETS = Object.freeze([
   "./v040/data/generated-style-posters.mjs",
   "./v040/data/motion-guide-coverage.mjs",
   "./v040/data/exercise-schema.mjs",
+  "./v040/data/generated-motion-definitions.mjs",
   "./v040/domain/decisions.mjs",
   "./v040/domain/nutrition-estimator.mjs",
   "./v040/domain/nutrition.mjs",

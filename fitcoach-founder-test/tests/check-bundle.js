@@ -111,7 +111,7 @@ function syntaxCheck(file) {
   const posterGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "png-two-position-guide");
   const motionGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "mp4");
   if (posterGuides.length !== 17) bad("media manifest must retain all seventeen premium poster guides");
-  if (motionGuides.length !== 20) bad("media manifest must contain all twenty reviewed motion guides in this pilot");
+  if (motionGuides.length !== 60) bad("media manifest must contain all sixty reviewed motion guides in this pilot");
   for (const media of EXERCISE_MEDIA_MANIFEST) {
     const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
     const runtimeRequest = requestUrl(media.path);

@@ -1,4 +1,5 @@
 import { GENERATED_STYLE_POSTER_DEFINITIONS } from "./generated-style-posters.mjs";
+import { GENERATED_MOTION_DEFINITIONS } from "./generated-motion-definitions.mjs";
 
 /**
  * Machine-readable provenance for every FitCoach v0.4 starter exercise asset.
@@ -600,6 +601,7 @@ export const EXERCISE_MEDIA_MANIFEST = Object.freeze([
     bytes: 831790,
     sha256: "b3afd1323676cb214060544ad48ca9526c030cf5a31421a925570e40f34aeed7",
   }),
+  ...GENERATED_MOTION_DEFINITIONS.map((definition) => ownedGeneratedMotion(definition)),
   ...GENERATED_STYLE_POSTER_DEFINITIONS.map((definition) => ownedGeneratedPoster(definition)),
 ]);
 

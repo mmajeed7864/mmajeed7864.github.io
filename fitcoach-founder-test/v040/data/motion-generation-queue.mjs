@@ -10,9 +10,13 @@ export const MOTION_GENERATION_POLICY = Object.freeze({
   provider: "openrouter-video-api",
   endpoint: "https://openrouter.ai/api/v1/videos",
   output: "silent-local-mp4",
-  defaultDurationSeconds: 6,
+  // Four seconds is long enough for one controlled repetition and keeps the
+  // current 40-job founder pilot within the capped generation budget.
+  defaultDurationSeconds: 4,
   defaultResolution: "720p",
-  defaultAspectRatio: "1:1",
+  // Veo Lite's lowest-cost 720p profile supports landscape or portrait only.
+  // The player uses contain-fit, so the 16:9 guide remains fully visible.
+  defaultAspectRatio: "16:9",
   reviewRequiredBeforeActivation: true,
   appLoadsGeneratedJobs: false,
 });

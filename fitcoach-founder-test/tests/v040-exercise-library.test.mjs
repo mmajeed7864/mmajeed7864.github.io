@@ -27,7 +27,6 @@ import {
 import {
   MOTION_GENERATION_POLICY,
   PENDING_MOTION_GENERATION_QUEUE,
-  buildMotionGenerationPayload,
   getMotionGenerationJob,
 } from "../v040/data/motion-generation-queue.mjs";
 import { exerciseMotionGuide, exerciseMotionMedia, muscleMap } from "../v040/ui/components.mjs";
@@ -150,7 +149,7 @@ test("the full catalogue has a local navy and electric-blue poster", () => {
 
 test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () => {
   const motions = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "mp4");
-  assert.equal(motions.length, 20);
+  assert.equal(motions.length, 60);
   assert.ok(motions.every((entry) => entry.path.includes("/assets/exercises/motion/")));
   assert.ok(motions.every((entry) => entry.path.endsWith("-motion-v1.mp4")));
   assert.ok(motions.every((entry) => entry.hasAudio === false));
@@ -162,37 +161,23 @@ test("motion coverage reports the hard-gym pilot honestly", () => {
   assert.deepEqual(MOTION_GUIDE_COVERAGE, {
     totalExercises: 100,
     hardGymTargets: 48,
-    reviewedHardGymGuides: 8,
-    pendingHardGymGuides: 40,
+    reviewedHardGymGuides: 48,
+    pendingHardGymGuides: 0,
   });
   assert.equal(HARD_GYM_MOTION_TARGETS.length, 48);
-  assert.equal(REVIEWED_HARD_GYM_MOTION_IDS.length, 8);
-  assert.equal(PENDING_HARD_GYM_MOTION_IDS.length, 40);
+  assert.equal(REVIEWED_HARD_GYM_MOTION_IDS.length, 48);
+  assert.equal(PENDING_HARD_GYM_MOTION_IDS.length, 0);
   assert.equal(new Set([...REVIEWED_HARD_GYM_MOTION_IDS, ...PENDING_HARD_GYM_MOTION_IDS]).size, 48);
   assert.ok(REVIEWED_HARD_GYM_MOTION_IDS.every((id) => hasReviewedMotionGuide(getExerciseById(id))));
   assert.ok(PENDING_HARD_GYM_MOTION_IDS.every((id) => !hasReviewedMotionGuide(getExerciseById(id))));
   assert.deepEqual(validateMotionGuideCoverage(), { valid: true, errors: [] });
 });
 
-test("pending motion queue is bounded, silent, and never active media", () => {
-  assert.equal(PENDING_MOTION_GENERATION_QUEUE.length, 40);
+test("the motion queue is empty after the generated pilot is activated", () => {
+  assert.equal(PENDING_MOTION_GENERATION_QUEUE.length, 0);
   assert.equal(MOTION_GENERATION_POLICY.appLoadsGeneratedJobs, false);
   assert.equal(MOTION_GENERATION_POLICY.reviewRequiredBeforeActivation, true);
-  const job = getMotionGenerationJob("front-squat");
-  assert.ok(job);
-  assert.equal(job.status, "needs-generation-and-review");
-  assert.match(job.prompt, /no music/u);
-  assert.match(job.prompt, /no watermark/u);
-  const payload = buildMotionGenerationPayload(job, { model: "test/video-model" });
-  assert.deepEqual(payload, {
-    model: "test/video-model",
-    prompt: job.prompt,
-    duration: 6,
-    resolution: "720p",
-    aspect_ratio: "1:1",
-    generate_audio: false,
-  });
-  assert.throws(() => buildMotionGenerationPayload(job, { model: "" }), /video model is required/u);
+  assert.equal(getMotionGenerationJob("front-squat"), null);
   assert.equal(getMotionGenerationJob("barbell-back-squat"), null);
 });
 
