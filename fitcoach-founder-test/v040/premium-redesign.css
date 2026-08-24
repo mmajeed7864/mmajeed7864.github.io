@@ -1140,6 +1140,131 @@
   .mini-player > span:nth-child(2) b { color: white; font-size: .9rem; }
   .mini-player > span:nth-child(2) em { color: rgba(255,255,255,.68); font-size: .68rem; }
 
+  /* Exercise detail: a deliberate navy stage with a useful visual fallback.
+     A failed video must never collapse into a developer-facing placeholder. */
+  .exercise-detail-visual {
+    gap: 14px;
+    padding: 14px;
+    color: #f4f7ff;
+    border-color: rgba(113, 157, 231, .34);
+    background:
+      radial-gradient(circle at 88% -12%, rgba(61, 129, 255, .42), transparent 14rem),
+      linear-gradient(150deg, #122b59 0%, #0a1a39 68%, #07132c 100%);
+    box-shadow: 0 24px 70px rgba(7, 22, 51, .2), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .detail-media-heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 2px 0;
+  }
+  .detail-media-heading h2 { margin: 3px 0 0; color: #fff; font-size: 1.15rem; }
+  .detail-media-heading .eyebrow { color: #9fc1ff; }
+  .guide-status-chip {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    padding: 6px 9px;
+    border: 1px solid rgba(157, 198, 255, .2);
+    border-radius: 999px;
+    color: #c4dcff;
+    background: rgba(69, 125, 224, .18);
+    font-size: .62rem;
+    font-weight: 820;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .exercise-detail-visual .guide-stage {
+    min-width: 0;
+    padding: 7px;
+    border-color: rgba(147, 188, 255, .22);
+    background: rgba(3, 15, 37, .55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .exercise-detail-visual .exercise-motion,
+  .exercise-detail-visual .exercise-poster {
+    min-height: clamp(16rem, 72vw, 25rem);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #10264d, #081733);
+  }
+  .exercise-detail-visual .exercise-motion video { max-height: 25rem; object-fit: contain; }
+  .exercise-detail-visual .media-facts { justify-content: flex-start; gap: 7px; }
+  .exercise-detail-visual .media-facts span {
+    color: #d7e7ff;
+    background: rgba(58, 113, 215, .2);
+    border: 1px solid rgba(144, 190, 255, .18);
+    font-size: .72rem;
+  }
+  .exercise-detail-visual .media-license {
+    color: rgba(220, 234, 255, .68);
+    font-size: .74rem;
+    line-height: 1.4;
+    text-align: left;
+  }
+  .motion-fallback-card {
+    display: none;
+    min-height: clamp(16rem, 72vw, 25rem);
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: hidden;
+    border: 1px solid rgba(145, 188, 255, .22);
+    border-radius: 18px;
+    background: linear-gradient(150deg, #132e5e, #081732);
+  }
+  .motion-fallback-poster {
+    width: 100%;
+    height: 100%;
+    min-height: 10rem;
+    object-fit: contain;
+    background: #0b1b3a;
+  }
+  .motion-fallback-art {
+    min-height: 10rem;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    color: #d8e8ff;
+    background: radial-gradient(circle at 50% 22%, rgba(87, 153, 255, .34), transparent 10rem), #0b1d40;
+  }
+  .motion-fallback-art span {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #fff;
+    background: linear-gradient(145deg, #5da2ff, #1d5bd8);
+    box-shadow: 0 12px 30px rgba(36, 107, 253, .3);
+  }
+  .motion-fallback-copy {
+    display: grid;
+    gap: 5px;
+    padding: 14px;
+    background: rgba(4, 16, 38, .58);
+  }
+  .motion-fallback-copy .eyebrow { color: #9fc1ff; }
+  .motion-fallback-copy strong { color: #fff; font-size: 1rem; }
+  .motion-fallback-copy small { color: rgba(220, 234, 255, .72); line-height: 1.4; }
+  .motion-fallback-copy .button { justify-self: start; min-height: 42px; margin-top: 5px; color: #edf4ff; border-color: rgba(151, 194, 255, .24); background: rgba(61, 122, 230, .24); box-shadow: none; font-size: .78rem; }
+  .exercise-motion.media-error .motion-fallback-card { display: grid; }
+  .exercise-motion.media-error .media-play-hint { display: none; }
+  .exercise-motion.media-error .motion-toggle { display: none; }
+  .exercise-detail-header { gap: 8px; padding: 0 2px; }
+  .exercise-detail-header h1 { margin: 0; font-size: clamp(2rem, 9vw, 2.7rem); }
+  .exercise-detail-header p { color: var(--muted); font-size: .9rem; }
+  .exercise-detail-grid > .card:not(.muscle-panel) { border-color: color-mix(in srgb, var(--border) 90%, transparent); box-shadow: 0 10px 30px rgba(11, 29, 70, .045); }
+  .exercise-detail-grid > .card:not(.muscle-panel) .eyebrow { color: var(--primary-2); }
+
+  /* Keep the library dense and editorial instead of dashboard-like. */
+  .library-hero h1 { max-width: 12ch; }
+  .library-hero p { max-width: 33ch; }
+  .exercise-card { border-color: color-mix(in srgb, var(--border) 92%, transparent); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .exercise-card:focus-within, .exercise-card:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); box-shadow: 0 18px 38px rgba(11, 29, 70, .12); transform: translateY(-2px); }
+  .exercise-card figure { background: linear-gradient(145deg, #edf3ff, #dfeaff); }
+  .exercise-card-copy small { color: var(--primary-2); font-size: .64rem; font-weight: 780; letter-spacing: .03em; text-transform: uppercase; }
+  .exercise-card-copy em { color: var(--muted); font-size: .72rem; font-style: normal; }
+  .guide-status.visual.motion { color: #0f4fc2; background: #e1ecff; }
+
   @media (max-width: 430px) {
     .app-main { padding-inline: var(--page-gutter); }
     .app-header { padding-inline: var(--page-gutter); }

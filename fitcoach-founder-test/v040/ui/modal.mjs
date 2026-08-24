@@ -84,11 +84,15 @@ function renderExerciseRoadmap() {
   const liveMotionExerciseIds = new Set(REVIEWED_HARD_GYM_MOTION_IDS);
   const remainingTargets = EXERCISE_EXPANSION_TARGETS.filter(item => PENDING_HARD_GYM_MOTION_IDS.includes(item.id));
   const sampleTargets = remainingTargets.slice(0, 14);
+  const coverageLabel = remainingTargets.length ? `${remainingTargets.length} guides still being reviewed` : "every hard-gym guide is ready";
+  const roadmapNote = remainingTargets.length
+    ? `All ${MOTION_GUIDE_COVERAGE.totalExercises} exercises have premium local posters. ${liveMotionExerciseIds.size} hard-gym movements also have reviewed, muted motion loops; the remaining guides stay poster-first until they pass movement, equipment, visual, and licensing review.`
+    : `All ${MOTION_GUIDE_COVERAGE.totalExercises} exercises have premium local posters, and every hard-gym movement in this library has a reviewed, muted motion loop. The guide demonstrates the movement; it does not assess live form.`;
   return `<div class="exercise-roadmap">
-    <div class="roadmap-counter"><b>${liveMotionExerciseIds.size}/${MOTION_GUIDE_COVERAGE.hardGymTargets}</b><span>hard-gym motion guides reviewed · ${remainingTargets.length} remaining</span></div>
+    <div class="roadmap-counter"><b>${liveMotionExerciseIds.size}/${MOTION_GUIDE_COVERAGE.hardGymTargets}</b><span>hard-gym motion guides · ${coverageLabel}</span></div>
     <div class="roadmap-categories">${EXERCISE_EXPANSION_CATEGORIES.map(item => `<span><b>${escapeHtml(item.category)}</b><small>${item.count} targets</small></span>`).join("")}</div>
     <div class="target-chip-cloud">${sampleTargets.map(item => `<span>${escapeHtml(item.name)}</span>`).join("")}</div>
-    <p class="modal-note">All ${MOTION_GUIDE_COVERAGE.totalExercises} exercises have premium local posters. The ${liveMotionExerciseIds.size} live motion guides are reviewed, muted, local loops; the remaining ${remainingTargets.length} harder gym movements stay poster-first until each replacement passes movement, equipment, visual, and licensing review.</p>
+    <p class="modal-note">${roadmapNote}</p>
   </div>`;
 }
 

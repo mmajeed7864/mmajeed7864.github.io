@@ -36,7 +36,7 @@ function exerciseLibrary({ state, exercises, filters }) {
     .filter(value => exercises.some(item => item.equipment.some(itemValue => String(itemValue).replace(/s$/, "") === value.replace(/s$/, ""))));
   const visualGuideCount = exercises.filter(item => item.guideStatus === "visual-guide").length;
   return `<div class="exercise-library-view">
-    <section class="library-hero"><div><span class="eyebrow">EXERCISE LIBRARY</span><h1>Build a gym plan you can actually use.</h1><p>Search ${exercises.length} movements by muscle or equipment. Every movement includes setup, cues, and alternatives; visual guides appear only where the artwork is ready.</p></div><span class="library-count"><b>${exercises.length}</b><small>movements</small><em>${visualGuideCount} visual</em></span></section>
+    <section class="library-hero"><div><span class="eyebrow">EXERCISE LIBRARY</span><h1>Build a gym plan you can actually use.</h1><p>Search ${exercises.length} movements by muscle or equipment. Every movement includes setup, cues, alternatives, and a visual technique guide; reviewed movements also have a silent motion loop.</p></div><span class="library-count"><b>${exercises.length}</b><small>movements</small><em>${visualGuideCount} visual</em></span></section>
     <section class="library-tools card"><label class="search-field">${icon("search")}<input id="exercise-search" type="search" maxlength="80" placeholder="Search exercise or alias" value="${escapeHtml(filters.query || "")}"><button data-action="clear-exercise-search" aria-label="Clear search">${icon("close")}</button></label><div class="filter-scroll" aria-label="Exercise filters"><button class="filter-chip ${!filters.muscle ? "active" : ""}" data-action="filter-exercises" data-field="muscle" data-value="">All muscles</button>${muscles.map(value => `<button class="filter-chip ${filters.muscle === value ? "active" : ""}" data-action="filter-exercises" data-field="muscle" data-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join("")}</div><div class="filter-scroll" aria-label="Equipment filters"><button class="filter-chip ${!filters.equipment ? "active" : ""}" data-action="filter-exercises" data-field="equipment" data-value="">Any equipment</button>${equipment.map(value => `<button class="filter-chip ${filters.equipment === value ? "active" : ""}" data-action="filter-exercises" data-field="equipment" data-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join("")}</div><label class="favorite-filter"><input type="checkbox" data-action="filter-favorites" ${filters.favorites ? "checked" : ""}> Favorites only</label></section>
     ${exercises.length ? `<section class="exercise-grid">${exercises.map(exercise => renderExerciseCard(exercise,state.exercisePreferences)).join("")}</section>` : emptyState("No exercises match", "Try removing a filter or using another exercise name.", "clear-exercise-filters", "Clear filters")}
   </div>`;
@@ -84,9 +84,9 @@ function scheduleView({ state, workoutSchedule = [], progressionRows = [] }) {
   const routines = state.workoutDrafts || [];
   return `<div class="schedule-view">
     <section class="schedule-hero teal-panel">
-      <span class="eyebrow">WORKOUTS BY DAY</span>
-      <h1>Plan the week, then just press start.</h1>
-      <p>Each day keeps its own session thread. The trainer can open the right workout, but confirmed plan changes still require your approval.</p>
+      <span class="eyebrow">YOUR WEEK</span>
+      <h1>Make the plan fit the week you actually have.</h1>
+      <p>Each session keeps its own history. Nova can bring the right workout forward, while you stay in control of every change.</p>
       <div class="schedule-week-strip">${workoutSchedule.map(slot => `<span><b>${escapeHtml(slot.shortDayLabel)}</b><small>${escapeHtml(slot.label.replace("Strength ","S").replace("Full-body ","FB "))}</small></span>`).join("")}</div>
     </section>
 
@@ -96,13 +96,13 @@ function scheduleView({ state, workoutSchedule = [], progressionRows = [] }) {
     </section>
 
     <section class="progression-card card">
-      <header class="section-heading"><div><span class="eyebrow">PROGRESSION TRACKER</span><h2>What to beat next</h2></div><span class="soft-badge">Local proof only</span></header>
+      <header class="section-heading"><div><span class="eyebrow">PROGRESSION</span><h2>What to beat next</h2></div><span class="soft-badge">Based on your logs</span></header>
       <div class="progression-list">${progressionRows.map(progressionRow).join("")}</div>
     </section>
 
     <section class="routine-library card">
       <header class="section-heading"><div><span class="eyebrow">SAVED WORKOUTS</span><h2>Your routine library</h2></div>${button({ label: "Save current", action: "save-routine", variant: "quiet", iconName: "plus" })}</header>
-      ${routines.length ? `<div class="routine-list">${routines.map(routineCard).join("")}</div>` : emptyState("No saved routines yet", "Save the current workout, then it will appear here as a reusable local template.", "save-routine", "Save current workout")}
+      ${routines.length ? `<div class="routine-list">${routines.map(routineCard).join("")}</div>` : emptyState("Your saved routines will appear here", "Save a workout when you want a reliable starting point for another day.", "save-routine", "Save current workout")}
     </section>
   </div>`;
 }
@@ -114,7 +114,12 @@ function exerciseDetail({ state, exercise, motionPaused = false, replacing = fal
   const visualGuide = exercise.guideStatus === "visual-guide";
   return `<article class="exercise-detail">
     <header class="exercise-detail-nav"><button class="back-button" data-action="close-exercise" aria-label="Back to exercise library">←</button><strong>${escapeHtml(exercise.name)}</strong><button class="icon-only favorite-large" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="Toggle favorite">${icon("heart")}</button></header>
-    <section class="exercise-detail-visual card ${motion ? "motion-guide" : "static-guide"}"><div class="guide-stage">${exerciseMotionGuide(exercise,{className:"large concept-art",eager:true,paused:motionPaused})}</div><div class="media-facts"><span>${escapeHtml(motion ? "AI-created motion guide" : visualGuide ? `${media?.view || "side/front"} visual guide` : "Written coaching guide")}</span><span>${motion ? "Local looping demonstration" : visualGuide ? "Original local art" : "Motion guide in production"}</span><span>Not form analysis</span></div><span class="media-license">${escapeHtml(motion?.alt || (visualGuide ? media?.alt : "Use the setup, execution, and cue sections below before starting.") || "Original local guide")}</span></section>
+    <section class="exercise-detail-visual card ${motion ? "motion-guide" : "static-guide"}">
+      <header class="detail-media-heading"><div><span class="eyebrow">TECHNIQUE GUIDE</span><h2>${escapeHtml(exercise.name)}</h2></div><span class="guide-status-chip">${motion ? "Silent loop" : visualGuide ? "Visual guide" : "Written guide"}</span></header>
+      <div class="guide-stage">${exerciseMotionGuide(exercise,{className:"large concept-art",eager:true,paused:motionPaused})}</div>
+      <div class="media-facts"><span>${escapeHtml(exercise.movementPattern.replaceAll("-", " "))}</span><span>${escapeHtml(exercise.equipment[0] || "Bodyweight")}</span><span>${escapeHtml(exercise.difficulty)}</span></div>
+      <p class="media-license">${escapeHtml(motion?.alt || (visualGuide ? media?.alt : "Use the setup, execution, and cue sections below before starting."))} Demonstration only; FitCoach does not assess live form.</p>
+    </section>
     <header class="exercise-detail-header"><span class="eyebrow">${escapeHtml(exercise.movementPattern.replaceAll("-"," ").toUpperCase())}</span><h1>${escapeHtml(exercise.name)}</h1><p>${escapeHtml(exercise.primaryMuscles.join(" · "))} · ${escapeHtml(exercise.equipment.join(" · "))} · ${escapeHtml(exercise.difficulty)}</p><div>${button({label:replacing ? "Replace current exercise" : "Add to workout",action:replacing ? "confirm-exercise-replacement" : "add-exercise-to-plan",value:exercise.id,variant:"primary",iconName:"plus"})}</div></header>
     <div class="exercise-detail-grid">
       <section class="card muscle-panel"><span class="eyebrow">MUSCLE FOCUS</span>${muscleMap(exercise)}<div class="muscle-cloud">${exercise.primaryMuscles.map(value => `<strong>${escapeHtml(value)}</strong>`).join("")}${exercise.secondaryMuscles.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div><p>Highlighted areas describe intended training focus, not live muscle or form sensing.</p></section>

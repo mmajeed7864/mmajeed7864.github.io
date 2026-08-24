@@ -306,10 +306,10 @@ function filteredLibrary() {
 }
 
 function coachConnection() {
-  if (!navigator.onLine) return { label: "Browser offline", state: "offline" };
+  if (!navigator.onLine) return { label: "Offline mode", state: "offline" };
   if (ui.chatBusy) return { label: "Checking coach", state: "busy" };
   if (ui.chatNotice?.kind === "error") return { label: "Last request failed", state: "error" };
-  if (state?.lastApi?.fallbackUsed) return { label: "Local fallback used", state: "fallback" };
+  if (state?.lastApi?.fallbackUsed) return { label: "Ready with offline guidance", state: "fallback" };
   if (state?.lastApi?.at) return { label: "Live reply received", state: "live" };
   return { label: "Coach status", state: "unverified" };
 }
@@ -1213,6 +1213,17 @@ function handleClick(event) {
       if(button)button.innerHTML=`${icon("play")}<span>Play motion</span>`;
       button?.setAttribute("aria-label",`Play ${video.getAttribute("aria-label")||"exercise"} movement guide`);
     }
+    return;
+  }
+  if (action === "retry-exercise-motion") {
+    const figure = target.closest(".exercise-motion");
+    const video = figure?.querySelector("[data-media-video]");
+    if (!figure || !video) return;
+    figure.classList.remove("media-error", "media-paused");
+    video.hidden = false;
+    video.load?.();
+    const attempt = video.play?.();
+    if (attempt?.catch) attempt.catch(() => figure.classList.add("media-error"));
     return;
   }
   if (action === "toggle-favorite") { toggleFavorite(value);return; }

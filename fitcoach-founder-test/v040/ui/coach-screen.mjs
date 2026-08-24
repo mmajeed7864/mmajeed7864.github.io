@@ -25,7 +25,7 @@ const VOICE_LABELS = Object.freeze({
 export function renderCoachScreen({ state, decision, ui, coachConnection }) {
   const voiceName = VOICE_LABELS[state.settings.voicePersona] || VOICE_LABELS.nova;
   const pending = state.pendingPlanProposal;
-  const connection = coachConnection || { label: "Coach ready", state: "unverified" };
+  const connection = coachConnection || { label: "Ready when you are", state: "unverified" };
   const preferenceCount = ["preferred","reduced","excluded"].reduce((sum,key) => sum + (state.exercisePreferences?.[key]?.length || 0), 0);
   const trainerFacts = [
     ["Goal", state.profile.goal],

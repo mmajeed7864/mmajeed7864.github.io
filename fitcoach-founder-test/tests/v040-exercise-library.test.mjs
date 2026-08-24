@@ -75,6 +75,9 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   assert.match(playing, /<video/u);
   assert.match(playing, /muted loop playsinline autoplay/u);
   assert.match(playing, /poster="\/fitcoach-founder-test\/v040\/assets\/exercises\/generated\/air-squat-premium-v2\.png"/u);
+  assert.match(playing, /motion-fallback-card/u);
+  assert.doesNotMatch(playing, /Motion guide unavailable/u);
+  assert.match(playing, /retry-exercise-motion/u);
   assert.doesNotMatch(exerciseMotionGuide(exercise, { paused: true }), / autoplay/u);
   assert.match(exerciseMotionGuide(EXERCISES[0]), /<figure class="exercise-poster/u);
   const unreviewed = { ...exercise, media: exercise.media.map(entry => entry.type === "mp4" ? { ...entry, motionReviewStatus: "pending" } : entry) };
