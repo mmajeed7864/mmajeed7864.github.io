@@ -1,6 +1,6 @@
 import { escapeHtml } from "../core/utils.mjs";
 import { EXERCISE_EXPANSION_CATEGORIES, EXERCISE_EXPANSION_TARGETS } from "../data/exercise-expansion-targets.mjs";
-import { EXERCISE_MEDIA_MANIFEST } from "../data/exercise-media-manifest.mjs";
+import { MOTION_GUIDE_COVERAGE, PENDING_HARD_GYM_MOTION_IDS, REVIEWED_HARD_GYM_MOTION_IDS } from "../data/motion-guide-coverage.mjs";
 import { isValidCompletedSet } from "../domain/workouts.mjs";
 import { button, exercisePoster, icon } from "./components.mjs";
 import { renderNutritionModalContent } from "./nutrition-screen.mjs";
@@ -81,18 +81,14 @@ function renderProPreview(state) {
 }
 
 function renderExerciseRoadmap() {
-  const liveMotionExerciseIds = new Set(
-    EXERCISE_MEDIA_MANIFEST
-      .filter(item => item.type === "mp4" && item.motionReviewStatus === "approved")
-      .map(item => item.exerciseId),
-  );
-  const remainingTargets = EXERCISE_EXPANSION_TARGETS.filter(item => !liveMotionExerciseIds.has(item.id));
+  const liveMotionExerciseIds = new Set(REVIEWED_HARD_GYM_MOTION_IDS);
+  const remainingTargets = EXERCISE_EXPANSION_TARGETS.filter(item => PENDING_HARD_GYM_MOTION_IDS.includes(item.id));
   const sampleTargets = remainingTargets.slice(0, 14);
   return `<div class="exercise-roadmap">
-    <div class="roadmap-counter"><b>${liveMotionExerciseIds.size}</b><span>reviewed motion guides live · ${remainingTargets.length} remaining</span></div>
+    <div class="roadmap-counter"><b>${liveMotionExerciseIds.size}/${MOTION_GUIDE_COVERAGE.hardGymTargets}</b><span>hard-gym motion guides reviewed · ${remainingTargets.length} remaining</span></div>
     <div class="roadmap-categories">${EXERCISE_EXPANSION_CATEGORIES.map(item => `<span><b>${escapeHtml(item.category)}</b><small>${item.count} targets</small></span>`).join("")}</div>
     <div class="target-chip-cloud">${sampleTargets.map(item => `<span>${escapeHtml(item.name)}</span>`).join("")}</div>
-    <p class="modal-note">The 20 live guides are reviewed, muted, local motion loops. The remaining movements keep their written coaching until each replacement passes movement, equipment, visual, and licensing review.</p>
+    <p class="modal-note">All ${MOTION_GUIDE_COVERAGE.totalExercises} exercises have premium local posters. The ${liveMotionExerciseIds.size} live motion guides are reviewed, muted, local loops; the remaining ${remainingTargets.length} harder gym movements stay poster-first until each replacement passes movement, equipment, visual, and licensing review.</p>
   </div>`;
 }
 

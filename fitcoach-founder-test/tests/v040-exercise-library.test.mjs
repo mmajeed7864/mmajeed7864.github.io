@@ -16,6 +16,20 @@ import {
   getExerciseById,
 } from "../v040/data/exercise-library.mjs";
 import { EXERCISE_MEDIA_MANIFEST } from "../v040/data/exercise-media-manifest.mjs";
+import {
+  HARD_GYM_MOTION_TARGETS,
+  MOTION_GUIDE_COVERAGE,
+  PENDING_HARD_GYM_MOTION_IDS,
+  REVIEWED_HARD_GYM_MOTION_IDS,
+  hasReviewedMotionGuide,
+  validateMotionGuideCoverage,
+} from "../v040/data/motion-guide-coverage.mjs";
+import {
+  MOTION_GENERATION_POLICY,
+  PENDING_MOTION_GENERATION_QUEUE,
+  buildMotionGenerationPayload,
+  getMotionGenerationJob,
+} from "../v040/data/motion-generation-queue.mjs";
 import { exerciseMotionGuide, exerciseMotionMedia, muscleMap } from "../v040/ui/components.mjs";
 
 const APP_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -142,6 +156,44 @@ test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () 
   assert.ok(motions.every((entry) => entry.hasAudio === false));
   assert.ok(motions.every((entry) => entry.motionReviewStatus === "approved"));
   assert.ok(motions.every((entry) => entry.offlineCachePolicy === "runtime"));
+});
+
+test("motion coverage reports the hard-gym pilot honestly", () => {
+  assert.deepEqual(MOTION_GUIDE_COVERAGE, {
+    totalExercises: 100,
+    hardGymTargets: 48,
+    reviewedHardGymGuides: 8,
+    pendingHardGymGuides: 40,
+  });
+  assert.equal(HARD_GYM_MOTION_TARGETS.length, 48);
+  assert.equal(REVIEWED_HARD_GYM_MOTION_IDS.length, 8);
+  assert.equal(PENDING_HARD_GYM_MOTION_IDS.length, 40);
+  assert.equal(new Set([...REVIEWED_HARD_GYM_MOTION_IDS, ...PENDING_HARD_GYM_MOTION_IDS]).size, 48);
+  assert.ok(REVIEWED_HARD_GYM_MOTION_IDS.every((id) => hasReviewedMotionGuide(getExerciseById(id))));
+  assert.ok(PENDING_HARD_GYM_MOTION_IDS.every((id) => !hasReviewedMotionGuide(getExerciseById(id))));
+  assert.deepEqual(validateMotionGuideCoverage(), { valid: true, errors: [] });
+});
+
+test("pending motion queue is bounded, silent, and never active media", () => {
+  assert.equal(PENDING_MOTION_GENERATION_QUEUE.length, 40);
+  assert.equal(MOTION_GENERATION_POLICY.appLoadsGeneratedJobs, false);
+  assert.equal(MOTION_GENERATION_POLICY.reviewRequiredBeforeActivation, true);
+  const job = getMotionGenerationJob("front-squat");
+  assert.ok(job);
+  assert.equal(job.status, "needs-generation-and-review");
+  assert.match(job.prompt, /no music/u);
+  assert.match(job.prompt, /no watermark/u);
+  const payload = buildMotionGenerationPayload(job, { model: "test/video-model" });
+  assert.deepEqual(payload, {
+    model: "test/video-model",
+    prompt: job.prompt,
+    duration: 6,
+    resolution: "720p",
+    aspect_ratio: "1:1",
+    generate_audio: false,
+  });
+  assert.throws(() => buildMotionGenerationPayload(job, { model: "" }), /video model is required/u);
+  assert.equal(getMotionGenerationJob("barbell-back-squat"), null);
 });
 
 test("every declared exercise guide exists and its size and SHA-256 match the manifest", async () => {

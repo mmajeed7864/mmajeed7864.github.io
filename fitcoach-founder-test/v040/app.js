@@ -1195,18 +1195,23 @@ function handleClick(event) {
   if (action === "open-exercise") { openExercise(value);return; }
   if (action === "close-exercise") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;render();return; }
   if (action === "toggle-exercise-motion") {
-    ui.motionPaused=!ui.motionPaused;
-    render();
-    if (!ui.motionPaused) {
-      requestAnimationFrame(() => {
-        document.querySelectorAll("[data-media-video]").forEach(video => {
-          video.closest(".exercise-motion")?.classList.remove("media-paused");
-          const attempt=video.play?.();
-          if (attempt?.catch) attempt.catch(() => {
-            video.closest(".exercise-motion")?.classList.add("media-paused");
-          });
-        });
-      });
+    const figure=target.closest(".exercise-motion");
+    const video=figure?.querySelector("[data-media-video]");
+    if(!video)return;
+    const button=figure.querySelector(".motion-toggle");
+    if(video.paused){
+      const attempt=video.play?.();
+      if(attempt?.catch)attempt.catch(()=>figure.classList.add("media-paused"));
+      figure.classList.remove("media-paused");
+      button?.setAttribute("aria-pressed","true");
+      if(button)button.innerHTML=`${icon("pause")}<span>Pause motion</span>`;
+      button?.setAttribute("aria-label",`Pause ${video.getAttribute("aria-label")||"exercise"} movement guide`);
+    }else{
+      video.pause?.();
+      figure.classList.add("media-paused");
+      button?.setAttribute("aria-pressed","false");
+      if(button)button.innerHTML=`${icon("play")}<span>Play motion</span>`;
+      button?.setAttribute("aria-label",`Play ${video.getAttribute("aria-label")||"exercise"} movement guide`);
     }
     return;
   }
