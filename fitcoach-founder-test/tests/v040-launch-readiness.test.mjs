@@ -250,7 +250,7 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0420", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0421", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

@@ -1756,7 +1756,7 @@
   .body-focus-chip-grid { gap: 7px; }
   .body-focus-chip { min-height: 41px; padding: 8px 13px; font-size: .84rem; }
   .muscle-panel .muscle-map .anatomy-illustration { min-height: 218px; }
-  .muscle-panel .muscle-map .generated-anatomy-artwork { width: 100%; height: 288px; }
+  .muscle-panel .muscle-map .generated-anatomy-artwork { width: 100%; height: 360px; }
 }
 
 @media (max-width: 430px) {
