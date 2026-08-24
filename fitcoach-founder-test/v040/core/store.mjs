@@ -61,6 +61,8 @@ export function createInitialState(founder = "mo", now = new Date()) {
     profile: {
       onboarded: false,
       goal: "build muscle",
+      gender: "prefer-not-to-say",
+      focusAreas: [],
       experience: "intermediate",
       days: 3,
       duration: 45,
@@ -249,6 +251,10 @@ function normalizeProfile(raw, base) {
     ...base,
     onboarded: Boolean(profile.onboarded),
     goal: cleanString(profile.goal, base.goal, 60),
+    gender: oneOf(profile.gender, ["female", "male", "nonbinary", "prefer-not-to-say"], base.gender),
+    focusAreas: unique(Array.isArray(profile.focusAreas)
+      ? profile.focusAreas.map(value => cleanString(value, "", 30)).filter(value => ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"].includes(value))
+      : base.focusAreas).slice(0, 3),
     experience: oneOf(profile.experience, ["beginner", "intermediate", "advanced"], base.experience),
     days: safeNumber(profile.days ?? profile.days_per_week, base.days, 1, 7),
     duration: safeNumber(profile.duration, base.duration, 10, 120),

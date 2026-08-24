@@ -29,7 +29,7 @@ import {
   PENDING_MOTION_GENERATION_QUEUE,
   getMotionGenerationJob,
 } from "../v040/data/motion-generation-queue.mjs";
-import { exerciseMotionGuide, exerciseMotionMedia, muscleMap } from "../v040/ui/components.mjs";
+import { bodyFocusMap, exerciseMotionGuide, exerciseMotionMedia, muscleMap } from "../v040/ui/components.mjs";
 
 const APP_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const COMPETITOR_OR_REMOTE_PATTERN = /https?:\/\/|fitbod|fitness[ -]?online/i;
@@ -56,10 +56,23 @@ test("all 100 exercises expose a local muscle map without remote tutorial links"
   for (const exercise of EXERCISES) {
     const map = muscleMap(exercise);
     assert.match(map, /class="muscle-map"/u);
+    assert.match(map, /class="anatomy-illustration"/u);
+    assert.match(map, /anatomy-region (?:primary|secondary)/u);
     assert.match(map, /Primary/u);
     assert.match(map, /Secondary/u);
   }
   assert.doesNotMatch(JSON.stringify(EXERCISES), /youtube|youtu\.be|https?:\/\//iu);
+});
+
+test("body-focus interview uses a detailed front and back anatomy map with dynamic selections", () => {
+  const map = bodyFocusMap(["arms", "abs"], { gender: "female" });
+  assert.match(map, /class="body-focus-map"/u);
+  assert.match(map, /class="anatomy-illustration"/u);
+  assert.match(map, /data-profile="female"/u);
+  assert.match(map, /anatomy-region primary/u);
+  assert.ok((map.match(/anatomy-region/g) || []).length >= 17);
+  assert.match(map, /FRONT/u);
+  assert.match(map, /BACK/u);
 });
 
 test("motion guides use local muted looping playback with a poster fallback", () => {
@@ -74,6 +87,7 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   const playing = exerciseMotionGuide(exercise, { eager: true });
   assert.match(playing, /<video/u);
   assert.match(playing, /muted loop playsinline autoplay/u);
+  assert.match(playing, /\scontrols\s/u);
   assert.match(playing, /preload="auto"/u);
   assert.match(playing, /data-motion-status="loading"/u);
   assert.match(playing, /poster="\/fitcoach-founder-test\/v040\/assets\/exercises\/generated\/air-squat-premium-v2\.png"/u);

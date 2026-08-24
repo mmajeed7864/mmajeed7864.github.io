@@ -1,6 +1,6 @@
 import { DEFAULT_VOICE_BY_TONE, THEMES, TRAINER_TONES, VOICE_PERSONAS, VOICE_PERSONA_LABELS } from "../core/constants.mjs";
 import { escapeHtml } from "../core/utils.mjs";
-import { button, icon } from "./components.mjs";
+import { bodyFocusMap, button, icon } from "./components.mjs";
 
 const GOALS = [
   ["build muscle","Build muscle","Progressive strength and size"],
@@ -14,6 +14,22 @@ const BLOCKERS = [
   ["all-or-nothing","All or nothing","One miss can turn into a lost week"],
   ["uncertainty","Second-guessing","You keep changing the plan"],
 ];
+const PROFILE_GENDERS = [
+  { value: "female", label: "Female", copy: "Use this in your profile only" },
+  { value: "male", label: "Male", copy: "Use this in your profile only" },
+  { value: "nonbinary", label: "Nonbinary", copy: "Use this in your profile only" },
+  { value: "prefer-not-to-say", label: "Prefer not to say", copy: "Keep this private" },
+];
+const BODY_FOCUS = [
+  ["back", "Back"],
+  ["arms", "Arms"],
+  ["shoulders", "Shoulders"],
+  ["abs", "Abs"],
+  ["chest", "Chest"],
+  ["legs", "Legs"],
+  ["glutes", "Glutes"],
+  ["full body", "Full body"],
+];
 const GYM_EQUIPMENT = ["dumbbells", "kettlebells", "barbells", "plates", "squat rack", "benches", "cables", "machines", "pull-up bar", "resistance bands", "cardio machines", "smith machine"];
 
 function trainerBubble(title, copy = "") {
@@ -24,7 +40,7 @@ function chipOption({ value, title, copy, field, active, iconName = "" }) {
   return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="onboarding-choice" data-field="${escapeHtml(field)}" data-value="${escapeHtml(value)}">${iconName ? icon(iconName) : ""}<span><b>${escapeHtml(title)}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span></button>`;
 }
 
-export const ONBOARDING_STEP_COUNT = 15;
+export const ONBOARDING_STEP_COUNT = 17;
 
 function choiceBubbleGroup({ label, field, action, options, selected, hint = "" }) {
   return `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="${escapeHtml(label)}">${options.map(option => {
@@ -46,6 +62,15 @@ function questionStep({ eyebrow, title, copy, question, answer }) {
 
 function goalStep(draft) {
   return questionStep({ eyebrow: "AI TRAINER SETUP", title: "Let’s build your starting plan.", copy: "Nova will ask one useful question at a time. You can change anything later.", question: "What are we building toward?", answer: `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="Training goal">${GOALS.map(([value,title,copy]) => chipOption({ value, title, copy, field: "goal", active: draft.profile.goal === value, iconName: value === "get stronger" ? "train" : value === "stay consistent" ? "today" : "progress" })).join("")}</div>` });
+}
+
+function genderStep(draft) {
+  return questionStep({ eyebrow: "YOUR PROFILE", title: "Keep your plan personal.", copy: "This is optional profile context. You can change or remove it later.", question: "Which profile should I use?", answer: choiceBubbleGroup({ label: "Profile choice", field: "gender", action: "onboarding-profile-field", options: PROFILE_GENDERS, selected: draft.profile.gender }) });
+}
+
+function bodyFocusStep(draft) {
+  const selected = new Set(Array.isArray(draft.profile.focusAreas) ? draft.profile.focusAreas : []);
+  return `<div class="onboarding-step trainer-interview single-question body-focus-step"><span class="eyebrow">BODY FOCUS</span><h1>Build around what matters to you.</h1><p>Choose up to three areas, or pick full body. This changes training emphasis—not medical advice.</p>${trainerBubble("Which areas do you want to focus on?")}<div class="single-question-answer"><div class="single-answer body-focus-answer"><div class="body-focus-stage">${bodyFocusMap([...selected], { gender: draft.profile.gender })}</div><div class="body-focus-chip-grid" role="group" aria-label="Body focus areas">${BODY_FOCUS.map(([value, label]) => `<button class="body-focus-chip ${selected.has(value) ? "active" : ""}" aria-pressed="${selected.has(value)}" data-action="onboarding-toggle-focus" data-value="${escapeHtml(value)}">${escapeHtml(label)}</button>`).join("")}</div><small class="body-focus-note">Selected areas guide exercise balance. Every plan still uses complete movement patterns.</small></div></div></div>`;
 }
 
 function themeStep(draft) {
@@ -124,7 +149,7 @@ function boundaryStep(draft) {
 }
 
 export function renderOnboarding({step,draft}) {
-  const pages = [goalStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), gymNameStep, gymEquipmentStep, blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
+  const pages = [goalStep, genderStep, bodyFocusStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), gymNameStep, gymEquipmentStep, blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
   const safeStep = Math.min(Math.max(Number(step) || 0, 0), pages.length - 1);
   return `<section class="onboarding-screen ai-setup-screen"><header><button class="icon-only" data-action="exit-onboarding" aria-label="Exit onboarding">${icon("chevron")}</button><div><b>Let’s get started</b><div class="onboarding-progress segmented">${Array.from({length: ONBOARDING_STEP_COUNT}, (_, index) => `<span class="${index < safeStep + 1 ? "active" : ""}"></span>`).join("")}</div></div><small>Step ${safeStep+1} of ${ONBOARDING_STEP_COUNT}</small></header><main>${pages[safeStep](draft)}</main><footer>${button({label:"Back",action:"onboarding-back",variant:"quiet",disabled:safeStep===0})}${button({label:safeStep===ONBOARDING_STEP_COUNT-1?"Enter FitCoach":"Continue",action:"onboarding-next",variant:"primary",disabled:safeStep===ONBOARDING_STEP_COUNT-1&&!draft.consent})}</footer></section>`;
 }

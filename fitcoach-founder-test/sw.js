@@ -1,14 +1,14 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0416";
+const CACHE = "fitcoach-symbio-v0418";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0416",
-  "./manifest.webmanifest?v=0416",
-  "./assets/icon-symbio.svg?v=0416",
-  "./v040/styles.css?v=0416",
-  "./v040/premium-redesign.css?v=0416",
-  "./v040/app.js?v=0416",
+  "./index.html?v=0418",
+  "./manifest.webmanifest?v=0418",
+  "./assets/icon-symbio.svg?v=0418",
+  "./v040/styles.css?v=0418",
+  "./v040/premium-redesign.css?v=0418",
+  "./v040/app.js?v=0418",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -173,9 +173,12 @@ async function cachedOrFetch(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
   const response = await fetch(request);
-  if (response.ok) {
-    const cache = await caches.open(CACHE);
-    await cache.put(request, response.clone());
+  // Safari requests MP4 chunks with Range. Cache Storage does not reliably
+  // accept those 206 responses, and a rejected put must never break playback.
+  if (response.ok && response.status === 200 && !request.headers.has("range")) {
+    caches.open(CACHE)
+      .then(cache => cache.put(request, response.clone()))
+      .catch(() => {});
   }
   return response;
 }
@@ -226,14 +229,22 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0416")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0418")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0416";
+  const versioned = url.searchParams.get("v") === "0418";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
+  const rangeRequest = event.request.headers.has("range");
+  const motionVideo = exerciseAsset && url.pathname.endsWith(".mp4");
+  // Stream video directly. This avoids trying to put partial responses into
+  // Cache Storage, which is the iOS/Safari failure path behind the retry card.
+  if (rangeRequest || motionVideo) {
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
   if (versioned || moduleAsset) {
     event.respondWith(networkOrCached(event.request));
     return;

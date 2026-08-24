@@ -24,11 +24,11 @@
       document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#071116" : "#F6F9FB";
     })();
   </script>
-  <link rel="manifest" href="./manifest.webmanifest?v=0416">
-  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0416">
-  <link rel="icon" href="./assets/icon-symbio.svg?v=0416" type="image/svg+xml">
-  <link rel="stylesheet" href="./v040/styles.css?v=0416">
-  <link rel="stylesheet" href="./v040/premium-redesign.css?v=0416">
+  <link rel="manifest" href="./manifest.webmanifest?v=0418">
+  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0418">
+  <link rel="icon" href="./assets/icon-symbio.svg?v=0418" type="image/svg+xml">
+  <link rel="stylesheet" href="./v040/styles.css?v=0418">
+  <link rel="stylesheet" href="./v040/premium-redesign.css?v=0418">
   <title>FitCoach v0.4.5</title>
 </head>
 <body>
@@ -50,11 +50,11 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js?v=0416", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./sw.js?v=0418", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     }
   </script>
-  <script type="module" src="./v040/app.js?v=0416"></script>
+  <script type="module" src="./v040/app.js?v=0418"></script>
 </body>
 </html>

@@ -66,7 +66,7 @@ export function exerciseMotionGuide(exercise, { className = "", eager = false, p
     ? `<img class="motion-fallback-poster" src="${escapeHtml(poster.path)}" width="${poster.width || 320}" height="${poster.height || 240}" alt="${escapeHtml(poster.alt || `${name} technique preview`)}">`
     : `<div class="motion-fallback-art" aria-hidden="true"><span>${icon("play")}</span><b>${escapeHtml(name)}</b></div>`;
   return `<figure class="exercise-motion ${escapeHtml(className)}" data-motion-status="loading">
-    <video data-media-video data-motion-id="${escapeHtml(motion.id || motion.exerciseId || name)}" src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" preload="auto" muted loop playsinline ${paused ? "" : "autoplay"} controlslist="nodownload noplaybackrate" disablepictureinpicture aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
+    <video data-media-video data-motion-id="${escapeHtml(motion.id || motion.exerciseId || name)}" src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" preload="auto" muted loop playsinline ${paused ? "" : "autoplay"} controls controlslist="nodownload noplaybackrate" disablepictureinpicture aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
     <button class="motion-toggle" data-action="toggle-exercise-motion" aria-label="${paused ? "Play" : "Pause"} ${escapeHtml(name)} movement guide" aria-pressed="${!paused}">${icon(paused ? "play" : "pause")}<span>${paused ? "Play motion" : "Pause motion"}</span></button>
     <span class="motion-status" data-motion-status-label aria-live="polite">${paused ? "Motion paused" : "Loading motion guide"}</span>
     <span class="media-play-hint">Tap to pause the silent technique loop</span>
@@ -86,50 +86,134 @@ function activeMuscleGroups(exercise) {
   };
 }
 
+function bodyFocusGroups(focusAreas = []) {
+  const focused = new Set((Array.isArray(focusAreas) ? focusAreas : [focusAreas]).map(value => String(value).toLowerCase()));
+  const all = focused.has("full body") || focused.has("full-body") || focused.has("everything");
+  const selected = name => all || focused.has(name);
+  return {
+    chest: selected("chest") ? "primary" : "muted",
+    shoulders: selected("shoulders") ? "primary" : "muted",
+    arms: selected("arms") ? "primary" : "muted",
+    back: selected("back") ? "primary" : "muted",
+    core: selected("abs") || selected("core") ? "primary" : "muted",
+    glutes: selected("glutes") ? "primary" : "muted",
+    quads: selected("legs") || selected("quads") ? "primary" : "muted",
+    hamstrings: selected("legs") || selected("hamstrings") ? "primary" : "muted",
+    calves: selected("legs") || selected("calves") ? "secondary" : "muted",
+  };
+}
+
+function legacyAnatomyIllustration(group) {
+  const region = name => group?.[name] || "muted";
+  return `<svg class="anatomy-illustration" viewBox="0 0 640 440" aria-hidden="true">
+    <g class="anatomy-figure anatomy-front" transform="translate(54 16)">
+      <ellipse class="anatomy-skin" cx="128" cy="37" rx="28" ry="33"/>
+      <path class="anatomy-skin" d="M111 64h34l7 26-24 17-24-17z"/>
+      <path class="anatomy-outline" d="M82 91Q128 70 174 91l28 87-20 42-22 9-6 159h-52l-6-159-22-9-20-42z"/>
+      <path class="anatomy-region ${region("shoulders")}" d="M87 93q-29 2-40 25l16 32 35-27 5-23zm82 0q29 2 40 25l-16 32-35-27-5-23z"/>
+      <path class="anatomy-region ${region("chest")}" d="M90 118q19-17 38-4v43q-25 12-42-8zm76 0q-19-17-38-4v43q25 12 42-8z"/>
+      <path class="anatomy-region ${region("arms")}" d="M60 131 28 204l19 12 37-68-12-19zm136 0 32 73-19 12-37-68 12-19z"/>
+      <path class="anatomy-region ${region("arms")}" d="m29 205-24 66 18 9 32-60-8-15zm198 0 24 66-18 9-32-60 8-15z"/>
+      <path class="anatomy-region ${region("core")}" d="M99 162q14 8 29 0v23q-15 8-29 0zm30 0q15 8 29 0v23q-14 8-29 0zm-30 25q14 8 29 0v23q-15 8-29 0zm30 0q15 8 29 0v23q-14 8-29 0zm-27 49 26-24 26 24-14 30h-24z"/>
+      <path class="anatomy-region ${region("core")}" d="M84 159l13 5 1 46-16 16-8-31zm88 0-13 5-1 46 16 16 8-31z"/>
+      <path class="anatomy-region ${region("quads")}" d="M93 232h34l-1 76-23 19-15-55zm37 0h34l12 40-15 55-23-19-1-76z"/>
+      <path class="anatomy-region ${region("quads")}" d="M105 252h17v57l-17 10zm29 0h17v67l-17-10z"/>
+      <path class="anatomy-region ${region("calves")}" d="M104 325l22-14-3 67-18-4zm30-14 22 14-1 49-18 4z"/>
+      <path class="anatomy-skin anatomy-foot" d="M101 378h24l7 17-45 1zm30 0h24l14 18-45-1z"/>
+      <path class="anatomy-line" d="M128 107v112M78 157l20 11m60-11-20 11M128 230v93"/>
+    </g>
+    <g class="anatomy-figure anatomy-back" transform="translate(356 16)">
+      <ellipse class="anatomy-skin" cx="128" cy="37" rx="28" ry="33"/>
+      <path class="anatomy-skin" d="M111 64h34l7 26-24 17-24-17z"/>
+      <path class="anatomy-outline" d="M82 91Q128 70 174 91l28 87-20 42-22 9-6 159h-52l-6-159-22-9-20-42z"/>
+      <path class="anatomy-region ${region("shoulders")}" d="M87 93q-29 2-40 25l16 32 35-27 5-23zm82 0q29 2 40 25l-16 32-35-27-5-23z"/>
+      <path class="anatomy-region ${region("back")}" d="M92 111q36-20 72 0l27 66-63 45-63-45z"/>
+      <path class="anatomy-region ${region("back")}" d="M97 113l31 27 31-27 18 50-49 45-49-45zm31 27v67m-39-44 39 26 39-26"/>
+      <path class="anatomy-region ${region("arms")}" d="M60 131 28 204l19 12 37-68-12-19zm136 0 32 73-19 12-37-68 12-19z"/>
+      <path class="anatomy-region ${region("arms")}" d="m29 205-24 66 18 9 32-60-8-15zm198 0 24 66-18 9-32-60 8-15z"/>
+      <path class="anatomy-region ${region("glutes")}" d="M85 215q22-18 43 1v39q-26 16-47-5zm86 0q-22-18-43 1v39q26 16 47-5z"/>
+      <path class="anatomy-region ${region("hamstrings")}" d="M91 256h35l-2 73-23 10-13-57zm41 0h35l13 26-13 57-23-10-2-73z"/>
+      <path class="anatomy-region ${region("calves")}" d="M102 335l22-11-3 54-18-4zm30-11 22 11-1 39-18 4z"/>
+      <path class="anatomy-skin anatomy-foot" d="M101 378h24l7 17-45 1zm30 0h24l14 18-45-1z"/>
+      <path class="anatomy-line" d="M128 91v121m-53-49 53 26 53-26m-50 89v78"/>
+    </g>
+  </svg>`;
+}
+
+function anatomyIllustration(group, { profile = "neutral" } = {}) {
+  const region = name => group?.[name] || "muted";
+  const part = (name, d) => '<path class="anatomy-region ' + region(name) + '" d="' + d + '"/>';
+  const base = d => '<path class="anatomy-base" d="' + d + '"/>';
+  const line = d => '<path class="anatomy-line" d="' + d + '"/>';
+  const profileClass = ["female", "male", "nonbinary"].includes(profile) ? profile : "neutral";
+
+  const front = [
+    '<g class="anatomy-figure anatomy-front" transform="translate(20 8) scale(1.18 1.03)">',
+    '<ellipse class="anatomy-base anatomy-head" cx="128" cy="34" rx="25" ry="30"/>',
+    base('M113 60h30l8 25-23 17-23-17z'),
+    base('M95 84C83 87 76 97 73 110L57 169l17 10 20-35-4 73c-1 17 4 29 14 37l-3 109-8 43h28l7-95 7 95h28l-8-43-3-109c10-8 15-20 14-37l-4-73 20 35 17-10-16-59c-3-13-10-23-22-26z'),
+    base('M74 109C60 119 54 138 49 160l16 9 25-36-5-22z'),
+    base('M51 164 35 220q-4 15 9 22l12-5 17-53-9-20z'),
+    base('M34 219q-8 13-2 25l16-5-2-12z'),
+    base('M182 109c14 10 20 29 25 51l-16 9-25-36 5-22z'),
+    base('m205 164 16 56q4 15-9 22l-12-5-17-53 9-20z'),
+    base('m222 219q8 13 2 25l-16-5 2-12z'),
+    part("shoulders", 'M96 87c-14 2-23 10-25 23l20 12 22-19-4-16zm64 0c14 2 23 10 25 23l-20 12-22-19 4-16z'),
+    part("chest", 'M92 110c9-10 21-12 32-3v35c-14 9-28 4-36-8zm72 0c-9-10-21-12-32-3v35c14 9 28 4 36-8z'),
+    part("arms", 'M73 119c-10 11-14 26-18 43l15 8 19-29-5-20zm-21 52-14 48c-2 9 3 15 12 17l9-12 11-44-9-9zm152-52c10 11 14 26 18 43l-15 8-19-29 5-20zm21 52 14 48c2 9-3 15-12 17l-9-12-11-44 9-9z'),
+    part("core", 'M101 145l24 3v24l-22 5-8-14zm27 3 24-3 6 18-8 14-22-5zm-27 32 24-3v24l-22 6-8-15zm27-3 24 3 6 15-8 15-22-6zm-25 33 22-5v25l-20 10-7-14zm25-5 22 5 5 20-20 10-7-10z'),
+    part("core", 'M88 143l11 6-3 63-14 11-5-28zm80 0-11 6 3 63 14 11 5-28z'),
+    part("quads", 'M94 247l28-9 2 67-18 25-12-54zm31-9 15 2 15 61-12 29-16-25zm29 9 18 29-12 54-18-25-2-67z'),
+    part("quads", 'M102 260l17-10 1 65-16 15zm38-10 17 10-2 70-15-15z'),
+    part("calves", 'M103 330l19-15 1 70-18 4zm32-15 19 15-2 59-18-4z'),
+    base('M102 384h22l8 20H89zm30 0h22l21 20h-43z'),
+    line('M128 87v145M91 143l31 6m35-6-31 6M105 237l18 7m17-7-18 7M128 241v145'),
+    '</g>',
+  ];
+
+  const back = [
+    '<g class="anatomy-figure anatomy-back" transform="translate(314 8) scale(1.18 1.03)">',
+    '<ellipse class="anatomy-base anatomy-head" cx="128" cy="34" rx="25" ry="30"/>',
+    base('M113 60h30l8 25-23 17-23-17z'),
+    base('M95 84C83 87 76 97 73 110L57 169l17 10 20-35-4 73c-1 17 4 29 14 37l-3 109-8 43h28l7-95 7 95h28l-8-43-3-109c10-8 15-20 14-37l-4-73 20 35 17-10-16-59c-3-13-10-23-22-26z'),
+    base('M74 109C60 119 54 138 49 160l16 9 25-36-5-22z'),
+    base('M51 164 35 220q-4 15 9 22l12-5 17-53-9-20z'),
+    base('M34 219q-8 13-2 25l16-5-2-12z'),
+    base('M182 109c14 10 20 29 25 51l-16 9-25-36 5-22z'),
+    base('m205 164 16 56q4 15-9 22l-12-5-17-53 9-20z'),
+    base('m222 219q8 13 2 25l-16-5 2-12z'),
+    part("shoulders", 'M96 87c-14 2-23 10-25 23l20 12 22-19-4-16zm64 0c14 2 23 10 25 23l-20 12-22-19 4-16z'),
+    part("back", 'M97 95c9-9 20-11 31-10 11-1 22 1 31 10l13 29-44 31-44-31z'),
+    part("back", 'M92 122l34 31-5 58-36-30zm72 0 34 59-36 30-5-58z'),
+    part("back", 'M111 151l14 7v58l-14-11zm34 0-14 7v58l14-11z'),
+    part("arms", 'M73 119c-10 11-14 26-18 43l15 8 19-29-5-20zm-21 52-14 48c-2 9 3 15 12 17l9-12 11-44-9-9zm152-52c10 11 14 26 18 43l-15 8-19-29 5-20zm21 52 14 48c2 9-3 15-12 17l-9-12-11-44 9-9z'),
+    part("glutes", 'M91 211c13-10 27-8 37 7v31c-17 12-35 7-43-7zm74 0c-13-10-27-8-37 7v31c17 12 35 7 43-7z'),
+    part("hamstrings", 'M94 251l27-2 2 68-19 21-13-50zm33-2h2l2 68-1 21-2 0-2-21zm7 0 27 2 3 37-13 50-19-21z'),
+    part("hamstrings", 'M101 261l16-8 1 65-14 15zm38-8 16 8-3 72-14-15z'),
+    part("calves", 'M103 335l18-17 2 67-18 4zm34-17 18 17-2 55-18-4z'),
+    base('M102 384h22l8 20H89zm30 0h22l21 20h-43z'),
+    line('M128 85v136M84 122l44 33 44-33M128 154v70M95 251l33 7 33-7M128 252v133'),
+    '</g>',
+  ];
+
+  return ['<svg class="anatomy-illustration" data-profile="' + profileClass + '" viewBox="0 0 640 430" aria-hidden="true">', ...front, ...back, '</svg>'].join("");
+}
+
+export function bodyFocusMap(focusAreas = [], { gender = "prefer-not-to-say" } = {}) {
+  const focused = new Set((Array.isArray(focusAreas) ? focusAreas : [focusAreas]).map(value => String(value).toLowerCase()));
+  const labels = ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"];
+  return `<div class="body-focus-map" role="img" aria-label="Front and back body focus illustration. Selected areas: ${escapeHtml(labels.filter(label => focused.has(label)).join(", ") || "none")}">
+    <div class="body-focus-map-heading"><span>FRONT</span><span>BACK</span></div>
+    ${anatomyIllustration(bodyFocusGroups([...focused]), { profile: gender })}
+  </div>`;
+}
+
 export function muscleMap(exercise) {
   const group = activeMuscleGroups(exercise);
   return `<div class="muscle-map" role="img" aria-label="Muscle target map for ${escapeHtml(exercise?.name || "exercise")}">
     <div class="muscle-map-heading"><span>FRONT</span><span>BACK</span></div>
-    <svg viewBox="0 0 520 330" aria-hidden="true">
-      <g class="anatomy-figure front" transform="translate(18 18)">
-        <circle class="anatomy-base anatomy-head" cx="104" cy="20" r="17"/>
-        <path class="anatomy-base anatomy-neck" d="M94 35h20l5 15-15 12-15-12z"/>
-        <path class="anatomy-base anatomy-torso" d="M78 48q26-12 52 0l17 62-18 40-12 12H95l-12-12-18-40z"/>
-        <path class="anatomy-base anatomy-shoulder" d="M79 50q-16 1-24 15l9 21 18-15zm50 0q16 1 24 15l-9 21-18-15z"/>
-        <path class="anatomy-base anatomy-arm" d="M62 67 39 117l12 9 30-41zm84 0 23 50-12 9-30-41z"/>
-        <path class="anatomy-base anatomy-forearm" d="m39 117-20 43 13 7 19-41zm107 0 20 43-13 7-19-41z"/>
-        <path class="anatomy-base anatomy-pelvis" d="M84 144h36l12 24-17 19H89l-17-19z"/>
-        <path class="anatomy-base anatomy-thigh" d="M78 164h22l-1 73-17 2-10-65zm28 0h22l7 10-10 65-17-2z"/>
-        <path class="anatomy-base anatomy-shin" d="m82 237 17 2-4 66-15-1zm27 2 17-2 8 67-15 1z"/>
-        <path class="anatomy-base anatomy-foot" d="m80 302 16 1 8 8-30 1zm41 1 16-1 10 10-29-1z"/>
-        <path class="anatomy-muscle ${group.shoulders}" d="M78 52q-11 1-17 12l7 15 17-12zM130 52q11 1 17 12l-7 15-17-12z"/>
-        <path class="anatomy-muscle ${group.chest}" d="M83 67q21-12 42 0l-2 26q-19 9-38 0z"/>
-        <path class="anatomy-muscle ${group.arms}" d="m70 79-17 35 10 5 19-31zm68 0 17 35-10 5-19-31z"/>
-        <path class="anatomy-muscle ${group.core}" d="M88 96h32l4 50-20 18-20-18z"/>
-        <path class="anatomy-muscle ${group.quads}" d="M76 166h23l-3 68-15 1-9-60zm31 0h22l9 9-9 60-15-1z"/>
-        <path class="anatomy-muscle ${group.calves}" d="m82 239 16 2-3 59-14-1zm28 2 16-2 8 60-14 1z"/>
-        <path class="anatomy-detail" d="M104 94v67M87 113h34M84 166h39M104 241v59"/>
-      </g>
-      <g class="anatomy-figure back" transform="translate(278 18)">
-        <circle class="anatomy-base anatomy-head" cx="104" cy="20" r="17"/>
-        <path class="anatomy-base anatomy-neck" d="M94 35h20l5 15-15 12-15-12z"/>
-        <path class="anatomy-base anatomy-torso" d="M78 48q26-12 52 0l17 62-18 40-12 12H95l-12-12-18-40z"/>
-        <path class="anatomy-base anatomy-shoulder" d="M79 50q-16 1-24 15l9 21 18-15zm50 0q16 1 24 15l-9 21-18-15z"/>
-        <path class="anatomy-base anatomy-arm" d="M62 67 39 117l12 9 30-41zm84 0 23 50-12 9-30-41z"/>
-        <path class="anatomy-base anatomy-forearm" d="m39 117-20 43 13 7 19-41zm107 0 20 43-13 7-19-41z"/>
-        <path class="anatomy-base anatomy-pelvis" d="M84 144h36l12 24-17 19H89l-17-19z"/>
-        <path class="anatomy-base anatomy-thigh" d="M78 164h22l-1 73-17 2-10-65zm28 0h22l7 10-10 65-17-2z"/>
-        <path class="anatomy-base anatomy-shin" d="m82 237 17 2-4 66-15-1zm27 2 17-2 8 67-15 1z"/>
-        <path class="anatomy-base anatomy-foot" d="m80 302 16 1 8 8-30 1zm41 1 16-1 10 10-29-1z"/>
-        <path class="anatomy-muscle ${group.shoulders}" d="M78 52q-11 1-17 12l7 15 17-12zM130 52q11 1 17 12l-7 15-17-12z"/>
-        <path class="anatomy-muscle ${group.back}" d="M84 62q20-13 40 0l15 48-35 35-35-35z"/>
-        <path class="anatomy-muscle ${group.arms}" d="m70 79-17 35 10 5 19-31zm68 0 17 35-10 5-19-31z"/>
-        <path class="anatomy-muscle ${group.glutes}" d="M77 145q27-12 54 0l3 22-30 18-30-18z"/>
-        <path class="anatomy-muscle ${group.hamstrings}" d="M76 168h24l-3 66-15 1-9-60zm31 0h22l9 9-9 60-15-1z"/>
-        <path class="anatomy-muscle ${group.calves}" d="m82 239 16 2-3 59-14-1zm28 2 16-2 8 60-14 1z"/>
-        <path class="anatomy-detail" d="M104 65v78M88 98l16 16 16-16M104 183v52M84 168h39M104 241v59"/>
-      </g>
-    </svg><div class="muscle-map-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Secondary</span></div>
+    ${anatomyIllustration(group)}
+    <div class="muscle-map-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Secondary</span></div>
   </div>`;
 }
 

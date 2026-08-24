@@ -94,12 +94,14 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
     assert.doesNotMatch(html, /<option\b/i, `step ${step + 1} must not use native select options`);
   }
 
-  for (const step of [2, 3, 4, 5, 6, 9, 10, 11, 12, 13]) {
+  for (const step of [0, 1, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15]) {
     const html = renderOnboarding({ step, draft });
     assert.match(html, /answer-option/, `step ${step + 1} must render custom answer bubbles`);
   }
-  assert.match(renderOnboarding({ step: 7, draft }), /onboarding-gym-name/u);
-  assert.match(renderOnboarding({ step: 8, draft }), /equipment-scan-option/u);
+  assert.match(renderOnboarding({ step: 2, draft }), /body-focus-chip/u);
+  assert.match(renderOnboarding({ step: 2, draft }), /body-focus-map/u);
+  assert.match(renderOnboarding({ step: 9, draft }), /onboarding-gym-name/u);
+  assert.match(renderOnboarding({ step: 10, draft }), /equipment-scan-option/u);
 });
 
 test("default and expanded Profile setup use premium radio choices without native dropdowns", () => {
@@ -248,11 +250,12 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0416", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0418", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);
   assert.match(worker, /if \(versioned \|\| moduleAsset\) \{\s*event\.respondWith\(networkOrCached/u);
+  assert.match(worker, /motionVideo = exerciseAsset && url\.pathname\.endsWith\("\.mp4"\)/u);
 });
 
 test("Voice Room takes focus when its dialog opens", () => {

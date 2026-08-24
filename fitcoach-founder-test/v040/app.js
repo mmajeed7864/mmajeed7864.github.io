@@ -1141,6 +1141,11 @@ function setMotionState(figure, state, label) {
 
 function playMotionVideo(figure, video) {
   if (!figure || !video) return;
+  if (video.error?.code) {
+    figure.classList.add("media-error");
+    setMotionState(figure, "error", "Video could not load — try again");
+    return;
+  }
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
@@ -1174,6 +1179,24 @@ function handleClick(event) {
   if (action === "onboarding-setting") { ui.onboardingDraft.settings[target.dataset.field]=value; if(target.dataset.field==="theme") applyTheme(value); render(); return; }
   if (action === "onboarding-profile-field") { if(target.dataset.field==="tone") applyOnboardingTone(value); else ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
   if (action === "onboarding-number") { ui.onboardingDraft.profile[target.dataset.field]=Number(value); render(); return; }
+  if (action === "onboarding-toggle-focus") {
+    const focusAreas = new Set(ui.onboardingDraft.profile.focusAreas || []);
+    if (value === "full body") {
+      if (focusAreas.has(value)) focusAreas.clear();
+      else {
+        focusAreas.clear();
+        focusAreas.add(value);
+      }
+    } else {
+      focusAreas.delete("full body");
+      if (focusAreas.has(value)) focusAreas.delete(value);
+      else if (focusAreas.size < 3) focusAreas.add(value);
+      else return toast("Choose up to three areas, or switch to Full body.");
+    }
+    ui.onboardingDraft.profile.focusAreas = [...focusAreas];
+    render();
+    return;
+  }
   if (action === "onboarding-setting-toggle") { ui.onboardingDraft.settings[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }
   if (action === "onboarding-toggle") { ui.onboardingDraft.profile[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }
   if (action === "onboarding-gym-equipment") {
@@ -1188,7 +1211,7 @@ function handleClick(event) {
   if (action === "onboarding-next") {
     if (ui.onboardingStep < ONBOARDING_STEP_COUNT - 1) { ui.onboardingStep+=1; render(); return; }
     if (!ui.onboardingDraft.consent) return;
-    state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.gymProfile={...draft.gymProfile,...ui.onboardingDraft.gymProfile,source:"manual"};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile},gymProfile:draft.gymProfile},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Training space: ${draft.gymProfile.selectedGymName || draft.profile.location}`,`${draft.gymProfile.equipment.length} equipment types available`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
+    state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.gymProfile={...draft.gymProfile,...ui.onboardingDraft.gymProfile,source:"manual"};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile},gymProfile:draft.gymProfile},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`Focus: ${draft.profile.focusAreas?.join(", ") || "balanced training"}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Training space: ${draft.gymProfile.selectedGymName || draft.profile.location}`,`${draft.gymProfile.equipment.length} equipment types available`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
     applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();maybeOpenTutorial();render();return;
   }
   if (action === "route") { closeModal(); navigate(value); return; }
@@ -1252,8 +1275,10 @@ function handleClick(event) {
     if (!figure || !video) return;
     figure.classList.remove("media-error", "media-paused");
     video.hidden = false;
+    setMotionState(figure, "loading", "Reloading motion guide");
     video.load?.();
-    playMotionVideo(figure, video);
+    // The canplay listener starts the loop after Safari rebuilds its Range
+    // request. Calling play immediately after load can race on iOS.
     return;
   }
   if (action === "toggle-favorite") { toggleFavorite(value);return; }
@@ -1429,6 +1454,18 @@ function bootstrap() {
   document.addEventListener("error",event=>{
     const media=event.target?.closest?.("[data-media-image],[data-media-video]");
     if(!media)return;
+    if (media.matches?.("[data-media-video]")) {
+      // A bubbling non-media error must never turn a playable video into a
+      // retry card. Only a real HTMLMediaElement error may hide the video.
+      window.setTimeout(() => {
+        if (!media.error?.code) return;
+        media.hidden = true;
+        const figure = media.closest("figure");
+        figure?.classList.add("media-error");
+        if (figure?.classList.contains("exercise-motion")) setMotionState(figure, "error", "Video could not load — try again");
+      }, 0);
+      return;
+    }
     media.hidden=true;
     const figure = media.closest("figure");
     figure?.classList.add("media-error");

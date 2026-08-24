@@ -1334,49 +1334,6 @@
   overflow: visible;
   filter: drop-shadow(0 16px 24px rgba(0,0,0,.22));
 }
-.muscle-map .anatomy-base {
-  fill: #263d62;
-  stroke: #7994ba;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.muscle-map .anatomy-head { fill: #dce8f7; stroke: #8aa5c7; stroke-width: 2; }
-.muscle-map .anatomy-neck { fill: #bacbe1; }
-.muscle-map .anatomy-torso { fill: #2d456c; }
-.muscle-map .anatomy-shoulder,
-.muscle-map .anatomy-arm,
-.muscle-map .anatomy-forearm,
-.muscle-map .anatomy-pelvis,
-.muscle-map .anatomy-thigh,
-.muscle-map .anatomy-shin,
-.muscle-map .anatomy-foot { fill: #213858; }
-.muscle-map .anatomy-muscle {
-  fill: #344d75;
-  stroke: #6e89ad;
-  stroke-width: 1.25;
-  stroke-linejoin: round;
-  opacity: .96;
-}
-.muscle-map .anatomy-muscle.primary {
-  fill: #2e76ff;
-  stroke: #9bc7ff;
-  stroke-width: 1.45;
-  filter: drop-shadow(0 3px 5px rgba(36, 107, 253, .28));
-}
-.muscle-map .anatomy-muscle.secondary {
-  fill: #78b9ff;
-  stroke: #c6e3ff;
-  stroke-width: 1.3;
-}
-.muscle-map .anatomy-muscle.muted { fill: #344d75; stroke: #6e89ad; }
-.muscle-map .anatomy-detail {
-  fill: none;
-  stroke: rgba(180, 207, 239, .54);
-  stroke-width: 1.15;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 .muscle-panel .muscle-map-legend {
   gap: 18px;
   color: rgba(203, 222, 250, .82);
@@ -1531,6 +1488,229 @@
 }
 .exercise-detail-page .exercise-detail-grid { order: 4; }
 .exercise-detail-page .muscle-panel .muscle-map { margin-top: 10px; }
+
+/* Original FitCoach anatomy system. It deliberately uses a compact
+   high-contrast front/back muscle illustration, not a generic stick figure. */
+.muscle-map,
+.body-focus-map {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+.muscle-map .anatomy-illustration,
+.body-focus-map .anatomy-illustration {
+  display: block;
+  width: min(100%, 560px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .28));
+}
+.anatomy-illustration .anatomy-base {
+  fill: #303743;
+  stroke: #8792a2;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.anatomy-illustration .anatomy-head {
+  fill: #858d98;
+  stroke: #b3bdca;
+  stroke-width: 1.65;
+}
+.anatomy-illustration .anatomy-skin {
+  fill: #8a8e96;
+  stroke: #b7bbc2;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.anatomy-illustration .anatomy-outline {
+  fill: #232833;
+  stroke: #737985;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+.anatomy-illustration .anatomy-region {
+  fill: #343b48;
+  stroke: #727a88;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: fill .18s ease, stroke .18s ease, filter .18s ease;
+}
+.anatomy-illustration .anatomy-region.primary {
+  fill: #258ff4;
+  stroke: #8cc9ff;
+  filter: drop-shadow(0 2px 3px rgba(37, 143, 244, .24));
+}
+.anatomy-illustration .anatomy-region.secondary {
+  fill: #70b4fa;
+  stroke: #c3e3ff;
+}
+.anatomy-illustration .anatomy-region.muted {
+  fill: #343a45;
+  stroke: #717b8b;
+}
+.anatomy-illustration .anatomy-line {
+  fill: none;
+  stroke: rgba(202, 215, 234, .48);
+  stroke-width: 1.05;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.muscle-panel .muscle-map {
+  padding: 17px 12px 13px;
+  border: 1px solid rgba(102, 152, 239, .28);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(43, 119, 239, .24), transparent 13rem),
+    linear-gradient(155deg, #152d5b, #081938 72%);
+}
+.muscle-panel .muscle-map .anatomy-illustration { min-height: 245px; }
+.muscle-panel .muscle-map-heading,
+.body-focus-map-heading {
+  width: min(100%, 500px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  color: rgba(184, 213, 255, .78);
+  font-size: .62rem;
+  font-weight: 850;
+  letter-spacing: .17em;
+  text-align: center;
+}
+.muscle-panel .muscle-map-legend {
+  display: flex;
+  gap: 16px;
+  color: rgba(209, 225, 249, .74);
+}
+.muscle-panel .muscle-map-legend i.primary { background: #1d8eff; }
+.muscle-panel .muscle-map-legend i.secondary { background: #78b6ff; }
+
+/* The focus interview is an original, reference-caliber dark anatomy stage.
+   The rest of onboarding retains the user-selected light/dark theme. */
+.ai-setup-screen:has(.body-focus-step) {
+  color: #f6f8fb;
+  background:
+    radial-gradient(circle at 58% 30%, rgba(24, 85, 157, .16), transparent 18rem),
+    #0b0c0f;
+}
+.ai-setup-screen:has(.body-focus-step) header,
+.ai-setup-screen:has(.body-focus-step) footer {
+  color: #f6f8fb;
+  background: linear-gradient(180deg, rgba(11,12,15,.96), rgba(11,12,15,.84));
+}
+.ai-setup-screen:has(.body-focus-step) footer {
+  background: linear-gradient(180deg, transparent, #0b0c0f 32%);
+}
+.ai-setup-screen:has(.body-focus-step) header b,
+.ai-setup-screen:has(.body-focus-step) .body-focus-step h1 {
+  color: #f6f8fb;
+}
+.ai-setup-screen:has(.body-focus-step) header small,
+.ai-setup-screen:has(.body-focus-step) .body-focus-step > p,
+.ai-setup-screen:has(.body-focus-step) .body-focus-note {
+  color: rgba(225, 231, 241, .68);
+}
+.ai-setup-screen:has(.body-focus-step) .eyebrow { color: #3ba5ff; }
+.ai-setup-screen:has(.body-focus-step) .icon-only {
+  color: #f5f8ff;
+  border-color: rgba(154, 176, 206, .22);
+  background: rgba(27, 32, 41, .82);
+}
+.ai-setup-screen:has(.body-focus-step) .onboarding-progress.segmented span {
+  background: rgba(105, 116, 133, .34);
+}
+.ai-setup-screen:has(.body-focus-step) .onboarding-progress.segmented span.active {
+  background: #2b9eff;
+  box-shadow: 0 0 14px rgba(43, 158, 255, .35);
+}
+.body-focus-step {
+  align-content: start;
+  min-height: min(73dvh, 700px);
+  gap: 13px;
+}
+.body-focus-step > h1 {
+  max-width: 12ch;
+  margin-top: 2px;
+  font-size: clamp(2rem, 8.8vw, 3rem);
+}
+.body-focus-step > p { max-width: 32rem; }
+.body-focus-step .trainer-bubble {
+  color: #f6f8fb;
+  border-color: rgba(101, 154, 221, .28);
+  border-left-color: #2898ff;
+  background: #1a222c;
+  box-shadow: none;
+}
+.body-focus-stage {
+  width: 100%;
+  margin: 1px auto 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse 50% 43% at 50% 48%, rgba(37, 94, 180, .16), transparent 72%),
+    transparent;
+}
+.body-focus-map {
+  gap: 4px;
+  padding: 8px 0 1px;
+}
+.body-focus-map-heading {
+  color: rgba(211, 223, 241, .58);
+}
+.body-focus-map .anatomy-illustration {
+  width: min(100%, 470px);
+  min-height: 292px;
+}
+.body-focus-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px;
+  padding: 4px 0 0;
+}
+.body-focus-chip {
+  min-height: 44px;
+  padding: 9px 15px;
+  border: 1px solid rgba(163, 174, 192, .22);
+  border-radius: 999px;
+  color: #e9eef7;
+  background: #181a20;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  font-size: .9rem;
+  font-weight: 750;
+  line-height: 1;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+.body-focus-chip.active {
+  border-color: #55aeff;
+  color: #fff;
+  background: linear-gradient(135deg, #2c9cff, #1874db);
+  box-shadow: 0 10px 24px rgba(25, 126, 242, .28), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.body-focus-chip:active { transform: scale(.97); }
+.body-focus-note {
+  display: block;
+  margin-top: 2px;
+  text-align: center;
+  line-height: 1.4;
+}
+.ai-setup-screen:has(.body-focus-step) .button-primary {
+  color: #fff;
+  background: linear-gradient(180deg, #319cff, #1767db);
+  box-shadow: 0 12px 28px rgba(18, 104, 232, .3);
+}
+.ai-setup-screen:has(.body-focus-step) .button-quiet { color: rgba(233, 239, 247, .7); }
+
+@media (max-width: 430px) {
+  .body-focus-step { min-height: 0; }
+  .body-focus-step > h1 { font-size: clamp(1.92rem, 8.8vw, 2.55rem); }
+  .body-focus-map .anatomy-illustration { min-height: 248px; }
+  .body-focus-chip-grid { gap: 7px; }
+  .body-focus-chip { min-height: 41px; padding: 8px 13px; font-size: .84rem; }
+  .muscle-panel .muscle-map .anatomy-illustration { min-height: 218px; }
+}
 
 @media (max-width: 430px) {
   .exercise-detail-page {

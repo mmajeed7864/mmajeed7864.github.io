@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0416";
+const GENERATION = "0418";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -63,8 +63,8 @@ function syntaxCheck(file) {
 
 (async () => {
   const html = read("index.html");
-  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0416["']/);
-  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0416 as a module");
+  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0418["']/);
+  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0418 as a module");
   else ok("index.html loads the v0.4 module entry");
 
   const entry = moduleMatch?.[1] || "v040/app.js";
@@ -88,8 +88,8 @@ function syntaxCheck(file) {
   const constants = read("v040/core/constants.mjs");
   const sw = read("sw.js");
   if (!html.includes(`v=${GENERATION}`) || !manifest.start_url.includes(`v=${GENERATION}`) || !sw.includes(`v${GENERATION}`) || !constants.includes(`CACHE_GENERATION = "${GENERATION}"`)) {
-    bad("index, manifest, service worker, and constants must agree on 0416");
-  } else ok("document, manifest, service worker, and constants agree on 0416");
+    bad("index, manifest, service worker, and constants must agree on 0418");
+  } else ok("document, manifest, service worker, and constants agree on 0418");
 
   const precached = swAssetUrls(sw);
   const graphMissingFromSw = graph.filter(file => {
@@ -129,6 +129,9 @@ function syntaxCheck(file) {
   if (!failures.some(value => value.includes("exercise media") || value.includes("poster guide") || value.includes("motion guide") || value.includes("exercise request") || value.includes("motion MP4"))) {
     ok("all declared premium exercise guides exist with their intended cache policy");
   }
+  if (!sw.includes('const motionVideo = exerciseAsset && url.pathname.endsWith(".mp4");') || !sw.includes('event.respondWith(fetch(event.request, { cache: "no-store" }));')) {
+    bad("service worker must stream motion MP4s without Cache Storage Range writes");
+  } else ok("service worker streams motion MP4s without Range-response cache writes");
 
   const activeSource = graph.map(read).join("\n");
   const forbiddenActive = [
