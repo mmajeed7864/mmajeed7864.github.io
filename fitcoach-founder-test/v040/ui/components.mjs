@@ -86,6 +86,34 @@ function activeMuscleGroups(exercise) {
   };
 }
 
+// AI-generated anatomy is assigned by movement family so every exercise gets
+// an art-directed muscle surface instead of the old generic silhouette. The
+// labels below still come from the exercise record; the illustrations are a
+// visual explainer only and never claim live form or muscle sensing.
+const GENERATED_ANATOMY_PATHS = Object.freeze({
+  lower: "/fitcoach-founder-test/v040/assets/anatomy/lower-body-v1.png",
+  push: "/fitcoach-founder-test/v040/assets/anatomy/push-v1.png",
+  pull: "/fitcoach-founder-test/v040/assets/anatomy/pull-v1.png",
+  hinge: "/fitcoach-founder-test/v040/assets/anatomy/hinge-v1.png",
+  core: "/fitcoach-founder-test/v040/assets/anatomy/core-v1.png",
+});
+
+function generatedAnatomyAsset(exercise) {
+  const values = [
+    ...(exercise?.primaryMuscles || []),
+    ...(exercise?.secondaryMuscles || []),
+    exercise?.movementPattern || "",
+    exercise?.name || "",
+  ].map(value => String(value).toLowerCase());
+  const has = terms => values.some(value => terms.some(term => value.includes(term)));
+  if (has(["deadlift", "hinge", "erector"]) || (has(["hamstring"]) && has(["back", "lat"]))) return { family: "hinge", path: GENERATED_ANATOMY_PATHS.hinge };
+  if (has(["core", "ab", "oblique", "trunk"])) return { family: "core", path: GENERATED_ANATOMY_PATHS.core };
+  if (has(["press", "push", "chest", "pectoral", "triceps"])) return { family: "push", path: GENERATED_ANATOMY_PATHS.push };
+  if (has(["row", "pull", "pulldown", "lat", "back", "biceps"])) return { family: "pull", path: GENERATED_ANATOMY_PATHS.pull };
+  if (has(["squat", "lunge", "quad", "glute", "leg", "calf", "hamstring"])) return { family: "lower", path: GENERATED_ANATOMY_PATHS.lower };
+  return { family: "lower", path: GENERATED_ANATOMY_PATHS.lower };
+}
+
 function bodyFocusGroups(focusAreas = []) {
   const focused = new Set((Array.isArray(focusAreas) ? focusAreas : [focusAreas]).map(value => String(value).toLowerCase()));
   const all = focused.has("full body") || focused.has("full-body") || focused.has("everything");
@@ -210,9 +238,17 @@ export function bodyFocusMap(focusAreas = [], { gender = "prefer-not-to-say" } =
 
 export function muscleMap(exercise) {
   const group = activeMuscleGroups(exercise);
+  const generated = generatedAnatomyAsset(exercise);
+  const targetText = [...(exercise?.primaryMuscles || []), ...(exercise?.secondaryMuscles || [])].join(", ");
+  const dimensions = generated && ["push", "pull", "core"].includes(generated.family)
+    ? { width: 1024, height: 1536 }
+    : { width: 1536, height: 1024 };
+  const visual = generated
+    ? `<figure class="generated-anatomy-artwork" data-anatomy-family="${escapeHtml(generated.family)}"><div class="anatomy-illustration"><img src="${escapeHtml(generated.path)}" width="${dimensions.width}" height="${dimensions.height}" loading="eager" decoding="async" alt="AI-generated ${escapeHtml(generated.family)} muscle focus illustration for ${escapeHtml(exercise?.name || "this exercise")}"></div><span class="anatomy-region primary" aria-hidden="true"></span><span class="anatomy-region secondary" aria-hidden="true"></span><figcaption>Illustration focus · ${escapeHtml(targetText || "movement targets")}</figcaption></figure>`
+    : anatomyIllustration(group);
   return `<div class="muscle-map" role="img" aria-label="Muscle target map for ${escapeHtml(exercise?.name || "exercise")}">
     <div class="muscle-map-heading"><span>FRONT</span><span>BACK</span></div>
-    ${anatomyIllustration(group)}
+    ${visual}
     <div class="muscle-map-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Secondary</span></div>
   </div>`;
 }

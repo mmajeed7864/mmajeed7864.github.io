@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0418";
+const GENERATION = "0419";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -63,8 +63,8 @@ function syntaxCheck(file) {
 
 (async () => {
   const html = read("index.html");
-  const moduleMatch = html.match(/<script\s+type=["']module["']\s+src=["']\.\/([^"']+app\.js)\?v=0418["']/);
-  if (!moduleMatch) bad("index.html must load ./v040/app.js?v=0418 as a module");
+  const moduleMatch = html.match(new RegExp(`<script\\s+type=["']module["']\\s+src=["']\\.\\/([^"']+app\\.js)\\?v=${GENERATION}["']`));
+  if (!moduleMatch) bad(`index.html must load ./v040/app.js?v=${GENERATION} as a module`);
   else ok("index.html loads the v0.4 module entry");
 
   const entry = moduleMatch?.[1] || "v040/app.js";
@@ -88,8 +88,8 @@ function syntaxCheck(file) {
   const constants = read("v040/core/constants.mjs");
   const sw = read("sw.js");
   if (!html.includes(`v=${GENERATION}`) || !manifest.start_url.includes(`v=${GENERATION}`) || !sw.includes(`v${GENERATION}`) || !constants.includes(`CACHE_GENERATION = "${GENERATION}"`)) {
-    bad("index, manifest, service worker, and constants must agree on 0418");
-  } else ok("document, manifest, service worker, and constants agree on 0418");
+    bad(`index, manifest, service worker, and constants must agree on ${GENERATION}`);
+  } else ok(`document, manifest, service worker, and constants agree on ${GENERATION}`);
 
   const precached = swAssetUrls(sw);
   const graphMissingFromSw = graph.filter(file => {

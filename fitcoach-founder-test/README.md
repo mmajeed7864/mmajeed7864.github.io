@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.4.5 is the active runtime (cache generation 0418 carries the range-safe motion playback and detailed anatomy update):
+FitCoach v0.4.5 is the active runtime (cache generation 0419 carries the range-safe motion playback and AI-generated anatomy surfaces):
 
-- document shell: `index.html?v=0418`
-- stylesheets: `v040/styles.css?v=0418` and `v040/premium-redesign.css?v=0418`
-- ES-module entry: `v040/app.js?v=0418`
-- service worker cache: `fitcoach-symbio-v0418`
+- document shell: `index.html?v=0419`
+- stylesheets: `v040/styles.css?v=0419` and `v040/premium-redesign.css?v=0419`
+- ES-module entry: `v040/app.js?v=0419`
+- service worker cache: `fitcoach-symbio-v0419`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:

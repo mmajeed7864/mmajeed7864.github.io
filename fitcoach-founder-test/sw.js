@@ -1,14 +1,14 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0418";
+const CACHE = "fitcoach-symbio-v0419";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0418",
-  "./manifest.webmanifest?v=0418",
-  "./assets/icon-symbio.svg?v=0418",
-  "./v040/styles.css?v=0418",
-  "./v040/premium-redesign.css?v=0418",
-  "./v040/app.js?v=0418",
+  "./index.html?v=0419",
+  "./manifest.webmanifest?v=0419",
+  "./assets/icon-symbio.svg?v=0419",
+  "./v040/styles.css?v=0419",
+  "./v040/premium-redesign.css?v=0419",
+  "./v040/app.js?v=0419",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -161,6 +161,11 @@ const EXERCISE_ASSETS = Object.freeze([
   "./v040/assets/exercises/one-arm-dumbbell-row-premium-v1.png",
   "./v040/assets/exercises/overhead-triceps-extension-premium-v1.png",
   "./v040/assets/exercises/reverse-lunge-premium-v1.png",
+  "./v040/assets/anatomy/lower-body-v1.png",
+  "./v040/assets/anatomy/push-v1.png",
+  "./v040/assets/anatomy/pull-v1.png",
+  "./v040/assets/anatomy/hinge-v1.png",
+  "./v040/assets/anatomy/core-v1.png",
 ]);
 
 const PRECACHE_ASSETS = Object.freeze([
@@ -229,12 +234,12 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0418")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0419")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0418";
+  const versioned = url.searchParams.get("v") === "0419";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   const rangeRequest = event.request.headers.has("range");
