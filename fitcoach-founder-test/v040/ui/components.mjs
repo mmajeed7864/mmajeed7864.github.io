@@ -240,9 +240,9 @@ export function muscleMap(exercise) {
   const group = activeMuscleGroups(exercise);
   const generated = generatedAnatomyAsset(exercise);
   const targetText = [...(exercise?.primaryMuscles || []), ...(exercise?.secondaryMuscles || [])].join(", ");
-  const dimensions = generated && ["push", "pull", "core"].includes(generated.family)
-    ? { width: 1024, height: 1536 }
-    : { width: 1536, height: 1024 };
+  // The generated atlas family is intentionally portrait so the complete
+  // front/back figures remain visible on narrow phone screens.
+  const dimensions = { width: 1024, height: 1536 };
   const visual = generated
     ? `<figure class="generated-anatomy-artwork" data-anatomy-family="${escapeHtml(generated.family)}"><div class="anatomy-illustration"><img src="${escapeHtml(generated.path)}" width="${dimensions.width}" height="${dimensions.height}" loading="eager" decoding="async" alt="AI-generated ${escapeHtml(generated.family)} muscle focus illustration for ${escapeHtml(exercise?.name || "this exercise")}"></div><span class="anatomy-region primary" aria-hidden="true"></span><span class="anatomy-region secondary" aria-hidden="true"></span><figcaption>Illustration focus · ${escapeHtml(targetText || "movement targets")}</figcaption></figure>`
     : anatomyIllustration(group);

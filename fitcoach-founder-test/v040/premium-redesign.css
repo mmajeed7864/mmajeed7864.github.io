@@ -1590,10 +1590,6 @@
   border-radius: 13px;
   background: #03070f;
 }
-.generated-anatomy-artwork[data-anatomy-family="lower"] img,
-.generated-anatomy-artwork[data-anatomy-family="hinge"] img {
-  object-fit: cover;
-}
 .generated-anatomy-artwork figcaption {
   padding: 0 7px 4px;
   color: rgba(206, 225, 255, .64);

@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0419";
+const GENERATION = "0420";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
