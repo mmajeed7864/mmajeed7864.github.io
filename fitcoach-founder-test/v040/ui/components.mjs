@@ -77,7 +77,7 @@ function activeMuscleGroups(exercise) {
   const primary = new Set((exercise?.primaryMuscles || []).map(value => String(value).toLowerCase()));
   const secondary = new Set((exercise?.secondaryMuscles || []).map(value => String(value).toLowerCase()));
   const matches = (set, terms) => [...set].some(value => terms.some(term => value.includes(term)));
-  const status = terms => matches(primary, terms) ? "primary" : matches(secondary, terms) ? "secondary" : "";
+  const status = terms => matches(primary, terms) ? "primary" : matches(secondary, terms) ? "secondary" : "muted";
   return {
     chest: status(["chest", "pectoral"]), shoulders: status(["shoulder", "delt"]), arms: status(["biceps", "triceps", "forearm"]),
     back: status(["back", "lat", "trape", "rhomboid", "erector"]), core: status(["core", "ab", "trunk", "oblique"]),
@@ -89,14 +89,44 @@ export function muscleMap(exercise) {
   const group = activeMuscleGroups(exercise);
   return `<div class="muscle-map" role="img" aria-label="Muscle target map for ${escapeHtml(exercise?.name || "exercise")}">
     <div class="muscle-map-heading"><span>FRONT</span><span>BACK</span></div>
-    <svg viewBox="0 0 320 250" aria-hidden="true">
-      <g class="body front" transform="translate(42 12)"><circle cx="56" cy="22" r="17"/><path d="M42 42Q56 35 70 42L80 94 70 139 65 223H47L42 139 32 94Z"/><path d="M35 50 12 103 22 111 47 68M77 50l23 53-10 8-25-43"/></g>
-      <g class="body back" transform="translate(178 12)"><circle cx="56" cy="22" r="17"/><path d="M42 42Q56 35 70 42L80 94 70 139 65 223H47L42 139 32 94Z"/><path d="M35 50 12 103 22 111 47 68M77 50l23 53-10 8-25-43"/></g>
-      <g class="muscles front" transform="translate(42 12)">
-        <path class="${group.shoulders}" d="M35 47q8-10 17-4l-6 20-12 4zm42 0q-8-10-17-4l6 20 12 4z"/><path class="${group.chest}" d="M45 57q11-8 22 0l-2 25q-9 6-18 0z"/><path class="${group.arms}" d="M31 62 16 102l9 4 20-40zm50 0 15 40-9 4-20-40z"/><path class="${group.core}" d="M46 85h20l4 41-14 12-14-12z"/><path class="${group.quads}" d="M43 139h13l-3 75H45zm14 0h13l-2 75h-9z"/><path class="${group.calves}" d="M45 184h9l-1 39H45zm15 0h9l-1 39h-9z"/>
+    <svg viewBox="0 0 520 330" aria-hidden="true">
+      <g class="anatomy-figure front" transform="translate(18 18)">
+        <circle class="anatomy-base anatomy-head" cx="104" cy="20" r="17"/>
+        <path class="anatomy-base anatomy-neck" d="M94 35h20l5 15-15 12-15-12z"/>
+        <path class="anatomy-base anatomy-torso" d="M78 48q26-12 52 0l17 62-18 40-12 12H95l-12-12-18-40z"/>
+        <path class="anatomy-base anatomy-shoulder" d="M79 50q-16 1-24 15l9 21 18-15zm50 0q16 1 24 15l-9 21-18-15z"/>
+        <path class="anatomy-base anatomy-arm" d="M62 67 39 117l12 9 30-41zm84 0 23 50-12 9-30-41z"/>
+        <path class="anatomy-base anatomy-forearm" d="m39 117-20 43 13 7 19-41zm107 0 20 43-13 7-19-41z"/>
+        <path class="anatomy-base anatomy-pelvis" d="M84 144h36l12 24-17 19H89l-17-19z"/>
+        <path class="anatomy-base anatomy-thigh" d="M78 164h22l-1 73-17 2-10-65zm28 0h22l7 10-10 65-17-2z"/>
+        <path class="anatomy-base anatomy-shin" d="m82 237 17 2-4 66-15-1zm27 2 17-2 8 67-15 1z"/>
+        <path class="anatomy-base anatomy-foot" d="m80 302 16 1 8 8-30 1zm41 1 16-1 10 10-29-1z"/>
+        <path class="anatomy-muscle ${group.shoulders}" d="M78 52q-11 1-17 12l7 15 17-12zM130 52q11 1 17 12l-7 15-17-12z"/>
+        <path class="anatomy-muscle ${group.chest}" d="M83 67q21-12 42 0l-2 26q-19 9-38 0z"/>
+        <path class="anatomy-muscle ${group.arms}" d="m70 79-17 35 10 5 19-31zm68 0 17 35-10 5-19-31z"/>
+        <path class="anatomy-muscle ${group.core}" d="M88 96h32l4 50-20 18-20-18z"/>
+        <path class="anatomy-muscle ${group.quads}" d="M76 166h23l-3 68-15 1-9-60zm31 0h22l9 9-9 60-15-1z"/>
+        <path class="anatomy-muscle ${group.calves}" d="m82 239 16 2-3 59-14-1zm28 2 16-2 8 60-14 1z"/>
+        <path class="anatomy-detail" d="M104 94v67M87 113h34M84 166h39M104 241v59"/>
       </g>
-      <g class="muscles back" transform="translate(178 12)">
-        <path class="${group.shoulders}" d="M34 48q10-10 19-4l-6 20-13 3zm44 0q-10-10-19-4l6 20 13 3z"/><path class="${group.back}" d="M44 56h24l7 47-19 24-19-24z"/><path class="${group.arms}" d="M31 62 16 102l9 4 20-40zm50 0 15 40-9 4-20-40z"/><path class="${group.glutes}" d="M42 119q14-9 28 0l1 23q-15 10-30 0z"/><path class="${group.hamstrings}" d="M43 143h13l-3 55h-9zm14 0h13l-2 55h-10z"/><path class="${group.calves}" d="M44 185h10l-1 38h-9zm16 0h10l-2 38h-9z"/>
+      <g class="anatomy-figure back" transform="translate(278 18)">
+        <circle class="anatomy-base anatomy-head" cx="104" cy="20" r="17"/>
+        <path class="anatomy-base anatomy-neck" d="M94 35h20l5 15-15 12-15-12z"/>
+        <path class="anatomy-base anatomy-torso" d="M78 48q26-12 52 0l17 62-18 40-12 12H95l-12-12-18-40z"/>
+        <path class="anatomy-base anatomy-shoulder" d="M79 50q-16 1-24 15l9 21 18-15zm50 0q16 1 24 15l-9 21-18-15z"/>
+        <path class="anatomy-base anatomy-arm" d="M62 67 39 117l12 9 30-41zm84 0 23 50-12 9-30-41z"/>
+        <path class="anatomy-base anatomy-forearm" d="m39 117-20 43 13 7 19-41zm107 0 20 43-13 7-19-41z"/>
+        <path class="anatomy-base anatomy-pelvis" d="M84 144h36l12 24-17 19H89l-17-19z"/>
+        <path class="anatomy-base anatomy-thigh" d="M78 164h22l-1 73-17 2-10-65zm28 0h22l7 10-10 65-17-2z"/>
+        <path class="anatomy-base anatomy-shin" d="m82 237 17 2-4 66-15-1zm27 2 17-2 8 67-15 1z"/>
+        <path class="anatomy-base anatomy-foot" d="m80 302 16 1 8 8-30 1zm41 1 16-1 10 10-29-1z"/>
+        <path class="anatomy-muscle ${group.shoulders}" d="M78 52q-11 1-17 12l7 15 17-12zM130 52q11 1 17 12l-7 15-17-12z"/>
+        <path class="anatomy-muscle ${group.back}" d="M84 62q20-13 40 0l15 48-35 35-35-35z"/>
+        <path class="anatomy-muscle ${group.arms}" d="m70 79-17 35 10 5 19-31zm68 0 17 35-10 5-19-31z"/>
+        <path class="anatomy-muscle ${group.glutes}" d="M77 145q27-12 54 0l3 22-30 18-30-18z"/>
+        <path class="anatomy-muscle ${group.hamstrings}" d="M76 168h24l-3 66-15 1-9-60zm31 0h22l9 9-9 60-15-1z"/>
+        <path class="anatomy-muscle ${group.calves}" d="m82 239 16 2-3 59-14-1zm28 2 16-2 8 60-14 1z"/>
+        <path class="anatomy-detail" d="M104 65v78M88 98l16 16 16-16M104 183v52M84 168h39M104 241v59"/>
       </g>
     </svg><div class="muscle-map-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Secondary</span></div>
   </div>`;
@@ -129,7 +159,7 @@ export function planExerciseRow(item, index, exercise, units = "lb", { editable 
 
 export function renderMessage(message, speakingId = null) {
   const coach = message.role !== "user";
-  const meta = coach ? (message.provider === "deterministic-copy" ? "Local coach" : message.provider ? "Live trainer" : "Coach") : formatTime(message.at);
+  const meta = coach ? (message.provider === "deterministic-copy" ? "FitCoach" : message.provider ? "Nova" : "Coach") : formatTime(message.at);
   return `<article class="chat-message ${coach ? "coach" : "user"}" data-message-id="${escapeHtml(message.id)}">
     <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
     ${coach && message.action ? `<button class="trainer-action-card" data-action="coach-message-action" data-kind="${escapeHtml(message.action.kind)}" data-value="${escapeHtml(message.action.value)}"><span>${icon(message.action.kind === "open_exercise" ? "play" : message.action.kind === "open_voice" ? "mic" : message.action.kind === "open_progress" ? "progress" : "chevron")}</span><span><b>${escapeHtml(message.action.label)}</b><small>${escapeHtml(message.action.detail || "Open in FitCoach")}</small></span>${icon("chevron")}</button>` : ""}
