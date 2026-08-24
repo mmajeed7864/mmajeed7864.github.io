@@ -1194,7 +1194,22 @@ function handleClick(event) {
   if (action === "save-routine") { state=store.update(draft=>{draft.workoutDrafts=[...(draft.workoutDrafts||[]),{id:uid("routine"),label:draft.activePlan.label,plan:deepClone(draft.activePlan),savedAt:new Date().toISOString()}].slice(-12);});toast("Routine snapshot saved locally.");return; }
   if (action === "open-exercise") { openExercise(value);return; }
   if (action === "close-exercise") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;render();return; }
-  if (action === "toggle-exercise-motion") { ui.motionPaused=!ui.motionPaused;render();return; }
+  if (action === "toggle-exercise-motion") {
+    ui.motionPaused=!ui.motionPaused;
+    render();
+    if (!ui.motionPaused) {
+      requestAnimationFrame(() => {
+        document.querySelectorAll("[data-media-video]").forEach(video => {
+          video.closest(".exercise-motion")?.classList.remove("media-paused");
+          const attempt=video.play?.();
+          if (attempt?.catch) attempt.catch(() => {
+            video.closest(".exercise-motion")?.classList.add("media-paused");
+          });
+        });
+      });
+    }
+    return;
+  }
   if (action === "toggle-favorite") { toggleFavorite(value);return; }
   if (action === "set-exercise-preference") { setExercisePreference(target.dataset.field,value);return; }
   if (action === "add-exercise-to-plan" || action === "confirm-exercise-replacement") {
@@ -1346,6 +1361,12 @@ function bootstrap() {
   document.addEventListener("click",handleClick);
   document.addEventListener("change",handleChange);
   document.addEventListener("input",handleInput);
+  document.addEventListener("canplay",event=>{
+    const video=event.target?.closest?.("[data-media-video]");
+    if(!video || ui.motionPaused) return;
+    const attempt=video.play?.();
+    if(attempt?.catch) attempt.catch(()=>video.closest(".exercise-motion")?.classList.add("media-paused"));
+  },true);
   document.addEventListener("error",event=>{
     const media=event.target?.closest?.("[data-media-image],[data-media-video]");
     if(!media)return;

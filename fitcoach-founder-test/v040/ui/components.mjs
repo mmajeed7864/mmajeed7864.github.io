@@ -36,11 +36,14 @@ export function button({ label, action, value = "", variant = "secondary", iconN
 }
 
 export function exercisePoster(exercise, { className = "", eager = false, label = true } = {}) {
-  const media = exercise?.media?.find?.(entry => ["poster", "png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
+  const media = exercise?.media?.find?.(entry => entry.type === "poster")
+    || exercise?.media?.find?.(entry => ["png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
   const poster = media?.path || exercise?.snapshot?.mediaPoster || "";
   const name = exercise?.name || exercise?.snapshot?.name || "Exercise";
   if (!poster) {
-    return `<div class="exercise-poster media-fallback ${escapeHtml(className)}" role="img" aria-label="${escapeHtml(name)} written coaching guide"><span class="guide-mark">FC</span><span class="guide-copy"><b>WRITTEN GUIDE</b><small>Setup · cues · options</small></span></div>`;
+    const pattern = String(exercise?.movementPattern || "movement").replaceAll("-", " ");
+    const muscles = (exercise?.primaryMuscles || []).slice(0, 2).join(" · ");
+    return `<div class="exercise-poster media-fallback ${escapeHtml(className)}" role="img" aria-label="${escapeHtml(name)} written coaching guide"><span class="guide-abstract" aria-hidden="true"><i></i><i></i><b></b></span><span class="guide-copy"><b>FITCOACH GUIDE</b><strong>${escapeHtml(name)}</strong><small>${escapeHtml(muscles || pattern)} · setup · cues</small></span></div>`;
   }
   return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${media?.width || 320}" height="${media?.height || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
 }
@@ -56,12 +59,13 @@ export function exerciseMotionMedia(exercise) {
 export function exerciseMotionGuide(exercise, { className = "", eager = false, paused = false } = {}) {
   const motion = exerciseMotionMedia(exercise);
   if (!motion) return exercisePoster(exercise, { className, eager });
-  const poster = exercise?.media?.find?.(entry => ["poster", "png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
+  const poster = exercise?.media?.find?.(entry => entry.type === "poster")
+    || exercise?.media?.find?.(entry => ["png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
   const name = exercise?.name || "Exercise";
   return `<figure class="exercise-motion ${escapeHtml(className)}">
-    <video data-media-video src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" ${eager ? 'preload="auto"' : 'preload="metadata"'} muted loop playsinline ${paused ? "" : "autoplay"} aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
+    <video data-media-video data-motion-id="${escapeHtml(motion.id || motion.exerciseId || name)}" src="${escapeHtml(motion.path)}" ${poster?.path ? `poster="${escapeHtml(poster.path)}"` : ""} width="${motion.width || 720}" height="${motion.height || 720}" ${eager ? 'preload="auto"' : 'preload="metadata"'} muted loop playsinline ${paused ? "" : "autoplay"} aria-label="${escapeHtml(motion.alt || `${name} movement demonstration`)}"></video>
     <button class="motion-toggle" data-action="toggle-exercise-motion" aria-label="${paused ? "Play" : "Pause"} ${escapeHtml(name)} movement guide">${icon(paused ? "play" : "pause")}<span>${paused ? "Play motion" : "Pause motion"}</span></button>
-    <span class="media-fallback-label">Motion guide unavailable</span>
+    <span class="media-play-hint">Tap Play to start the guide</span><span class="media-fallback-label">Motion guide unavailable</span>
   </figure>`;
 }
 
@@ -80,6 +84,7 @@ function activeMuscleGroups(exercise) {
 export function muscleMap(exercise) {
   const group = activeMuscleGroups(exercise);
   return `<div class="muscle-map" role="img" aria-label="Muscle target map for ${escapeHtml(exercise?.name || "exercise")}">
+    <div class="muscle-map-heading"><span>FRONT</span><span>BACK</span></div>
     <svg viewBox="0 0 320 250" aria-hidden="true">
       <g class="body front" transform="translate(42 12)"><circle cx="56" cy="22" r="17"/><path d="M42 42Q56 35 70 42L80 94 70 139 65 223H47L42 139 32 94Z"/><path d="M35 50 12 103 22 111 47 68M77 50l23 53-10 8-25-43"/></g>
       <g class="body back" transform="translate(178 12)"><circle cx="56" cy="22" r="17"/><path d="M42 42Q56 35 70 42L80 94 70 139 65 223H47L42 139 32 94Z"/><path d="M35 50 12 103 22 111 47 68M77 50l23 53-10 8-25-43"/></g>

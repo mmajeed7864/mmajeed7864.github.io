@@ -217,6 +217,44 @@
     font-weight: 750;
   }
 
+  /* Exercise detail uses the same restrained navy language as the reference
+     exercise libraries. The map is explanatory art, never a form-sensing claim. */
+  .muscle-panel {
+    color: #f3f7ff;
+    border-color: rgba(119, 157, 221, .34);
+    background:
+      radial-gradient(circle at 10% 0%, rgba(72, 132, 255, .2), transparent 15rem),
+      linear-gradient(150deg, #13294d, #091832 72%);
+    box-shadow: 0 20px 56px rgba(7, 22, 51, .2), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .muscle-panel .eyebrow { color: #9fc1ff; }
+  .muscle-panel > p { color: rgba(222, 234, 255, .72); }
+  .muscle-map {
+    width: 100%;
+    margin: 12px 0 16px;
+    padding: 12px 10px 10px;
+    border: 1px solid rgba(146, 183, 255, .2);
+    border-radius: 18px;
+    background: rgba(4, 16, 38, .34);
+  }
+  .muscle-map-heading {
+    width: min(100%, 360px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    color: rgba(197, 218, 255, .74);
+    font-size: .62rem;
+    font-weight: 850;
+    letter-spacing: .15em;
+    text-align: center;
+  }
+  .muscle-map svg { filter: drop-shadow(0 10px 20px rgba(0,0,0,.2)); }
+  .muscle-map .body { fill: #1a2d49; stroke: #7994b8; stroke-width: 3; }
+  .muscle-map .muscles path.primary { fill: #3d86ff; stroke: #6da9ff; stroke-width: 1.5; }
+  .muscle-map .muscles path.secondary { fill: #83baff; stroke: #a9d1ff; stroke-width: 1.2; }
+  .muscle-map-legend { color: rgba(197, 218, 255, .78); }
+  .muscle-panel .muscle-cloud strong { color: #e9f2ff; background: rgba(49, 106, 219, .38); border-color: rgba(137, 187, 255, .22); }
+  .muscle-panel .muscle-cloud span { color: #c7dbff; background: rgba(83, 134, 214, .2); border-color: rgba(137, 187, 255, .16); }
+
   .section-heading { gap: 12px; margin-bottom: 14px; }
   .section-heading h2 { margin-top: 2px; }
 
@@ -650,6 +688,53 @@
     font-weight: 860;
     letter-spacing: -.05em;
   }
+  .exercise-poster.media-fallback .guide-abstract {
+    position: relative;
+    width: 62px;
+    height: 62px;
+    flex: 0 0 62px;
+    display: block;
+    border: 1px solid rgba(181, 211, 255, .32);
+    border-radius: 22px;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255,255,255,.7), transparent 13%),
+      linear-gradient(145deg, #5a9bff, #1746ae 72%);
+    box-shadow: 0 12px 28px rgba(5, 25, 74, .35), inset 0 1px 0 rgba(255,255,255,.35);
+    transform: rotate(-7deg);
+  }
+  .exercise-poster.media-fallback .guide-abstract::before,
+  .exercise-poster.media-fallback .guide-abstract::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(240, 247, 255, .88);
+  }
+  .exercise-poster.media-fallback .guide-abstract::before { top: 22px; transform: rotate(28deg); }
+  .exercise-poster.media-fallback .guide-abstract::after { top: 35px; transform: rotate(-28deg); opacity: .62; }
+  .exercise-poster.media-fallback .guide-abstract i {
+    position: absolute;
+    top: 13px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f3f8ff;
+    box-shadow: 0 0 12px rgba(243, 248, 255, .75);
+  }
+  .exercise-poster.media-fallback .guide-abstract i:first-child { left: 16px; }
+  .exercise-poster.media-fallback .guide-abstract i:nth-child(2) { right: 16px; top: 44px; opacity: .7; }
+  .exercise-poster.media-fallback .guide-abstract b {
+    position: absolute;
+    left: 27px;
+    top: 27px;
+    width: 9px;
+    height: 9px;
+    border-radius: 4px;
+    background: #b8d6ff;
+  }
+  .exercise-poster.media-fallback .guide-copy strong { display: block; color: #f4f7ff; font-size: .84rem; line-height: 1.15; }
   .exercise-poster.media-fallback .guide-copy { display: grid; gap: 3px; min-width: 0; }
   .exercise-poster.media-fallback .guide-copy b { font-size: .64rem; letter-spacing: .1em; }
   .exercise-poster.media-fallback .guide-copy small { color: rgba(244,247,255,.76); font-size: .7rem; }
@@ -657,7 +742,10 @@
   .exercise-poster.media-fallback.thumb .guide-mark { width: 34px; height: 34px; justify-self: center; border-radius: 12px; font-size: .64rem; }
   .exercise-poster.media-fallback.thumb .guide-copy { display: none; }
   .exercise-poster.media-fallback.large, .exercise-poster.media-fallback.active-large { min-height: 14rem; }
-  .exercise-poster.media-fallback.large .guide-mark, .exercise-poster.media-fallback.active-large .guide-mark { width: 62px; height: 62px; border-radius: 22px; font-size: 1rem; }
+  .exercise-poster.media-fallback.large .guide-abstract, .exercise-poster.media-fallback.active-large .guide-abstract { width: 78px; height: 78px; border-radius: 26px; flex-basis: 78px; }
+  .exercise-poster.media-fallback.large .guide-abstract i:first-child, .exercise-poster.media-fallback.active-large .guide-abstract i:first-child { left: 20px; }
+  .exercise-poster.media-fallback.large .guide-abstract i:nth-child(2), .exercise-poster.media-fallback.active-large .guide-abstract i:nth-child(2) { right: 20px; }
+  .exercise-poster.media-fallback.large .guide-abstract b, .exercise-poster.media-fallback.active-large .guide-abstract b { left: 34px; top: 34px; }
   .exercise-poster.media-fallback.large .guide-copy b, .exercise-poster.media-fallback.active-large .guide-copy b { font-size: .76rem; }
   .exercise-poster.media-fallback.large .guide-copy small, .exercise-poster.media-fallback.active-large .guide-copy small { font-size: .82rem; }
   .schedule-day { border-radius: 18px; }

@@ -33,8 +33,8 @@ test("library has 100 stable, immutable exercise records with honest guide statu
   assert.ok(EXERCISES.every((item) => Object.isFrozen(item) && Object.isFrozen(item.setupSteps)));
   assert.equal(getExerciseById("air-squat")?.name, "Air Squat");
   assert.equal(getExerciseById("barbell-back-squat")?.guideStatus, "visual-guide");
-  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 33);
-  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 67);
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "visual-guide").length, 100);
+  assert.equal(EXERCISES.filter((item) => item.guideStatus === "written-guide").length, 0);
   assert.ok(EXERCISES.every((item) => item.location.includes("gym")));
   assert.equal(getExerciseById("missing-exercise"), null);
 });
@@ -61,7 +61,7 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   const playing = exerciseMotionGuide(exercise, { eager: true });
   assert.match(playing, /<video/u);
   assert.match(playing, /muted loop playsinline autoplay/u);
-  assert.match(playing, /poster="\/fitcoach-founder-test\/v040\/assets\/exercises\/air-squat-premium-v1\.png"/u);
+  assert.match(playing, /poster="\/fitcoach-founder-test\/v040\/assets\/exercises\/generated\/air-squat-premium-v2\.png"/u);
   assert.doesNotMatch(exerciseMotionGuide(exercise, { paused: true }), / autoplay/u);
   assert.match(exerciseMotionGuide(EXERCISES[0]), /<figure class="exercise-poster/u);
   const unreviewed = { ...exercise, media: exercise.media.map(entry => entry.type === "mp4" ? { ...entry, motionReviewStatus: "pending" } : entry) };
@@ -108,11 +108,30 @@ test("media/license manifest validates and every visual guide has local media", 
   assert.ok(EXERCISE_MEDIA_MANIFEST.every((entry) => entry.license.includes("project-authored original")));
 });
 
+test("new gym poster uses the premium local art contract", () => {
+  const poster = EXERCISE_MEDIA_MANIFEST.find((entry) => entry.id === "conventional-deadlift-poster-v1");
+  assert.ok(poster);
+  assert.equal(poster.type, "poster");
+  assert.equal(poster.offlineCachePolicy, "precache");
+  assert.match(poster.path, /generated\/conventional-deadlift-premium-v1\.png$/);
+  assert.equal(poster.width, 1254);
+  assert.equal(poster.height, 1254);
+});
+
 test("every visual exercise guide uses the approved premium illustration system", () => {
   const illustrations = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "png-two-position-guide");
   assert.equal(illustrations.length, 17);
   assert.ok(illustrations.every((entry) => entry.path.endsWith("-premium-v1.png")));
   assert.ok(illustrations.every((entry) => entry.width === 1448 && entry.height === 1086));
+});
+
+test("the full catalogue has a local navy and electric-blue poster", () => {
+  const posters = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "poster");
+  assert.equal(posters.length, 100);
+  assert.equal(new Set(posters.map((entry) => entry.exerciseId)).size, 100);
+  assert.ok(EXERCISES.every((exercise) => posters.some((entry) => entry.exerciseId === exercise.id)));
+  assert.ok(posters.every((entry) => entry.path.includes("/assets/exercises/")));
+  assert.ok(posters.every((entry) => entry.temporaryOriginal === true));
 });
 
 test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () => {

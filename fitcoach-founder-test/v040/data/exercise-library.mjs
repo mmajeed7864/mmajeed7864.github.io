@@ -498,10 +498,10 @@ const structuredGymExercises = EXERCISE_EXPANSION_TARGETS
   .map(structuredGymExercise);
 
 /**
- * One hundred real, filterable movements. Thirty-three have project-authored
- * visual guides today, including twenty reviewed local motion loops. The other
- * gym-focused records deliberately use written setup and cue guides until their
- * commissioned motion media is ready.
+ * One hundred real, filterable movements. Every record has project-authored
+ * visual media, including twenty reviewed local motion loops, retained two-position
+ * fallbacks, and a full set of photoreal gym posters. These demonstrations never
+ * claim live form sensing or medical assessment.
  */
 export const EXERCISES = Object.freeze([...PREMIUM_GUIDE_EXERCISES, ...structuredGymExercises]);
 
