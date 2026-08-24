@@ -166,7 +166,7 @@ function activeWorkout({ state, exerciseById, now, ui }) {
 
 export function renderTrainScreen(context) {
   if (context.state.activeWorkout && context.ui.showActiveWorkout) return activeWorkout(context);
-  if (context.ui.exerciseDetailId) return `<div class="page train-page">${segmentControl("exercises")}${exerciseDetail({ state: context.state, exercise: context.exerciseById(context.ui.exerciseDetailId), motionPaused: context.ui.motionPaused, replacing: context.ui.replacementIndex != null })}</div>`;
+  if (context.ui.exerciseDetailId) return `<div class="page train-page exercise-detail-page">${segmentControl("exercises")}${exerciseDetail({ state: context.state, exercise: context.exerciseById(context.ui.exerciseDetailId), motionPaused: context.ui.motionPaused, replacing: context.ui.replacementIndex != null })}</div>`;
   const content = context.ui.trainSegment === "exercises"
     ? exerciseLibrary({ state: context.state, exercises: context.filteredExercises, filters: context.ui.exerciseFilters })
     : context.ui.trainSegment === "schedule"

@@ -1391,3 +1391,114 @@
   .exercise-detail-header h1 { max-width: 11ch; }
   .exercise-detail-header p { max-width: 31ch; line-height: 1.45; }
 }
+
+/* Exercise detail composition: the reference uses a dark, focused studio
+   canvas instead of a light dashboard page. Keep the rest of FitCoach light;
+   only the movement detail route enters this focused mode. */
+.exercise-detail-page {
+  position: relative;
+  width: calc(100% + (var(--page-gutter) * 2));
+  margin: -20px calc(var(--page-gutter) * -1) 0;
+  padding: 16px var(--page-gutter) calc(118px + var(--safe-bottom));
+  color: #f5f8ff;
+  background:
+    radial-gradient(circle at 92% -2%, rgba(51, 112, 240, .25), transparent 17rem),
+    linear-gradient(180deg, #081a3a 0%, #06142f 46%, #071834 100%);
+  min-height: calc(100dvh - 74px);
+}
+.exercise-detail-page .segment-control {
+  position: sticky;
+  top: calc(8px + var(--safe-top));
+  z-index: 22;
+  border-color: rgba(149, 187, 255, .2);
+  background: rgba(12, 35, 75, .84);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.exercise-detail-page .segment-control button { color: rgba(212, 227, 255, .72); }
+.exercise-detail-page .segment-control button.active {
+  color: #fff;
+  background: linear-gradient(145deg, #17376e, #0d2450);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.exercise-detail-page .exercise-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.exercise-detail-page .exercise-detail-nav {
+  position: sticky;
+  top: calc(64px + var(--safe-top));
+  z-index: 21;
+  order: 1;
+  margin-inline: -2px;
+  padding: 10px 2px;
+  color: #f7faff;
+  border-bottom-color: rgba(141, 182, 255, .16);
+  background: rgba(7, 23, 53, .86);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+}
+.exercise-detail-page .exercise-detail-nav .back-button { color: #dce9ff; }
+.exercise-detail-page .exercise-detail-nav .favorite-large {
+  color: #cfe0ff;
+  border-color: rgba(157, 196, 255, .22);
+  background: rgba(24, 57, 112, .7);
+}
+.exercise-detail-page .exercise-detail-header {
+  order: 2;
+  padding: 6px 2px 2px;
+  color: #f7faff;
+}
+.exercise-detail-page .exercise-detail-header .eyebrow { color: #76baff; }
+.exercise-detail-page .exercise-detail-header p { color: rgba(212, 228, 255, .7); }
+.exercise-detail-page .exercise-detail-header .button-primary {
+  color: #07152f;
+  background: linear-gradient(135deg, #86c6ff, #3980ff 60%, #2460e8);
+  box-shadow: 0 14px 28px rgba(33, 104, 246, .28), inset 0 1px 0 rgba(255,255,255,.45);
+}
+.exercise-detail-page .exercise-detail-grid {
+  order: 3;
+  display: grid;
+  gap: 14px;
+}
+.exercise-detail-page .exercise-detail-grid > .card:not(.muscle-panel) {
+  color: #eaf2ff;
+  border-color: rgba(139, 177, 236, .2);
+  background: rgba(16, 39, 80, .72);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.exercise-detail-page .exercise-detail-grid > .card:not(.muscle-panel) p,
+.exercise-detail-page .exercise-detail-grid > .card:not(.muscle-panel) small,
+.exercise-detail-page .exercise-detail-grid > .card:not(.muscle-panel) li { color: rgba(211, 227, 255, .76); }
+.exercise-detail-page .exercise-detail-visual {
+  order: 4;
+  margin-top: 2px;
+  border-color: rgba(113, 164, 247, .34);
+}
+.exercise-detail-page .preference-controls {
+  order: 5;
+  color: #eaf2ff;
+  border-color: rgba(139, 177, 236, .2);
+  background: rgba(16, 39, 80, .72);
+}
+.exercise-detail-page .preference-controls small { color: rgba(211, 227, 255, .68); }
+.exercise-detail-page .preference-controls .filter-chip { color: #cfe1ff; border-color: rgba(143, 183, 245, .2); background: rgba(49, 92, 161, .32); }
+.exercise-detail-page .preference-controls .filter-chip.active { color: #07152f; background: #8dc8ff; border-color: transparent; }
+.exercise-detail-page .muscle-panel {
+  order: -1;
+  box-shadow: 0 20px 58px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.exercise-detail-page .muscle-panel .muscle-map { margin-top: 10px; }
+
+@media (max-width: 430px) {
+  .exercise-detail-page {
+    width: calc(100% + (var(--page-gutter) * 2));
+    margin-top: -20px;
+    padding-top: 12px;
+  }
+  .exercise-detail-page .exercise-detail-nav { top: calc(60px + var(--safe-top)); }
+  .exercise-detail-page .segment-control { top: calc(8px + var(--safe-top)); }
+  .exercise-detail-page .exercise-detail-header h1 { font-size: clamp(2.15rem, 11vw, 3rem); }
+  .exercise-detail-page .exercise-detail-header .button-primary { width: 100%; }
+  .exercise-detail-page .muscle-panel { padding: 14px; }
+}
