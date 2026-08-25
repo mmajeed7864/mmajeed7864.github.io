@@ -1755,6 +1755,7 @@
   /* Keep the whole body-focus answer visible above the fixed action bar on
      small iPhones. The content still scrolls if a larger text size needs it. */
   .ai-setup-screen:has(.body-focus-step) footer { min-height: 80px; }
+  .ai-setup-screen:has(.body-focus-step) main { padding-bottom: calc(128px + var(--safe-bottom)); }
   .body-focus-step { min-height: 0; gap: 9px; }
   .body-focus-step > h1 { font-size: clamp(1.92rem, 8.8vw, 2.55rem); }
   .body-focus-step > p { line-height: 1.38; }

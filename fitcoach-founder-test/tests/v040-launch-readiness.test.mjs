@@ -72,6 +72,7 @@ test("body-focus onboarding inherits the blue product surface in every theme", (
   assert.match(focusSurface, /color:\s*var\(--text\)/u);
   assert.match(focusSurface, /background:\s*linear-gradient\(180deg, var\(--action\), var\(--action-2\)\)/u);
   assert.doesNotMatch(focusSurface, /#0b0c0f|rgba\(11,\s*12,\s*15/u);
+  assert.match(css, /\.ai-setup-screen:has\(\.body-focus-step\) main \{ padding-bottom: calc\(128px \+ var\(--safe-bottom\)\); \}/u);
 });
 
 test("expansion validator rejects duplicate ids and premature live-guide claims", () => {
