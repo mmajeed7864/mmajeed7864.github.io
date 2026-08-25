@@ -21,6 +21,8 @@ import { renderModal } from "../v040/ui/modal.mjs";
 import { renderProfileScreen } from "../v040/ui/profile-screen.mjs";
 import { renderProgressScreen } from "../v040/ui/progress-screen.mjs";
 import { renderTodayScreen } from "../v040/ui/today-screen.mjs";
+import { renderTrainScreen } from "../v040/ui/train-screen.mjs";
+import { EXERCISES } from "../v040/data/exercise-library.mjs";
 
 class MemoryStorage {
   #values = new Map();
@@ -116,6 +118,29 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
   assert.match(renderOnboarding({ step: 2, draft }), /body-focus-map/u);
   assert.match(renderOnboarding({ step: 9, draft }), /onboarding-gym-name/u);
   assert.match(renderOnboarding({ step: 10, draft }), /equipment-scan-option/u);
+});
+
+test("exercise discovery uses compact scroll rails with an accessible favorites control", () => {
+  const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
+  const html = renderTrainScreen({
+    state,
+    filteredExercises: EXERCISES,
+    ui: {
+      trainSegment: "exercises",
+      exerciseDetailId: null,
+      showActiveWorkout: false,
+      exerciseFilters: { query: "squat", muscle: "quadriceps", equipment: "barbell", favorites: true },
+    },
+  });
+
+  assert.equal((html.match(/class="filter-rail"/gu) || []).length, 2);
+  assert.equal((html.match(/class="filter-scroll" role="group"/gu) || []).length, 2);
+  assert.match(html, /class="favorite-filter active"/u);
+  assert.match(html, /id="exercise-favorites" class="sr-only" type="checkbox" data-action="filter-favorites" aria-label="Show favorite exercises only" checked/u);
+  assert.match(html, /data-action="clear-exercise-search"/u);
+  assert.match(html, /data-action="clear-exercise-filters"/u);
+  assert.match(html, /aria-pressed="true"/u);
+  assert.doesNotMatch(html, /<select\b|<option\b/iu);
 });
 
 test("default and expanded Profile setup use premium radio choices without native dropdowns", () => {

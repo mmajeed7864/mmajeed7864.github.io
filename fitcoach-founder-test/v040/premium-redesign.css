@@ -2042,38 +2042,62 @@ input[type="checkbox"]:not(.sr-only) {
 .library-preview-stack .preview-1 { z-index: 3; right: 0; bottom: 2px; transform: rotate(2deg); }
 .library-preview-stack .preview-2 { z-index: 2; right: 12px; bottom: 72px; transform: rotate(-5deg); opacity: .88; }
 .library-preview-stack .preview-3 { z-index: 1; right: -4px; bottom: 128px; transform: rotate(7deg); opacity: .72; }
-.library-tools { display: grid; gap: 18px; padding: 16px; overflow: hidden; }
-.library-search-row { display: grid; grid-template-columns: minmax(0, 1fr) 58px; gap: 9px; }
+.library-tools {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--action) 13%, var(--border));
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--action) 8%, transparent), transparent 11rem),
+    var(--surface);
+}
+.library-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: stretch; }
 .search-field {
   position: relative;
   min-width: 0;
-  min-height: 56px;
+  min-height: 54px;
   border: 1px solid var(--border);
-  border-radius: 17px;
+  border-radius: 16px;
   background: var(--surface-2);
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
 }
 .search-field > svg { position: absolute; left: 15px; top: 50%; z-index: 2; width: 20px; height: 20px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
-.search-field input { width: 100%; min-height: 54px; padding: 0 44px 0 44px; border: 0; border-radius: inherit; background: transparent; box-shadow: none; }
-.search-field > button { position: absolute; right: 5px; top: 50%; width: 40px; min-height: 40px; display: grid; place-items: center; border: 0; border-radius: 12px; color: var(--muted); background: transparent; transform: translateY(-50%); }
+.search-field input { width: 100%; min-height: 52px; padding: 0 17px 0 44px; border: 0; border-radius: inherit; background: transparent; box-shadow: none; }
+.search-field.has-clear input { padding-right: 46px; }
+.search-field:focus-within { border-color: color-mix(in srgb, var(--action) 62%, var(--border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 12%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent); }
+.search-clear { position: absolute; right: 5px; top: 50%; width: 40px; min-height: 40px; display: grid; place-items: center; border: 0; border-radius: 12px; color: var(--muted); background: transparent; transform: translateY(-50%); }
+.search-clear:hover { color: var(--text); background: color-mix(in srgb, var(--action) 8%, transparent); }
 .favorite-filter {
-  min-width: 0;
-  min-height: 56px;
-  display: grid;
-  place-items: center;
-  gap: 1px;
+  min-width: 106px;
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px 7px 8px;
   border: 1px solid var(--border);
-  border-radius: 17px;
+  border-radius: 16px;
   color: var(--muted);
   background: var(--surface-2);
   cursor: pointer;
 }
-.favorite-filter > span { line-height: 0; }
-.favorite-filter svg { width: 20px; height: 20px; }
-.favorite-filter small { color: inherit; font-size: .52rem; font-weight: 760; }
+.favorite-filter:focus-within { outline: 3px solid color-mix(in srgb, var(--action) 20%, transparent); outline-offset: 2px; }
+.favorite-filter-icon { width: 36px; height: 36px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 12px; color: var(--action); background: color-mix(in srgb, var(--action) 9%, var(--surface)); }
+.favorite-filter-icon svg { width: 19px; height: 19px; }
+.favorite-filter-copy { min-width: 0; display: grid; gap: 1px; }
+.favorite-filter-copy b { color: inherit; font-size: .72rem; line-height: 1.1; }
+.favorite-filter-copy small { color: inherit; opacity: .72; font-size: .58rem; font-weight: 750; line-height: 1.1; }
 .favorite-filter.active { color: #fff; border-color: #246bfd; background: #246bfd; box-shadow: 0 8px 18px rgba(29, 96, 227, .2); }
-.filter-group { min-width: 0; display: grid; gap: 8px; }
-.filter-group > span { color: var(--muted); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.favorite-filter.active .favorite-filter-icon { color: #fff; background: rgba(255,255,255,.16); }
+.library-filter-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 20px; }
+.library-filter-meta p { margin: 0; color: var(--muted); font-size: .72rem; line-height: 1.3; }
+.library-filter-meta p b { color: var(--text); }
+.filter-reset { flex: 0 0 auto; min-height: 32px; padding: 5px 9px; border: 0; border-radius: 10px; color: var(--action); background: color-mix(in srgb, var(--action) 8%, transparent); font-size: .68rem; font-weight: 820; }
+.filter-reset:hover { background: color-mix(in srgb, var(--action) 14%, transparent); }
+.filter-rail { min-width: 0; display: grid; gap: 8px; }
+.filter-rail > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.filter-rail > header > span { color: var(--text); font-size: .68rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.filter-rail > header > small { color: var(--muted); font-size: .62rem; }
 .filter-scroll {
   display: flex;
   flex-wrap: nowrap;
@@ -2083,10 +2107,11 @@ input[type="checkbox"]:not(.sr-only) {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
   scrollbar-width: none;
 }
 .filter-scroll::-webkit-scrollbar { display: none; }
-.filter-scroll .filter-chip { flex: 0 0 auto; min-height: 40px; padding: 8px 13px; scroll-snap-align: start; font-size: .76rem; }
+.filter-scroll .filter-chip { flex: 0 0 auto; min-height: 36px; padding: 7px 11px; border-radius: 12px; scroll-snap-align: start; font-size: .72rem; font-weight: 760; white-space: nowrap; }
 .filter-scroll .filter-chip.active { color: #fff; border-color: #246bfd; background: #246bfd; box-shadow: 0 7px 16px rgba(29, 96, 227, .18); }
 
 /* Focused exercise details: one header, native video proportions, one control. */
