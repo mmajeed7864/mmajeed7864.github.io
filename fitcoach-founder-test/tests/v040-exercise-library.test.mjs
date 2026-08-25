@@ -16,6 +16,7 @@ import {
   getExerciseById,
 } from "../v040/data/exercise-library.mjs";
 import { EXERCISE_MEDIA_MANIFEST } from "../v040/data/exercise-media-manifest.mjs";
+import { GENERATED_MOTION_DEFINITIONS } from "../v040/data/generated-motion-definitions.mjs";
 import {
   HARD_GYM_MOTION_TARGETS,
   MOTION_GUIDE_COVERAGE,
@@ -87,7 +88,9 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   const playing = exerciseMotionGuide(exercise, { eager: true });
   assert.match(playing, /<video/u);
   assert.match(playing, /muted loop playsinline autoplay/u);
-  assert.match(playing, /\scontrols\s/u);
+  assert.doesNotMatch(playing, /\scontrols(?:\s|=)/u);
+  assert.match(playing, /data-media-video data-action="toggle-exercise-motion"/u);
+  assert.match(playing, /--motion-aspect:720 \/ 720/u);
   assert.match(playing, /preload="auto"/u);
   assert.match(playing, /data-motion-status="loading"/u);
   assert.match(playing, /poster="\/fitcoach-founder-test\/v040\/assets\/exercises\/generated\/air-squat-premium-v2\.png"/u);
@@ -98,6 +101,16 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   assert.match(exerciseMotionGuide(EXERCISES[0]), /<figure class="exercise-poster/u);
   const unreviewed = { ...exercise, media: exercise.media.map(entry => entry.type === "mp4" ? { ...entry, motionReviewStatus: "pending" } : entry) };
   assert.equal(exerciseMotionMedia(unreviewed), null);
+});
+
+test("rejected generated motion is quarantined behind the reviewed poster guide", () => {
+  const exercise = getExerciseById("hollow-body-hold");
+  const rejected = GENERATED_MOTION_DEFINITIONS.find(entry => entry.exerciseId === exercise.id);
+  assert.equal(rejected?.motionReviewStatus, "rejected");
+  assert.equal(exercise.media.some(entry => entry.type === "mp4"), false);
+  assert.equal(exerciseMotionMedia(exercise), null);
+  assert.match(exerciseMotionGuide(exercise), /<figure class="exercise-poster/u);
+  assert.doesNotMatch(exerciseMotionGuide(exercise), /<video/u);
 });
 
 test("a reviewed production exercise renders its real motion asset muted and inline", () => {
@@ -168,7 +181,7 @@ test("the full catalogue has a local navy and electric-blue poster", () => {
 
 test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () => {
   const motions = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "mp4");
-  assert.equal(motions.length, 60);
+  assert.equal(motions.length, 59);
   assert.ok(motions.every((entry) => entry.path.includes("/assets/exercises/motion/")));
   assert.ok(motions.every((entry) => entry.path.endsWith("-motion-v1.mp4")));
   assert.ok(motions.every((entry) => entry.hasAudio === false));
@@ -176,28 +189,39 @@ test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () 
   assert.ok(motions.every((entry) => entry.offlineCachePolicy === "runtime"));
 });
 
+test("landscape motion clips keep their playback index near the file start for iOS", async () => {
+  const motions = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "mp4" && entry.width === 1280 && entry.height === 720);
+  assert.equal(motions.length, 39);
+  for (const motion of motions) {
+    const contents = await readFile(localAssetPath(motion));
+    const moovOffset = contents.indexOf(Buffer.from("moov"));
+    assert.ok(moovOffset >= 0 && moovOffset < 65_536, `${motion.id} must use fast-start MP4 packaging`);
+  }
+});
+
 test("motion coverage reports the hard-gym pilot honestly", () => {
   assert.deepEqual(MOTION_GUIDE_COVERAGE, {
     totalExercises: 100,
     hardGymTargets: 48,
-    reviewedHardGymGuides: 48,
-    pendingHardGymGuides: 0,
+    reviewedHardGymGuides: 47,
+    pendingHardGymGuides: 1,
   });
   assert.equal(HARD_GYM_MOTION_TARGETS.length, 48);
-  assert.equal(REVIEWED_HARD_GYM_MOTION_IDS.length, 48);
-  assert.equal(PENDING_HARD_GYM_MOTION_IDS.length, 0);
+  assert.equal(REVIEWED_HARD_GYM_MOTION_IDS.length, 47);
+  assert.deepEqual(PENDING_HARD_GYM_MOTION_IDS, ["hollow-body-hold"]);
   assert.equal(new Set([...REVIEWED_HARD_GYM_MOTION_IDS, ...PENDING_HARD_GYM_MOTION_IDS]).size, 48);
   assert.ok(REVIEWED_HARD_GYM_MOTION_IDS.every((id) => hasReviewedMotionGuide(getExerciseById(id))));
   assert.ok(PENDING_HARD_GYM_MOTION_IDS.every((id) => !hasReviewedMotionGuide(getExerciseById(id))));
   assert.deepEqual(validateMotionGuideCoverage(), { valid: true, errors: [] });
 });
 
-test("the motion queue is empty after the generated pilot is activated", () => {
-  assert.equal(PENDING_MOTION_GENERATION_QUEUE.length, 0);
+test("the motion queue exposes the quarantined clip for regeneration and review", () => {
+  assert.equal(PENDING_MOTION_GENERATION_QUEUE.length, 1);
   assert.equal(MOTION_GENERATION_POLICY.appLoadsGeneratedJobs, false);
   assert.equal(MOTION_GENERATION_POLICY.reviewRequiredBeforeActivation, true);
   assert.equal(getMotionGenerationJob("front-squat"), null);
   assert.equal(getMotionGenerationJob("barbell-back-squat"), null);
+  assert.equal(getMotionGenerationJob("hollow-body-hold")?.status, "needs-generation-and-review");
 });
 
 test("every declared exercise guide exists and its size and SHA-256 match the manifest", async () => {

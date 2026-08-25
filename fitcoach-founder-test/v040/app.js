@@ -368,8 +368,10 @@ function renderAppScreen() {
   if (ui.route === "profile") screen = renderProfileScreen(context);
   if (ui.route === "nutrition") screen = renderNutritionScreen(context);
   const activeWorkoutFullscreen = ui.route === "train" && state.activeWorkout && ui.showActiveWorkout;
-  dom.stage.innerHTML = `${activeWorkoutFullscreen ? "" : renderHeader()}<main id="main-content" class="app-main">${screen}</main>`;
-  dom.nav.hidden = activeWorkoutFullscreen;
+  const exerciseDetailFullscreen = ui.route === "train" && Boolean(ui.exerciseDetailId);
+  const focusedSurface = activeWorkoutFullscreen || exerciseDetailFullscreen;
+  dom.stage.innerHTML = `${focusedSurface ? "" : renderHeader()}<main id="main-content" class="app-main">${screen}</main>`;
+  dom.nav.hidden = focusedSurface;
   dom.nav.querySelectorAll("[data-route]").forEach(button => {
     const active = button.dataset.route === ui.route;
     button.classList.toggle("active", active);

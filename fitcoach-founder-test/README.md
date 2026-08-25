@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.4.5 is the active runtime (cache generation 0421 carries the range-safe motion playback and AI-generated anatomy surfaces):
+FitCoach v0.4.5 is the active runtime (cache generation 0422 carries the visual workout polish, range-safe motion playback, and quarantined media review):
 
-- document shell: `index.html?v=0421`
-- stylesheets: `v040/styles.css?v=0421` and `v040/premium-redesign.css?v=0421`
-- ES-module entry: `v040/app.js?v=0421`
-- service worker cache: `fitcoach-symbio-v0421`
+- document shell: `index.html?v=0422`
+- stylesheets: `v040/styles.css?v=0422` and `v040/premium-redesign.css?v=0422`
+- ES-module entry: `v040/app.js?v=0422`
+- service worker cache: `fitcoach-symbio-v0422`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
@@ -47,7 +47,7 @@ The model may render conversational wording only. It cannot choose safety outcom
 
 ## Exercise library and media
 
-The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. All 100 movements have local original visual media: 60 reviewed, muted motion guides (including 48 hard-gym movements), 17 retained two-position guides, and 100 photoreal gym posters in the navy/electric-blue art direction with realistic athletes—never stick figures. A movement may intentionally have more than one local asset (poster, motion loop, or retained two-position fallback). The local guides are demonstrations, not live form analysis, medical assessment, or competitor media.
+The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. All 100 movements have local original visual media: 59 reviewed, muted motion guides (including 47 hard-gym movements), 17 retained two-position guides, and 100 photoreal gym posters in the navy/electric-blue art direction with realistic athletes—never stick figures. Hollow Body Hold currently uses its premium poster while a defective generated clip remains quarantined for replacement and review. A movement may intentionally have more than one local asset (poster, motion loop, or retained two-position fallback). The local guides are demonstrations, not live form analysis, medical assessment, or competitor media.
 
 ## Required checks
 

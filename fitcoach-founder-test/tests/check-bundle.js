@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0421";
+const GENERATION = "0422";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -111,7 +111,7 @@ function syntaxCheck(file) {
   const posterGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "png-two-position-guide");
   const motionGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "mp4");
   if (posterGuides.length !== 17) bad("media manifest must retain all seventeen premium poster guides");
-  if (motionGuides.length !== 60) bad("media manifest must contain all sixty reviewed motion guides in this pilot");
+  if (motionGuides.length !== 59) bad("media manifest must contain the fifty-nine reviewed motion guides while the rejected clip stays quarantined");
   for (const media of EXERCISE_MEDIA_MANIFEST) {
     const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
     const runtimeRequest = requestUrl(media.path);

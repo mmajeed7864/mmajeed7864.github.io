@@ -1,14 +1,14 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0421";
+const CACHE = "fitcoach-symbio-v0422";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0421",
-  "./manifest.webmanifest?v=0421",
-  "./assets/icon-symbio.svg?v=0421",
-  "./v040/styles.css?v=0421",
-  "./v040/premium-redesign.css?v=0421",
-  "./v040/app.js?v=0421",
+  "./index.html?v=0422",
+  "./manifest.webmanifest?v=0422",
+  "./assets/icon-symbio.svg?v=0422",
+  "./v040/styles.css?v=0422",
+  "./v040/premium-redesign.css?v=0422",
+  "./v040/app.js?v=0422",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -234,12 +234,12 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0421")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0422")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0421";
+  const versioned = url.searchParams.get("v") === "0422";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   const rangeRequest = event.request.headers.has("range");

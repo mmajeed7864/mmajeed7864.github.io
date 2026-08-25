@@ -66,7 +66,7 @@ function ownedGeneratedPoster({ id, exerciseId, file, width = 1254, height = 125
   });
 }
 
-function ownedGeneratedMotion({ id, exerciseId, file, width, height, durationSeconds, view, alt, bytes, sha256 }) {
+function ownedGeneratedMotion({ id, exerciseId, file, width, height, durationSeconds, view, alt, bytes, sha256, motionReviewStatus = "approved" }) {
   return Object.freeze({
     id,
     exerciseId,
@@ -76,7 +76,7 @@ function ownedGeneratedMotion({ id, exerciseId, file, width, height, durationSec
     height,
     durationSeconds,
     hasAudio: false,
-    motionReviewStatus: "approved",
+    motionReviewStatus,
     view,
     alt,
     offlineCachePolicy: "runtime",
@@ -601,7 +601,9 @@ export const EXERCISE_MEDIA_MANIFEST = Object.freeze([
     bytes: 831790,
     sha256: "b3afd1323676cb214060544ad48ca9526c030cf5a31421a925570e40f34aeed7",
   }),
-  ...GENERATED_MOTION_DEFINITIONS.map((definition) => ownedGeneratedMotion(definition)),
+  ...GENERATED_MOTION_DEFINITIONS
+    .filter((definition) => definition.motionReviewStatus !== "rejected")
+    .map((definition) => ownedGeneratedMotion(definition)),
   ...GENERATED_STYLE_POSTER_DEFINITIONS.map((definition) => ownedGeneratedPoster(definition)),
 ]);
 
