@@ -1,14 +1,14 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0427";
+const CACHE = "fitcoach-symbio-v0428";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0427",
-  "./manifest.webmanifest?v=0427",
-  "./assets/icon-symbio.svg?v=0427",
-  "./v040/styles.css?v=0427",
-  "./v040/premium-redesign.css?v=0427",
-  "./v040/app.js?v=0427",
+  "./index.html?v=0428",
+  "./manifest.webmanifest?v=0428",
+  "./assets/icon-symbio.svg?v=0428",
+  "./v040/styles.css?v=0428",
+  "./v040/premium-redesign.css?v=0428",
+  "./v040/app.js?v=0428",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -166,6 +166,12 @@ const EXERCISE_ASSETS = Object.freeze([
   "./v040/assets/anatomy/pull-v1.png",
   "./v040/assets/anatomy/hinge-v1.png",
   "./v040/assets/anatomy/core-v1.png",
+  "./v040/assets/anatomy/lower-body-v2.png",
+  "./v040/assets/anatomy/push-v2.png",
+  "./v040/assets/anatomy/pull-v2.png",
+  "./v040/assets/anatomy/hinge-v2.png",
+  "./v040/assets/anatomy/core-v2.png",
+  "./v040/assets/anatomy/body-focus-neutral-v1.png",
 ]);
 
 const PRECACHE_ASSETS = Object.freeze([
@@ -234,12 +240,12 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0427")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0428")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0427";
+  const versioned = url.searchParams.get("v") === "0428";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   const rangeRequest = event.request.headers.has("range");

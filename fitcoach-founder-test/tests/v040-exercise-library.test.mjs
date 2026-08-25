@@ -99,10 +99,12 @@ test("bodyweight exercises never expose the internal none equipment sentinel", (
 test("body-focus interview uses a detailed front and back anatomy map with dynamic selections", () => {
   const map = bodyFocusMap(["arms", "abs"], { gender: "female" });
   assert.match(map, /class="body-focus-map"/u);
-  assert.match(map, /class="anatomy-illustration"/u);
+  assert.match(map, /class="body-focus-artwork"/u);
   assert.match(map, /data-profile="female"/u);
-  assert.match(map, /anatomy-region primary/u);
-  assert.ok((map.match(/anatomy-region/g) || []).length >= 17);
+  assert.match(map, /data-focus-family="upper"/u);
+  assert.match(map, /body-focus-neutral-v1\.png/u);
+  assert.match(map, /arms · abs/u);
+  assert.doesNotMatch(map, /anatomy-region/u);
   assert.match(map, /FRONT/u);
   assert.match(map, /BACK/u);
 });

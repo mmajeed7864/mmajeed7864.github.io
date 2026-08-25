@@ -105,6 +105,11 @@ const GENERATED_ANATOMY_PATHS = Object.freeze({
   core: "/fitcoach-founder-test/v040/assets/anatomy/core-v2.png",
 });
 
+// Onboarding uses a dedicated original front/back atlas on a bright surface.
+// It avoids reusing the compact SVG fallback used elsewhere in the app, while
+// the selected chip state remains the precise, accessible source of truth.
+const BODY_FOCUS_ANATOMY_PATH = "/fitcoach-founder-test/v040/assets/anatomy/body-focus-neutral-v1.png";
+
 function generatedAnatomyAsset(exercise) {
   const values = [
     ...(exercise?.primaryMuscles || []),
@@ -237,9 +242,15 @@ function anatomyIllustration(group, { profile = "neutral" } = {}) {
 export function bodyFocusMap(focusAreas = [], { gender = "prefer-not-to-say" } = {}) {
   const focused = new Set((Array.isArray(focusAreas) ? focusAreas : [focusAreas]).map(value => String(value).toLowerCase()));
   const labels = ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"];
-  return `<div class="body-focus-map" role="img" aria-label="Front and back body focus illustration. Selected areas: ${escapeHtml(labels.filter(label => focused.has(label)).join(", ") || "none")}">
+  const selected = labels.filter(label => focused.has(label));
+  const family = focused.has("full body") ? "full" : focused.has("back") ? "pull" : focused.has("legs") || focused.has("glutes") ? "lower" : focused.has("chest") || focused.has("shoulders") || focused.has("arms") ? "upper" : focused.has("abs") ? "core" : "neutral";
+  const selectedLabel = selected.length ? selected.join(" · ") : "Choose up to three areas";
+  return `<div class="body-focus-map" data-profile="${escapeHtml(gender)}" data-focus-family="${family}" role="img" aria-label="Front and back anatomy illustration. Selected areas: ${escapeHtml(selected.join(", ") || "none")}">
     <div class="body-focus-map-heading"><span>FRONT</span><span>BACK</span></div>
-    ${anatomyIllustration(bodyFocusGroups([...focused]), { profile: gender })}
+    <figure class="body-focus-artwork">
+      <div class="body-focus-artwork-frame"><img src="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" loading="eager" decoding="async" alt=""></div>
+      <figcaption><span>Training focus</span><strong>${escapeHtml(selectedLabel)}</strong></figcaption>
+    </figure>
   </div>`;
 }
 

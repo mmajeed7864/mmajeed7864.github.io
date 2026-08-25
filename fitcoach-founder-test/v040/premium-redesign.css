@@ -1,5 +1,5 @@
 /*
- * FitCoach Premium Redesign — v0.4.5
+ * FitCoach Premium Redesign — v0.4.6
  *
  * This file is intentionally the final visual layer. The existing stylesheet
  * continues to provide structural fallbacks while this layer gives every
@@ -1514,8 +1514,7 @@
   gap: 10px;
   justify-items: center;
 }
-.muscle-map .anatomy-illustration,
-.body-focus-map .anatomy-illustration {
+.muscle-map .anatomy-illustration {
   display: block;
   width: min(100%, 560px);
   height: auto;
@@ -1728,9 +1727,62 @@
 .body-focus-map-heading {
   color: var(--muted);
 }
-.body-focus-map .anatomy-illustration {
-  width: min(100%, 470px);
-  min-height: 292px;
+.body-focus-artwork {
+  width: min(100%, 500px);
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.body-focus-artwork-frame {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--action) 22%, var(--border));
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 52%, color-mix(in srgb, var(--action) 10%, transparent), transparent 62%),
+    linear-gradient(145deg, #f9fbff, #e9f3ff);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--primary) 14%, transparent), inset 0 1px 0 rgba(255,255,255,.76);
+}
+.body-focus-artwork img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+.body-focus-artwork figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  min-height: 21px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.35;
+  text-align: center;
+}
+.body-focus-artwork figcaption span {
+  color: var(--action);
+  font-size: .61rem;
+  font-weight: 850;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.body-focus-artwork figcaption strong {
+  color: var(--text);
+  font-weight: 760;
+}
+.body-focus-map[data-focus-family="upper"] .body-focus-artwork-frame,
+.body-focus-map[data-focus-family="pull"] .body-focus-artwork-frame {
+  border-color: color-mix(in srgb, var(--action) 42%, var(--border));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--action) 21%, transparent), inset 0 1px 0 rgba(255,255,255,.78);
+}
+.body-focus-map[data-focus-family="core"] .body-focus-artwork-frame {
+  border-color: color-mix(in srgb, #4d82ff 42%, var(--border));
+}
+.body-focus-map[data-focus-family="lower"] .body-focus-artwork-frame,
+.body-focus-map[data-focus-family="full"] .body-focus-artwork-frame {
+  border-color: color-mix(in srgb, #2d90ff 42%, var(--border));
 }
 .body-focus-chip-grid {
   display: flex;
@@ -1781,7 +1833,9 @@
   .body-focus-step > h1 { font-size: clamp(1.92rem, 8.8vw, 2.55rem); }
   .body-focus-step > p { line-height: 1.38; }
   .body-focus-map { padding-top: 0; }
-  .body-focus-map .anatomy-illustration { min-height: 248px; }
+  .body-focus-artwork { width: min(100%, 440px); gap: 6px; }
+  .body-focus-artwork-frame { border-radius: 20px; }
+  .body-focus-artwork figcaption { min-height: 19px; font-size: .68rem; }
   .body-focus-chip-grid { gap: 7px; padding-top: 0; }
   .body-focus-chip { min-height: 41px; padding: 8px 13px; font-size: .84rem; }
   .body-focus-note { margin-top: 0; font-size: .7rem; }
