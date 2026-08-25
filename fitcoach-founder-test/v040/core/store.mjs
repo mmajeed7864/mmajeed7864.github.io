@@ -247,14 +247,16 @@ function normalizeWorkout(raw, unit = "lb") {
 
 function normalizeProfile(raw, base) {
   const profile = isObject(raw) ? raw : {};
+  const validFocusAreas = unique(Array.isArray(profile.focusAreas)
+    ? profile.focusAreas.map(value => cleanString(value, "", 30)).filter(value => ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"].includes(value))
+    : base.focusAreas);
+  const focusAreas = validFocusAreas.includes("full body") ? ["full body"] : validFocusAreas.slice(0, 3);
   return {
     ...base,
     onboarded: Boolean(profile.onboarded),
     goal: cleanString(profile.goal, base.goal, 60),
     gender: oneOf(profile.gender, ["female", "male", "nonbinary", "prefer-not-to-say"], base.gender),
-    focusAreas: unique(Array.isArray(profile.focusAreas)
-      ? profile.focusAreas.map(value => cleanString(value, "", 30)).filter(value => ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"].includes(value))
-      : base.focusAreas).slice(0, 3),
+    focusAreas,
     experience: oneOf(profile.experience, ["beginner", "intermediate", "advanced"], base.experience),
     days: safeNumber(profile.days ?? profile.days_per_week, base.days, 1, 7),
     duration: safeNumber(profile.duration, base.duration, 10, 120),

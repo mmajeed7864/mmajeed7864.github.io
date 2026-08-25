@@ -213,6 +213,14 @@ test("tutorial dismissal is local settings state and defaults to showing the tut
   assert.equal(normalizeStateForTest({ settings: { tutorialDismissed: false } }).settings.tutorialDismissed, false);
 });
 
+test("full-body focus remains exclusive when persisted profile data is normalized", () => {
+  const fullBody = normalizeStateForTest({ profile: { focusAreas: ["arms", "full body", "abs"] } });
+  const regional = normalizeStateForTest({ profile: { focusAreas: ["arms", "abs", "legs", "back"] } });
+
+  assert.deepEqual(fullBody.profile.focusAreas, ["full body"]);
+  assert.deepEqual(regional.profile.focusAreas, ["arms", "abs", "legs"]);
+});
+
 test("new local profiles start with a voice that matches the trainer tone", () => {
   assert.equal(createInitialState("mo", FIXED_NOW).profile.tone, "Strict");
   assert.equal(createInitialState("mo", FIXED_NOW).settings.voicePersona, "atlas");
