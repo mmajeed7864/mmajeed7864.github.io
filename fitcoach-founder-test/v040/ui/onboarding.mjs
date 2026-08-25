@@ -70,7 +70,19 @@ function genderStep(draft) {
 
 function bodyFocusStep(draft) {
   const selected = new Set(Array.isArray(draft.profile.focusAreas) ? draft.profile.focusAreas : []);
-  return `<div class="onboarding-step trainer-interview single-question body-focus-step"><span class="eyebrow">BODY FOCUS</span><h1>Build around what matters to you.</h1><p>Choose up to three areas, or pick full body. This changes training emphasis—not medical advice.</p>${trainerBubble("Which areas do you want to focus on?")}<div class="single-question-answer"><div class="single-answer body-focus-answer"><div class="body-focus-stage">${bodyFocusMap([...selected], { gender: draft.profile.gender })}</div><div class="body-focus-chip-grid" role="group" aria-label="Body focus areas">${BODY_FOCUS.map(([value, label]) => `<button class="body-focus-chip ${selected.has(value) ? "active" : ""}" aria-pressed="${selected.has(value)}" data-action="onboarding-toggle-focus" data-value="${escapeHtml(value)}">${escapeHtml(label)}</button>`).join("")}</div><small class="body-focus-note">Selected areas guide exercise balance. Every plan still uses complete movement patterns.</small></div></div></div>`;
+  const fullBody = selected.has("full body");
+  const regionOptions = BODY_FOCUS.filter(([value]) => value !== "full body");
+  const regionButton = ([value, label]) => {
+    const active = selected.has(value);
+    return `<button class="body-focus-chip ${active ? "active" : ""}" aria-pressed="${active}" data-action="onboarding-toggle-focus" data-value="${escapeHtml(value)}"><span>${escapeHtml(label)}</span><em aria-hidden="true">${active ? "✓" : ""}</em></button>`;
+  };
+  const status = fullBody
+    ? "Balanced full-body plan"
+    : selected.size
+      ? `${selected.size} of 3 selected`
+      : "Choose up to 3 areas";
+  const fullBodyActive = selected.has("full body");
+  return `<div class="onboarding-step trainer-interview single-question body-focus-step"><span class="eyebrow">BODY FOCUS</span><h1>Choose your focus.</h1>${trainerBubble("Where should I place extra emphasis?")}<div class="single-question-answer"><div class="single-answer body-focus-answer"><div class="body-focus-stage">${bodyFocusMap([...selected], { gender: draft.profile.gender })}</div><section class="body-focus-selection-panel" aria-labelledby="body-focus-selection-title"><div class="body-focus-selection-head"><span><small id="body-focus-selection-title">SELECT AREAS</small><strong id="body-focus-selection-status" aria-live="polite" aria-atomic="true">${escapeHtml(status)}</strong></span><b>${fullBody ? "BALANCED" : `${selected.size}/3`}</b></div><div class="body-focus-chip-grid" role="group" aria-label="Body focus areas" aria-describedby="body-focus-selection-status body-focus-help">${regionOptions.map(regionButton).join("")}</div><button class="body-focus-chip body-focus-balance-chip ${fullBodyActive ? "active" : ""}" aria-pressed="${fullBodyActive}" data-action="onboarding-toggle-focus" data-value="full body"><span><b>Full body</b><small>Train every movement pattern evenly</small></span><em aria-hidden="true">${fullBodyActive ? "✓" : ""}</em></button><small id="body-focus-help" class="body-focus-note">This changes exercise emphasis—not medical guidance.</small></section></div></div></div>`;
 }
 
 function themeStep(draft) {
@@ -151,5 +163,13 @@ function boundaryStep(draft) {
 export function renderOnboarding({step,draft}) {
   const pages = [goalStep, genderStep, bodyFocusStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), gymNameStep, gymEquipmentStep, blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
   const safeStep = Math.min(Math.max(Number(step) || 0, 0), pages.length - 1);
-  return `<section class="onboarding-screen ai-setup-screen"><header><button class="icon-only" data-action="exit-onboarding" aria-label="Exit onboarding">${icon("chevron")}</button><div><b>Let’s get started</b><div class="onboarding-progress segmented">${Array.from({length: ONBOARDING_STEP_COUNT}, (_, index) => `<span class="${index < safeStep + 1 ? "active" : ""}"></span>`).join("")}</div></div><small>Step ${safeStep+1} of ${ONBOARDING_STEP_COUNT}</small></header><main>${pages[safeStep](draft)}</main><footer>${button({label:"Back",action:"onboarding-back",variant:"quiet",disabled:safeStep===0})}${button({label:safeStep===ONBOARDING_STEP_COUNT-1?"Enter FitCoach":"Continue",action:"onboarding-next",variant:"primary",disabled:safeStep===ONBOARDING_STEP_COUNT-1&&!draft.consent})}</footer></section>`;
+  const focusAreas = Array.isArray(draft.profile.focusAreas) ? draft.profile.focusAreas : [];
+  const nextLabel = safeStep === ONBOARDING_STEP_COUNT - 1
+    ? "Enter FitCoach"
+    : safeStep === 2 && focusAreas.includes("full body")
+      ? "Use balanced plan"
+      : safeStep === 2 && focusAreas.length
+        ? `Continue with ${focusAreas.length} ${focusAreas.length === 1 ? "area" : "areas"}`
+        : "Continue";
+  return `<section class="onboarding-screen ai-setup-screen"><header><button class="icon-only" data-action="exit-onboarding" aria-label="Exit onboarding">${icon("chevron")}</button><div><b>Let’s get started</b><div class="onboarding-progress segmented">${Array.from({length: ONBOARDING_STEP_COUNT}, (_, index) => `<span class="${index < safeStep + 1 ? "active" : ""}"></span>`).join("")}</div></div><small>Step ${safeStep+1} of ${ONBOARDING_STEP_COUNT}</small></header><main>${pages[safeStep](draft)}</main><footer>${button({label:"Back",action:"onboarding-back",variant:"quiet",disabled:safeStep===0})}${button({label:nextLabel,action:"onboarding-next",variant:"primary",disabled:safeStep===ONBOARDING_STEP_COUNT-1&&!draft.consent})}</footer></section>`;
 }

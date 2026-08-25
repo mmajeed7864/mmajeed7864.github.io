@@ -144,18 +144,22 @@ function bodyFocusGroups(focusAreas = []) {
 }
 
 function bodyFocusHighlightOverlay(focusAreas = []) {
+  const focused = new Set((Array.isArray(focusAreas) ? focusAreas : [focusAreas]).map(value => String(value).toLowerCase()));
+  const fullBody = focused.has("full body") || focused.has("full-body") || focused.has("everything");
   const group = bodyFocusGroups(focusAreas);
-  const active = (...names) => names.some(name => group[name] !== "muted") ? " is-active" : "";
-  const layer = (name, paths, activeNames = [name]) => `<g class="body-focus-highlight body-focus-highlight-${name}${active(...activeNames)}" data-highlight="${name}">${paths.map(path => `<path class="body-focus-muscle" d="${path}"/>`).join("")}</g>`;
+  // Full body is an intentional balanced-program state. Activating every
+  // hand-drawn region at once creates dark overlaps, so it uses the dedicated
+  // soft atlas treatment rendered by the canvas instead.
+  const active = (...names) => !fullBody && names.some(name => group[name] !== "muted") ? " is-active" : "";
+  const layer = (name, paths, activeNames = [name]) => `<defs><clipPath id="body-focus-clip-${name}">${paths.map(path => `<path d="${path}"/>`).join("")}</clipPath></defs><g class="body-focus-highlight body-focus-highlight-${name}${active(...activeNames)}" data-highlight="${name}" clip-path="url(#body-focus-clip-${name})"><image class="body-focus-highlight-image" href="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" preserveAspectRatio="xMidYMid meet" filter="url(#body-focus-blue-ink)"/></g>`;
 
-  return `<svg class="body-focus-highlight-layer" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  return `<svg class="body-focus-highlight-layer" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <defs>
-      <linearGradient id="body-focus-active-blue" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#6ed8ff"/>
-        <stop offset=".48" stop-color="#258cff"/>
-        <stop offset="1" stop-color="#1559e8"/>
-      </linearGradient>
+      <filter id="body-focus-blue-ink" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0 0 0 0 .06  0 0 0 0 .42  0 0 0 0 .98  -.3189 -1.0728 -.1083 0 1.42"/>
+      </filter>
     </defs>
+    <g class="body-focus-highlight body-focus-highlight-full${fullBody ? " is-active" : ""}" data-highlight="full"><image class="body-focus-highlight-image" href="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" preserveAspectRatio="xMidYMid meet" filter="url(#body-focus-blue-ink)"/></g>
     ${layer("shoulders", [
       "M389 204C409 180 444 178 472 201C477 221 472 247 461 270C433 279 405 261 390 234Z",
       "M579 201C607 178 642 180 662 204L661 234C646 261 618 279 590 270C579 247 574 221 579 201Z",
@@ -310,13 +314,24 @@ export function bodyFocusMap(focusAreas = [], { gender = "prefer-not-to-say" } =
   const focused = new Set((Array.isArray(focusAreas) ? focusAreas : [focusAreas]).map(value => String(value).toLowerCase()));
   const labels = ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"];
   const selected = labels.filter(label => focused.has(label));
-  const family = focused.has("full body") ? "full" : focused.has("back") ? "pull" : focused.has("legs") || focused.has("glutes") ? "lower" : focused.has("chest") || focused.has("shoulders") || focused.has("arms") ? "upper" : focused.has("abs") ? "core" : "neutral";
-  const selectedLabel = selected.length ? selected.join(" · ") : "Choose up to three areas";
-  return `<div class="body-focus-map" data-profile="${escapeHtml(gender)}" data-focus-family="${family}" role="img" aria-label="Front and back anatomy illustration. Selected areas: ${escapeHtml(selected.join(", ") || "none")}">
-    <div class="body-focus-map-heading"><span>FRONT</span><span>BACK</span></div>
+  const fullBody = focused.has("full body");
+  const family = fullBody ? "full" : focused.has("back") ? "pull" : focused.has("legs") || focused.has("glutes") ? "lower" : focused.has("chest") || focused.has("shoulders") || focused.has("arms") ? "upper" : focused.has("abs") ? "core" : "neutral";
+  const titleCase = value => value.replace(/(^|\s)\S/g, match => match.toUpperCase());
+  const selectedLabel = fullBody
+    ? "Balanced full-body emphasis"
+    : selected.length
+      ? selected.map(titleCase).join(" · ")
+      : "Choose up to three areas";
+  const selectionBadge = fullBody ? "Balanced" : selected.length ? "Focused" : "Ready";
+  return `<div class="body-focus-map" data-profile="${escapeHtml(gender)}" data-focus-family="${family}" data-focus-count="${selected.length}" role="img" aria-label="Front and back anatomy illustration. Selected areas: ${escapeHtml(selected.join(", ") || "none")}">
     <figure class="body-focus-artwork">
-      <div class="body-focus-artwork-frame"><img src="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" loading="eager" decoding="async" alt="">${bodyFocusHighlightOverlay([...focused])}</div>
-      <figcaption><span>Training focus</span><strong>${escapeHtml(selectedLabel)}</strong></figcaption>
+      <div class="body-focus-artwork-shell">
+        <div class="body-focus-artwork-frame">
+          <div class="body-focus-figure-labels" aria-hidden="true"><span>FRONT</span><span>BACK</span></div>
+          <div class="body-focus-image-stack"><img src="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" loading="eager" decoding="async" alt="">${bodyFocusHighlightOverlay([...focused])}</div>
+        </div>
+        <figcaption><i aria-hidden="true"></i><span><small>${fullBody ? "BALANCED PLAN" : "TRAINING EMPHASIS"}</small><strong>${escapeHtml(selectedLabel)}</strong></span><b>${escapeHtml(selectionBadge)}</b></figcaption>
+      </div>
     </figure>
   </div>`;
 }

@@ -137,6 +137,31 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
   assert.match(renderOnboarding({ step: 10, draft }), /equipment-scan-option/u);
 });
 
+test("body-focus onboarding exposes one clear visual state and a stateful action", () => {
+  const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
+  const targetedDraft = {
+    profile: { ...state.profile, focusAreas: ["arms", "abs"] },
+    settings: state.settings,
+    gymProfile: state.gymProfile,
+    consent: true,
+  };
+  const targeted = renderOnboarding({ step: 2, draft: targetedDraft });
+
+  assert.match(targeted, /body-focus-selection-panel/u);
+  assert.match(targeted, /body-focus-balance-chip/u);
+  assert.match(targeted, /2 of 3 selected/u);
+  assert.match(targeted, /Continue with 2 areas/u);
+  assert.match(targeted, /data-value="arms"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-value="arms"/u);
+
+  const balanced = renderOnboarding({
+    step: 2,
+    draft: { ...targetedDraft, profile: { ...state.profile, focusAreas: ["full body"] } },
+  });
+  assert.match(balanced, /Balanced full-body plan/u);
+  assert.match(balanced, /Use balanced plan/u);
+  assert.match(balanced, /body-focus-balance-chip active/u);
+});
+
 test("exercise discovery uses compact scroll rails with an accessible favorites control", () => {
   const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
   const html = renderTrainScreen({
@@ -262,7 +287,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.4\.8/u);
+  assert.match(html, /FitCoach v0\.4\.9/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -307,7 +332,7 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0430", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0431", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

@@ -1,5 +1,5 @@
 /*
- * FitCoach Premium Redesign — v0.4.8
+ * FitCoach Premium Redesign — v0.4.9
  *
  * This file is intentionally the final visual layer. The existing stylesheet
  * continues to provide structural fallbacks while this layer gives every
@@ -1694,66 +1694,108 @@
 }
 .body-focus-step {
   align-content: start;
-  min-height: min(73dvh, 700px);
-  gap: 13px;
+  min-height: min(73dvh, 720px);
+  gap: 11px;
 }
 .body-focus-step > h1 {
-  max-width: 12ch;
-  margin-top: 2px;
-  font-size: clamp(2rem, 8.8vw, 3rem);
+  max-width: 11ch;
+  margin-top: 1px;
+  font-size: clamp(2rem, 8.2vw, 2.85rem);
 }
-.body-focus-step > p { max-width: 32rem; }
+.body-focus-step .trainer-interview-row { margin-block: 0 2px; }
 .body-focus-step .trainer-bubble {
+  min-height: 54px;
+  padding: 11px 15px;
+  border-radius: 11px 19px 19px 19px;
   color: var(--text);
   border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
   border-left-color: var(--action);
-  background: color-mix(in srgb, var(--surface) 92%, var(--surface-2));
-  box-shadow: var(--shadow-sm);
+  background: color-mix(in srgb, var(--surface) 95%, var(--surface-2));
+  box-shadow: 0 9px 24px color-mix(in srgb, var(--primary) 9%, transparent);
+}
+.body-focus-step .trainer-bubble b { font-size: .96rem; }
+.body-focus-answer {
+  width: min(100%, 510px);
+  margin-inline: auto;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 13%, var(--border));
+  border-radius: 30px;
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--surface) 98%, #edf5ff), color-mix(in srgb, var(--surface) 94%, #e8f2ff));
+  box-shadow:
+    0 24px 56px color-mix(in srgb, var(--primary) 13%, transparent),
+    0 2px 8px rgba(20, 55, 96, .045),
+    inset 0 1px 0 rgba(255, 255, 255, .92);
 }
 .body-focus-stage {
   width: 100%;
-  margin: 1px auto 0;
+  margin: 0 auto;
   overflow: visible;
   border: 0;
   border-radius: 0;
-  background:
-    radial-gradient(ellipse 50% 43% at 50% 48%, rgba(37, 94, 180, .16), transparent 72%),
-    transparent;
+  background: transparent;
 }
 .body-focus-map {
-  gap: 4px;
-  padding: 8px 0 1px;
-}
-.body-focus-map-heading {
-  color: var(--muted);
+  display: block;
+  padding: 0;
 }
 .body-focus-artwork {
-  width: min(100%, 500px);
-  display: grid;
-  gap: 8px;
+  width: 100%;
   margin: 0;
+}
+.body-focus-artwork-shell {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .body-focus-artwork-frame {
   position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--action) 20%, var(--border));
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 49%, rgba(81, 150, 255, .13), transparent 64%),
+    linear-gradient(145deg, #f8fbff 0%, #eaf3ff 54%, #f7faff 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.94),
+    inset 0 -22px 42px rgba(62, 122, 210, .075),
+    0 12px 28px rgba(37, 88, 164, .07);
+}
+.body-focus-figure-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 9px 18% 4px;
+  color: color-mix(in srgb, var(--muted) 88%, var(--primary));
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+  text-align: center;
+}
+.body-focus-image-stack {
+  position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--action) 22%, var(--border));
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 50% 52%, color-mix(in srgb, var(--action) 10%, transparent), transparent 62%),
-    linear-gradient(145deg, #f9fbff, #e9f3ff);
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--primary) 14%, transparent), inset 0 1px 0 rgba(255,255,255,.76);
+  aspect-ratio: 1.18 / 1;
 }
-.body-focus-artwork img {
+.body-focus-image-stack > img {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 3 / 2;
+  height: 100%;
   object-fit: cover;
+  object-position: center;
+  filter: saturate(.92) contrast(1.02);
+  transition: filter .28s ease;
+}
+.body-focus-map[data-focus-family="full"] .body-focus-image-stack > img {
+  filter: saturate(.98) contrast(1.025);
 }
 .body-focus-highlight-layer {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   inset: 0;
   display: block;
   width: 100%;
@@ -1769,21 +1811,11 @@
   opacity: 1;
   animation: body-focus-muscle-in .38s cubic-bezier(.22, .78, .24, 1) both;
 }
-.body-focus-muscle {
-  fill: url(#body-focus-active-blue);
-  fill-opacity: .44;
-  stroke: rgba(27, 116, 245, .66);
-  stroke-width: 2.25;
-  stroke-linejoin: round;
-  paint-order: stroke fill;
-  mix-blend-mode: color;
-  filter: drop-shadow(0 0 6px rgba(37, 132, 255, .48));
+.body-focus-highlight-image {
+  opacity: .72;
 }
-.body-focus-map[data-focus-family="full"] .body-focus-muscle {
-  fill-opacity: .34;
-  stroke: rgba(27, 116, 245, .48);
-  stroke-width: 1.8;
-  filter: drop-shadow(0 0 4px rgba(37, 132, 255, .34));
+.body-focus-highlight-full .body-focus-highlight-image {
+  opacity: .46;
 }
 @keyframes body-focus-muscle-in {
   0% { opacity: 0; transform: scale(.982); }
@@ -1794,70 +1826,172 @@
   .body-focus-highlight.is-active { animation: none; }
 }
 .body-focus-artwork figcaption {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 7px;
-  min-height: 21px;
-  padding: 0 12px;
-  color: var(--muted);
-  font-size: .72rem;
-  line-height: 1.35;
-  text-align: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 5px 0;
+  text-align: left;
 }
-.body-focus-artwork figcaption span {
-  color: var(--action);
-  font-size: .61rem;
+.body-focus-artwork figcaption > i {
+  width: 9px;
+  height: 9px;
+  border: 2px solid color-mix(in srgb, var(--action) 38%, #fff);
+  border-radius: 50%;
+  background: var(--action);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--action) 10%, transparent);
+}
+.body-focus-artwork figcaption > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.body-focus-artwork figcaption small {
+  color: var(--muted);
+  font-size: .55rem;
   font-weight: 850;
-  letter-spacing: .12em;
-  text-transform: uppercase;
+  letter-spacing: .13em;
 }
 .body-focus-artwork figcaption strong {
+  overflow: hidden;
   color: var(--text);
-  font-weight: 760;
+  font-size: .79rem;
+  font-weight: 780;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.body-focus-map[data-focus-family="upper"] .body-focus-artwork-frame,
-.body-focus-map[data-focus-family="pull"] .body-focus-artwork-frame {
-  border-color: color-mix(in srgb, var(--action) 42%, var(--border));
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--action) 21%, transparent), inset 0 1px 0 rgba(255,255,255,.78);
+.body-focus-artwork figcaption > b {
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--action) 84%, var(--text));
+  background: color-mix(in srgb, var(--action) 8%, var(--surface));
+  font-size: .62rem;
+  font-weight: 880;
+  white-space: nowrap;
 }
-.body-focus-map[data-focus-family="core"] .body-focus-artwork-frame {
-  border-color: color-mix(in srgb, #4d82ff 42%, var(--border));
+.body-focus-map:not([data-focus-family="neutral"]) .body-focus-artwork-frame {
+  border-color: color-mix(in srgb, var(--action) 40%, var(--border));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.94),
+    inset 0 -22px 42px rgba(62, 122, 210, .075),
+    0 14px 32px color-mix(in srgb, var(--action) 12%, transparent);
 }
-.body-focus-map[data-focus-family="lower"] .body-focus-artwork-frame,
-.body-focus-map[data-focus-family="full"] .body-focus-artwork-frame {
-  border-color: color-mix(in srgb, #2d90ff 42%, var(--border));
+.body-focus-selection-panel {
+  width: 100%;
+  margin: 7px auto 0;
+  padding: 13px 2px 1px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.body-focus-selection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px 11px;
+}
+.body-focus-selection-head > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.body-focus-selection-head small {
+  color: var(--action);
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+.body-focus-selection-head strong {
+  color: var(--text);
+  font-size: .84rem;
+  font-weight: 780;
+  line-height: 1.2;
+}
+.body-focus-selection-head > b {
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--action) 15%, var(--border));
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 74%, var(--surface));
+  font-size: .57rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  white-space: nowrap;
 }
 .body-focus-chip-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 9px;
-  padding: 4px 0 0;
+  gap: 8px;
+  padding: 0;
 }
 .body-focus-chip {
-  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 43px;
   padding: 9px 15px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
   border-radius: 999px;
   color: var(--text);
-  background: color-mix(in srgb, var(--surface) 90%, var(--surface-2));
-  box-shadow: var(--shadow-sm);
-  font-size: .9rem;
-  font-weight: 750;
-  line-height: 1;
-  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+  background: color-mix(in srgb, var(--surface) 96%, var(--surface-2));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 6px 14px rgba(22, 55, 95, .055);
+  font-size: .82rem;
+  font-weight: 760;
+  text-align: center;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .16s ease;
+}
+.body-focus-chip > em {
+  display: none;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--action);
+  background: #fff;
+  font-size: .64rem;
+  font-style: normal;
+  font-weight: 900;
 }
 .body-focus-chip.active {
   border-color: transparent;
   color: #fff;
-  background: linear-gradient(180deg, var(--action), var(--action-2));
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--action) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.28);
+  background: linear-gradient(145deg, #4f94ff, var(--action) 58%, var(--action-2));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--action) 25%, transparent), inset 0 1px 0 rgba(255,255,255,.24);
 }
+.body-focus-chip.active > em {
+  display: grid;
+}
+.body-focus-balance-chip {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 9px;
+  padding-inline: 17px 12px;
+  justify-content: space-between;
+  text-align: left;
+}
+.body-focus-balance-chip > span {
+  display: grid;
+  gap: 2px;
+}
+.body-focus-balance-chip > span b { font-size: .86rem; }
+.body-focus-balance-chip > span small { color: var(--muted); font-size: .66rem; font-weight: 560; }
+.body-focus-balance-chip.active > span small { color: rgba(255,255,255,.76); }
 .body-focus-chip:active { transform: scale(.97); }
+.body-focus-chip:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--action) 28%, transparent);
+  outline-offset: 2px;
+}
 .body-focus-note {
   display: block;
-  margin-top: 2px;
+  margin-top: 9px;
+  padding: 0 5px 1px;
   text-align: center;
   line-height: 1.4;
 }
@@ -1873,16 +2007,20 @@
      small iPhones. The content still scrolls if a larger text size needs it. */
   .ai-setup-screen:has(.body-focus-step) footer { min-height: 80px; }
   .ai-setup-screen:has(.body-focus-step) main { padding-bottom: calc(128px + var(--safe-bottom)); }
-  .body-focus-step { min-height: 0; gap: 9px; }
-  .body-focus-step > h1 { font-size: clamp(1.92rem, 8.8vw, 2.55rem); }
-  .body-focus-step > p { line-height: 1.38; }
+  .body-focus-step { min-height: 0; gap: 8px; }
+  .body-focus-step > h1 { font-size: clamp(1.92rem, 8.4vw, 2.42rem); }
   .body-focus-map { padding-top: 0; }
-  .body-focus-artwork { width: min(100%, 440px); gap: 6px; }
-  .body-focus-artwork-frame { border-radius: 20px; }
-  .body-focus-artwork figcaption { min-height: 19px; font-size: .68rem; }
-  .body-focus-chip-grid { gap: 7px; padding-top: 0; }
-  .body-focus-chip { min-height: 41px; padding: 8px 13px; font-size: .84rem; }
-  .body-focus-note { margin-top: 0; font-size: .7rem; }
+  .body-focus-artwork { width: min(100%, 440px); }
+  .body-focus-answer { padding: 10px; border-radius: 25px; }
+  .body-focus-artwork-frame { border-radius: 19px; }
+  .body-focus-figure-labels { padding-top: 8px; }
+  .body-focus-artwork figcaption { min-height: 48px; padding-top: 8px; }
+  .body-focus-selection-panel { margin-top: 5px; padding-top: 11px; }
+  .body-focus-selection-head { padding-bottom: 9px; }
+  .body-focus-chip-grid { gap: 7px; }
+  .body-focus-chip { min-height: 41px; padding: 8px 13px; font-size: .79rem; }
+  .body-focus-balance-chip { min-height: 49px; margin-top: 8px; }
+  .body-focus-note { margin-top: 7px; font-size: .66rem; }
   .muscle-panel .muscle-map .anatomy-illustration { min-height: 218px; }
   .muscle-panel .muscle-map .generated-anatomy-artwork { width: 100%; height: 360px; }
 }

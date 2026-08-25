@@ -1228,6 +1228,11 @@ function handleClick(event) {
     }
     ui.onboardingDraft.profile.focusAreas = [...focusAreas];
     render();
+    requestAnimationFrame(() => {
+      [...document.querySelectorAll('[data-action="onboarding-toggle-focus"]')]
+        .find(button => button.dataset.value === value)
+        ?.focus({ preventScroll: true });
+    });
     return;
   }
   if (action === "onboarding-setting-toggle") { ui.onboardingDraft.settings[target.dataset.field]=value ? value==="true" : target.checked; render(); return; }

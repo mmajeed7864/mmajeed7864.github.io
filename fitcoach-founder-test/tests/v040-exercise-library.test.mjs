@@ -104,16 +104,20 @@ test("body-focus interview uses a detailed front and back anatomy map with dynam
   assert.match(map, /data-focus-family="upper"/u);
   assert.match(map, /body-focus-neutral-v1\.png/u);
   assert.match(map, /class="body-focus-highlight-layer"/u);
+  assert.match(map, /id="body-focus-blue-ink"/u);
+  assert.match(map, /clip-path="url\(#body-focus-clip-arms\)"/u);
   assert.match(map, /body-focus-highlight body-focus-highlight-arms is-active/u);
   assert.match(map, /body-focus-highlight body-focus-highlight-core is-active/u);
   assert.doesNotMatch(map, /body-focus-highlight body-focus-highlight-chest is-active/u);
-  assert.match(map, /arms · abs/u);
+  assert.match(map, /Arms · Abs/u);
   assert.doesNotMatch(map, /anatomy-region/u);
   assert.match(map, /FRONT/u);
   assert.match(map, /BACK/u);
 
   const fullBody = bodyFocusMap(["full body"]);
-  assert.equal([...fullBody.matchAll(/body-focus-highlight body-focus-highlight-[a-z]+ is-active/gu)].length, 7);
+  assert.match(fullBody, /body-focus-highlight body-focus-highlight-full is-active/u);
+  assert.equal([...fullBody.matchAll(/body-focus-highlight body-focus-highlight-(?!full)[a-z]+ is-active/gu)].length, 0);
+  assert.match(fullBody, /Balanced full-body emphasis/u);
 });
 
 test("motion guides use local muted looping playback with a poster fallback", () => {
