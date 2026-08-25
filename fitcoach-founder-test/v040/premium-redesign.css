@@ -1,5 +1,5 @@
 /*
- * FitCoach Premium Redesign — v0.4.7
+ * FitCoach Premium Redesign — v0.4.8
  *
  * This file is intentionally the final visual layer. The existing stylesheet
  * continues to provide structural fallbacks while this layer gives every
@@ -1767,20 +1767,27 @@
 }
 .body-focus-highlight.is-active {
   opacity: 1;
-  animation: body-focus-muscle-in .34s cubic-bezier(.22, .78, .24, 1) both;
+  animation: body-focus-muscle-in .38s cubic-bezier(.22, .78, .24, 1) both;
 }
 .body-focus-muscle {
   fill: url(#body-focus-active-blue);
-  fill-opacity: .64;
-  stroke: rgba(213, 246, 255, .94);
-  stroke-width: 5;
+  fill-opacity: .44;
+  stroke: rgba(27, 116, 245, .66);
+  stroke-width: 2.25;
   stroke-linejoin: round;
-  mix-blend-mode: multiply;
-  filter: drop-shadow(0 0 10px rgba(36, 143, 255, .78));
+  paint-order: stroke fill;
+  mix-blend-mode: color;
+  filter: drop-shadow(0 0 6px rgba(37, 132, 255, .48));
+}
+.body-focus-map[data-focus-family="full"] .body-focus-muscle {
+  fill-opacity: .34;
+  stroke: rgba(27, 116, 245, .48);
+  stroke-width: 1.8;
+  filter: drop-shadow(0 0 4px rgba(37, 132, 255, .34));
 }
 @keyframes body-focus-muscle-in {
-  0% { opacity: 0; transform: scale(.965); }
-  58% { opacity: 1; transform: scale(1.012); }
+  0% { opacity: 0; transform: scale(.982); }
+  62% { opacity: 1; transform: scale(1.006); }
   100% { opacity: 1; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
