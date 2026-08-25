@@ -3,6 +3,7 @@ import { escapeHtml, formatDate } from "../core/utils.mjs";
 import { restSecondsRemaining } from "../domain/workouts.mjs";
 import {
   button,
+  displayEquipment,
   emptyState,
   exerciseMotionGuide,
   exerciseMotionMedia,
@@ -55,7 +56,7 @@ function workoutPlan({ state, plan, exerciseById }) {
       ["push", "Push", "High effort"],
     ].map(([value, label, detail]) => adjustmentTile({ label, detail, action: "propose-plan", field: "intensity", value, active: plan.intensity === value })).join("")}</div></div></div></section>
 
-    <section class="plan-list card"><header class="section-heading"><div><span class="eyebrow">SESSION ORDER</span><h2>${plan.exercises.length} movements</h2></div><button class="text-button" data-action="add-exercise">${icon("plus")} Add exercise</button></header><div>${plan.exercises.map((item,index) => planExerciseRow(item,index,exerciseById(item.exerciseId),state.settings.units)).join("")}</div><footer class="plan-footer"><span>Warm-up ${plan.warmupMinutes} min · cooldown ${plan.cooldownMinutes} min</span><div>${button({ label: "Save as routine", action: "save-routine", variant: "quiet" })}${button({ label: "Start workout", action: "start-workout", value: plan.id, variant: "primary" })}</div></footer></section>
+    <section class="plan-list card"><header class="section-heading"><div><span class="eyebrow">SESSION ORDER</span><h2>${plan.exercises.length} movements</h2></div><button class="text-button" data-action="add-exercise">${icon("plus")} Add exercise</button></header><div>${plan.exercises.map((item,index) => planExerciseRow(item,index,exerciseById(item.exerciseId),state.settings.units)).join("")}</div><footer class="plan-footer"><span>Warm-up ${plan.warmupMinutes} min · cooldown ${plan.cooldownMinutes} min</span><div class="plan-footer-actions">${button({ label: "Save as routine", action: "save-routine", variant: "quiet" })}${button({ label: "Start workout", action: "start-workout", value: plan.id, variant: "primary" })}</div></footer></section>
 
     <section class="training-principles card"><header class="section-heading"><div><span class="eyebrow">WHY THIS SESSION</span><h2>A plan with a reason</h2></div><span class="soft-badge">Built for you</span></header><div class="principle-rail"><article><span class="principle-icon">${icon("spark")}</span><b>01</b><strong>Goal matched</strong><small>Movement patterns support ${escapeHtml(titleCase(state.profile.goal))}.</small></article><article><span class="principle-icon">${icon("equipment")}</span><b>02</b><strong>Equipment ready</strong><small>Every move fits today’s ${escapeHtml(titleCase(plan.location))} setup.</small></article><article><span class="principle-icon">${icon("progress")}</span><b>03</b><strong>History aware</strong><small>Past loads appear only when a comparable log exists.</small></article></div></section>
   </div>`;
@@ -147,16 +148,17 @@ function exerciseDetail({ state, exercise, motionPaused = false, replacing = fal
   const media = exercise.media?.find(entry => ["poster", "png-two-position-guide", "svg-two-position-guide"].includes(entry.type)) || exercise.media?.[0];
   const motion = exerciseMotionMedia(exercise);
   const visualGuide = exercise.guideStatus === "visual-guide";
+  const equipment = displayEquipment(exercise.equipment);
   return `<article class="exercise-detail">
     <header class="exercise-detail-nav"><button class="back-button" data-action="close-exercise" aria-label="Back to exercise library">←</button><strong>${escapeHtml(exercise.name)}</strong><button class="icon-only favorite-large" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="Toggle favorite">${icon("heart")}</button></header>
     <section class="exercise-detail-visual card ${motion ? "motion-guide" : "static-guide"}">
       <header class="detail-media-heading"><div><span class="eyebrow">TECHNIQUE GUIDE</span><h2>${escapeHtml(exercise.name)}</h2></div><span class="guide-status-chip">${motion ? "Silent loop" : visualGuide ? "Visual guide" : "Written guide"}</span></header>
       <div class="guide-stage">${exerciseMotionGuide(exercise,{className:"large concept-art",eager:true,paused:motionPaused})}</div>
-      <div class="media-facts"><span>${escapeHtml(exercise.movementPattern.replaceAll("-", " "))}</span><span>${escapeHtml(exercise.equipment[0] || "Bodyweight")}</span><span>${escapeHtml(exercise.difficulty)}</span></div>
+      <div class="media-facts"><span>${escapeHtml(exercise.movementPattern.replaceAll("-", " "))}</span><span>${escapeHtml(equipment[0])}</span><span>${escapeHtml(exercise.difficulty)}</span></div>
       <p class="media-license">${escapeHtml(motion?.alt || (visualGuide ? media?.alt : "Use the setup, execution, and cue sections below before starting."))} Demonstration only; FitCoach does not assess live form.</p>
     </section>
     <section class="technique-checkpoints" aria-label="Technique at a glance"><article><span>01</span><div><b>Set up</b><small>${escapeHtml(exercise.setupSteps[0] || "Build a stable starting position.")}</small></div></article><article><span>02</span><div><b>Move</b><small>${escapeHtml(exercise.executionSteps[0] || "Use a controlled range of motion.")}</small></div></article><article><span>03</span><div><b>Breathe</b><small>${escapeHtml(exercise.breathing || "Breathe steadily through the repetition.")}</small></div></article></section>
-    <header class="exercise-detail-header"><span class="eyebrow">${escapeHtml(exercise.movementPattern.replaceAll("-"," ").toUpperCase())}</span><h1>${escapeHtml(exercise.name)}</h1><p>${escapeHtml(exercise.primaryMuscles.join(" · "))} · ${escapeHtml(exercise.equipment.join(" · "))} · ${escapeHtml(exercise.difficulty)}</p><div>${button({label:replacing ? "Replace current exercise" : "Add to workout",action:replacing ? "confirm-exercise-replacement" : "add-exercise-to-plan",value:exercise.id,variant:"primary",iconName:"plus"})}</div></header>
+    <header class="exercise-detail-header"><span class="eyebrow">${escapeHtml(exercise.movementPattern.replaceAll("-"," ").toUpperCase())}</span><h1>${escapeHtml(exercise.name)}</h1><p>${escapeHtml(exercise.primaryMuscles.join(" · "))} · ${escapeHtml(equipment.join(" · "))} · ${escapeHtml(exercise.difficulty)}</p><div>${button({label:replacing ? "Replace current exercise" : "Add to workout",action:replacing ? "confirm-exercise-replacement" : "add-exercise-to-plan",value:exercise.id,variant:"primary",iconName:"plus"})}</div></header>
     <div class="exercise-detail-grid">
       <section class="card muscle-panel"><span class="eyebrow">MUSCLE FOCUS</span>${muscleMap(exercise)}<div class="muscle-cloud">${exercise.primaryMuscles.map(value => `<strong>${escapeHtml(value)}</strong>`).join("")}${exercise.secondaryMuscles.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div><p>Highlighted areas describe intended training focus, not live muscle or form sensing.</p></section>
       <section class="card"><span class="eyebrow">SETUP</span><ol class="instruction-list">${exercise.setupSteps.map(step => `<li>${escapeHtml(step)}</li>`).join("")}</ol></section>

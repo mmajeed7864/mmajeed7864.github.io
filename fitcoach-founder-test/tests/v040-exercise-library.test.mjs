@@ -30,7 +30,9 @@ import {
   PENDING_MOTION_GENERATION_QUEUE,
   getMotionGenerationJob,
 } from "../v040/data/motion-generation-queue.mjs";
-import { bodyFocusMap, exerciseMotionGuide, exerciseMotionMedia, muscleMap } from "../v040/ui/components.mjs";
+import { bodyFocusMap, displayEquipment, exerciseMotionGuide, exerciseMotionMedia, muscleMap, renderExerciseCard } from "../v040/ui/components.mjs";
+import { renderTrainScreen } from "../v040/ui/train-screen.mjs";
+import { createInitialState } from "../v040/core/store.mjs";
 
 const APP_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const COMPETITOR_OR_REMOTE_PATTERN = /https?:\/\/|fitbod|fitness[ -]?online/i;
@@ -61,8 +63,37 @@ test("all 100 exercises expose a local muscle map without remote tutorial links"
     assert.match(map, /anatomy-region (?:primary|secondary)/u);
     assert.match(map, /Primary/u);
     assert.match(map, /Secondary/u);
+    assert.match(map, /assets\/anatomy\/.+-v2\.png/u);
   }
   assert.doesNotMatch(JSON.stringify(EXERCISES), /youtube|youtu\.be|https?:\/\//iu);
+});
+
+test("lower-body movements keep their lower-body anatomy family even with a core secondary cue", () => {
+  const map = muscleMap(getExerciseById("air-squat"));
+  assert.match(map, /data-anatomy-family="lower"/u);
+  assert.match(map, /lower-body-v2\.png/u);
+  assert.doesNotMatch(map, /core-v2\.png/u);
+});
+
+test("bodyweight exercises never expose the internal none equipment sentinel", () => {
+  const exercise = getExerciseById("air-squat");
+  assert.deepEqual(displayEquipment(["none"]), ["Bodyweight"]);
+  assert.deepEqual(displayEquipment(["dumbbell", "none"]), ["dumbbell"]);
+  assert.match(renderExerciseCard(exercise, {}), /Bodyweight/u);
+  assert.doesNotMatch(renderExerciseCard(exercise, {}), />none</iu);
+
+  const state = {
+    ...createInitialState("mo", new Date("2026-08-20T14:00:00.000Z")),
+    exercisePreferences: { favorites: [], preferred: [], reduced: [], excluded: [] },
+  };
+  const detail = renderTrainScreen({
+    state,
+    exerciseById: getExerciseById,
+    filteredExercises: EXERCISES,
+    ui: { trainSegment: "exercises", exerciseDetailId: "air-squat", showActiveWorkout: false, motionPaused: false },
+  });
+  assert.match(detail, /Bodyweight/u);
+  assert.doesNotMatch(detail, /· none ·/iu);
 });
 
 test("body-focus interview uses a detailed front and back anatomy map with dynamic selections", () => {

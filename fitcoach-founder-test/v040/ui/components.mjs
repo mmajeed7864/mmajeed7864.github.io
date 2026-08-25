@@ -35,6 +35,13 @@ export function button({ label, action, value = "", variant = "secondary", iconN
   return `<button class="button button-${escapeHtml(variant)}" data-action="${escapeHtml(action)}" data-value="${escapeHtml(value)}" ${disabled ? "disabled" : ""} ${extra}>${iconName ? icon(iconName) : ""}<span>${escapeHtml(label)}</span></button>`;
 }
 
+export function displayEquipment(equipment, fallback = "Bodyweight") {
+  const values = (Array.isArray(equipment) ? equipment : [])
+    .map(value => String(value || "").trim())
+    .filter(value => value && !/^none$/iu.test(value));
+  return values.length ? values : [fallback];
+}
+
 export function exercisePoster(exercise, { className = "", eager = false, label = true } = {}) {
   const media = exercise?.media?.find?.(entry => entry.type === "poster")
     || exercise?.media?.find?.(entry => ["png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
@@ -91,11 +98,11 @@ function activeMuscleGroups(exercise) {
 // labels below still come from the exercise record; the illustrations are a
 // visual explainer only and never claim live form or muscle sensing.
 const GENERATED_ANATOMY_PATHS = Object.freeze({
-  lower: "/fitcoach-founder-test/v040/assets/anatomy/lower-body-v1.png",
-  push: "/fitcoach-founder-test/v040/assets/anatomy/push-v1.png",
-  pull: "/fitcoach-founder-test/v040/assets/anatomy/pull-v1.png",
-  hinge: "/fitcoach-founder-test/v040/assets/anatomy/hinge-v1.png",
-  core: "/fitcoach-founder-test/v040/assets/anatomy/core-v1.png",
+  lower: "/fitcoach-founder-test/v040/assets/anatomy/lower-body-v2.png",
+  push: "/fitcoach-founder-test/v040/assets/anatomy/push-v2.png",
+  pull: "/fitcoach-founder-test/v040/assets/anatomy/pull-v2.png",
+  hinge: "/fitcoach-founder-test/v040/assets/anatomy/hinge-v2.png",
+  core: "/fitcoach-founder-test/v040/assets/anatomy/core-v2.png",
 });
 
 function generatedAnatomyAsset(exercise) {
@@ -107,10 +114,10 @@ function generatedAnatomyAsset(exercise) {
   ].map(value => String(value).toLowerCase());
   const has = terms => values.some(value => terms.some(term => value.includes(term)));
   if (has(["deadlift", "hinge", "erector"]) || (has(["hamstring"]) && has(["back", "lat"]))) return { family: "hinge", path: GENERATED_ANATOMY_PATHS.hinge };
+  if (has(["squat", "lunge", "quad", "glute", "leg", "calf", "hamstring"])) return { family: "lower", path: GENERATED_ANATOMY_PATHS.lower };
   if (has(["core", "ab", "oblique", "trunk"])) return { family: "core", path: GENERATED_ANATOMY_PATHS.core };
   if (has(["press", "push", "chest", "pectoral", "triceps"])) return { family: "push", path: GENERATED_ANATOMY_PATHS.push };
   if (has(["row", "pull", "pulldown", "lat", "back", "biceps"])) return { family: "pull", path: GENERATED_ANATOMY_PATHS.pull };
-  if (has(["squat", "lunge", "quad", "glute", "leg", "calf", "hamstring"])) return { family: "lower", path: GENERATED_ANATOMY_PATHS.lower };
   return { family: "lower", path: GENERATED_ANATOMY_PATHS.lower };
 }
 
@@ -256,10 +263,11 @@ export function muscleMap(exercise) {
 export function renderExerciseCard(exercise, preferences, { action = "open-exercise", compact = false } = {}) {
   const favorite = (preferences?.favorites || []).includes(exercise.id);
   const motion = exerciseMotionMedia(exercise);
+  const equipment = displayEquipment(exercise.equipment);
   return `<article class="exercise-card ${compact ? "compact" : ""}" data-exercise-id="${escapeHtml(exercise.id)}">
     <button class="exercise-card-open" data-action="${escapeHtml(action)}" data-value="${escapeHtml(exercise.id)}" aria-label="Open ${escapeHtml(exercise.name)}">
       ${exercisePoster(exercise)}
-      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml((exercise.equipment || []).join(" · "))}</em><i class="guide-status ${motion ? "visual motion" : exercise.guideStatus === "visual-guide" ? "visual" : "written"}">${motion ? "Motion guide" : exercise.guideStatus === "visual-guide" ? "Visual guide" : "Written guide"}</i></span>
+      <span class="exercise-card-copy"><small>${escapeHtml((exercise.primaryMuscles || []).slice(0, 2).join(" · "))}</small><b>${escapeHtml(exercise.name)}</b><em>${escapeHtml(equipment.join(" · "))}</em><i class="guide-status ${motion ? "visual motion" : exercise.guideStatus === "visual-guide" ? "visual" : "written"}">${motion ? "Motion guide" : exercise.guideStatus === "visual-guide" ? "Visual guide" : "Written guide"}</i></span>
     </button>
     <button class="favorite-button ${favorite ? "active" : ""}" data-action="toggle-favorite" data-value="${escapeHtml(exercise.id)}" aria-label="${favorite ? "Remove from" : "Add to"} favorites" aria-pressed="${favorite}">${icon("heart")}</button>
   </article>`;
