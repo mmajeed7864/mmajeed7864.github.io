@@ -1,5 +1,5 @@
 /*
- * FitCoach Premium Redesign — v0.4.6
+ * FitCoach Premium Redesign — v0.4.7
  *
  * This file is intentionally the final visual layer. The existing stylesheet
  * continues to provide structural fallbacks while this layer gives every
@@ -1734,6 +1734,8 @@
   margin: 0;
 }
 .body-focus-artwork-frame {
+  position: relative;
+  isolation: isolate;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--action) 22%, var(--border));
   border-radius: 24px;
@@ -1748,6 +1750,41 @@
   height: auto;
   aspect-ratio: 3 / 2;
   object-fit: cover;
+}
+.body-focus-highlight-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.body-focus-highlight {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.body-focus-highlight.is-active {
+  opacity: 1;
+  animation: body-focus-muscle-in .34s cubic-bezier(.22, .78, .24, 1) both;
+}
+.body-focus-muscle {
+  fill: url(#body-focus-active-blue);
+  fill-opacity: .64;
+  stroke: rgba(213, 246, 255, .94);
+  stroke-width: 5;
+  stroke-linejoin: round;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(0 0 10px rgba(36, 143, 255, .78));
+}
+@keyframes body-focus-muscle-in {
+  0% { opacity: 0; transform: scale(.965); }
+  58% { opacity: 1; transform: scale(1.012); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .body-focus-highlight.is-active { animation: none; }
 }
 .body-focus-artwork figcaption {
   display: flex;

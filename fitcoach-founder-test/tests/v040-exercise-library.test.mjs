@@ -103,10 +103,17 @@ test("body-focus interview uses a detailed front and back anatomy map with dynam
   assert.match(map, /data-profile="female"/u);
   assert.match(map, /data-focus-family="upper"/u);
   assert.match(map, /body-focus-neutral-v1\.png/u);
+  assert.match(map, /class="body-focus-highlight-layer"/u);
+  assert.match(map, /body-focus-highlight body-focus-highlight-arms is-active/u);
+  assert.match(map, /body-focus-highlight body-focus-highlight-core is-active/u);
+  assert.doesNotMatch(map, /body-focus-highlight body-focus-highlight-chest is-active/u);
   assert.match(map, /arms · abs/u);
   assert.doesNotMatch(map, /anatomy-region/u);
   assert.match(map, /FRONT/u);
   assert.match(map, /BACK/u);
+
+  const fullBody = bodyFocusMap(["full body"]);
+  assert.equal([...fullBody.matchAll(/body-focus-highlight body-focus-highlight-[a-z]+ is-active/gu)].length, 7);
 });
 
 test("motion guides use local muted looping playback with a poster fallback", () => {

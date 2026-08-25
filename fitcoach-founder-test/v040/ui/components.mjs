@@ -106,8 +106,8 @@ const GENERATED_ANATOMY_PATHS = Object.freeze({
 });
 
 // Onboarding uses a dedicated original front/back atlas on a bright surface.
-// It avoids reusing the compact SVG fallback used elsewhere in the app, while
-// the selected chip state remains the precise, accessible source of truth.
+// A deterministic SVG layer follows the atlas coordinates so several chosen
+// muscle groups can illuminate together without generating every combination.
 const BODY_FOCUS_ANATOMY_PATH = "/fitcoach-founder-test/v040/assets/anatomy/body-focus-neutral-v1.png";
 
 function generatedAnatomyAsset(exercise) {
@@ -141,6 +141,67 @@ function bodyFocusGroups(focusAreas = []) {
     hamstrings: selected("legs") || selected("hamstrings") ? "primary" : "muted",
     calves: selected("legs") || selected("calves") ? "secondary" : "muted",
   };
+}
+
+function bodyFocusHighlightOverlay(focusAreas = []) {
+  const group = bodyFocusGroups(focusAreas);
+  const active = (...names) => names.some(name => group[name] !== "muted") ? " is-active" : "";
+  const layer = (name, paths, activeNames = [name]) => `<g class="body-focus-highlight body-focus-highlight-${name}${active(...activeNames)}" data-highlight="${name}">${paths.map(path => `<path class="body-focus-muscle" d="${path}"/>`).join("")}</g>`;
+
+  return `<svg class="body-focus-highlight-layer" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <defs>
+      <linearGradient id="body-focus-active-blue" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#6ed8ff"/>
+        <stop offset=".48" stop-color="#258cff"/>
+        <stop offset="1" stop-color="#1559e8"/>
+      </linearGradient>
+    </defs>
+    ${layer("shoulders", [
+      "M387 199C409 175 447 174 477 203L463 277C431 286 401 264 386 231Z",
+      "M574 203C601 174 639 176 661 199L662 232C646 264 616 286 585 277Z",
+      "M835 202C860 175 899 176 930 205L918 270C886 283 854 263 837 231Z",
+      "M1084 205C1114 176 1153 175 1177 201L1175 232C1158 263 1126 283 1094 270Z",
+    ])}
+    ${layer("chest", [
+      "M413 236C439 211 484 209 514 233L511 326C476 340 433 325 412 294Z",
+      "M522 233C552 209 597 211 623 236L624 294C603 325 560 340 525 326Z",
+    ])}
+    ${layer("arms", [
+      "M372 256C397 244 423 260 431 289L410 397C394 414 369 407 359 386Z",
+      "M356 382C374 379 393 392 397 414L369 526C351 545 326 529 329 507Z",
+      "M604 289C612 260 638 244 663 256L676 386C666 407 641 414 625 397Z",
+      "M638 414C642 392 661 379 679 382L706 507C709 529 684 545 666 526Z",
+      "M833 279C845 250 871 242 895 258L910 386C899 407 875 412 858 394Z",
+      "M825 392C843 378 863 386 870 408L845 522C830 541 805 530 808 507Z",
+      "M1139 258C1163 242 1189 250 1201 279L1176 394C1159 412 1135 407 1124 386Z",
+      "M1148 408C1155 386 1175 378 1193 392L1210 507C1213 530 1188 541 1173 522Z",
+    ])}
+    ${layer("core", [
+      "M470 305C486 294 505 295 516 307L516 502C500 518 480 513 468 494Z",
+      "M520 307C531 295 550 294 566 305L568 494C556 513 536 518 520 502Z",
+      "M442 315C461 319 470 336 467 359L461 486C450 510 429 501 424 478Z",
+      "M569 359C566 336 575 319 594 315L612 478C607 501 586 510 575 486Z",
+    ], ["core"])}
+    ${layer("back", [
+      "M908 188C939 154 978 150 1003 179C1028 150 1067 154 1098 188L1080 330L1003 390L926 330Z",
+      "M907 300C940 280 973 305 999 343L987 500C953 497 917 470 891 430Z",
+      "M1099 300C1066 280 1033 305 1007 343L1019 500C1053 497 1089 470 1115 430Z",
+    ])}
+    ${layer("glutes", [
+      "M894 497C930 477 974 482 1001 514L994 604C956 624 912 610 891 577Z",
+      "M1005 514C1032 482 1076 477 1112 497L1115 577C1094 610 1050 624 1012 604Z",
+    ])}
+    ${layer("legs", [
+      "M420 536C446 513 485 513 512 540L506 730C484 752 449 748 431 719Z",
+      "M528 540C555 513 594 513 620 536L609 719C591 748 556 752 534 730Z",
+      "M433 718C459 700 489 711 501 738L486 927C467 950 440 938 430 907Z",
+      "M539 738C551 711 581 700 607 718L610 907C600 938 573 950 554 927Z",
+      "M866 548C895 520 944 518 976 546L969 738C944 765 901 756 881 724Z",
+      "M1030 546C1062 518 1111 520 1140 548L1125 724C1105 756 1062 765 1037 738Z",
+      "M884 731C908 708 944 711 961 742L950 925C933 951 902 944 889 912Z",
+      "M1045 742C1062 711 1098 708 1122 731L1117 912C1104 944 1073 951 1056 925Z",
+    ], ["quads", "hamstrings", "calves"])}
+  </svg>`;
 }
 
 function legacyAnatomyIllustration(group) {
@@ -248,7 +309,7 @@ export function bodyFocusMap(focusAreas = [], { gender = "prefer-not-to-say" } =
   return `<div class="body-focus-map" data-profile="${escapeHtml(gender)}" data-focus-family="${family}" role="img" aria-label="Front and back anatomy illustration. Selected areas: ${escapeHtml(selected.join(", ") || "none")}">
     <div class="body-focus-map-heading"><span>FRONT</span><span>BACK</span></div>
     <figure class="body-focus-artwork">
-      <div class="body-focus-artwork-frame"><img src="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" loading="eager" decoding="async" alt=""></div>
+      <div class="body-focus-artwork-frame"><img src="${BODY_FOCUS_ANATOMY_PATH}" width="1536" height="1024" loading="eager" decoding="async" alt="">${bodyFocusHighlightOverlay([...focused])}</div>
       <figcaption><span>Training focus</span><strong>${escapeHtml(selectedLabel)}</strong></figcaption>
     </figure>
   </div>`;
