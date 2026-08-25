@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.4.5 is the active runtime (cache generation 0422 carries the visual workout polish, range-safe motion playback, and quarantined media review):
+FitCoach v0.4.5 is the active runtime (cache generation 0423 carries the visual workout polish, range-safe motion playback, quarantined media review, and blue-consistent body-focus onboarding):
 
-- document shell: `index.html?v=0422`
-- stylesheets: `v040/styles.css?v=0422` and `v040/premium-redesign.css?v=0422`
-- ES-module entry: `v040/app.js?v=0422`
-- service worker cache: `fitcoach-symbio-v0422`
+- document shell: `index.html?v=0423`
+- stylesheets: `v040/styles.css?v=0423` and `v040/premium-redesign.css?v=0423`
+- ES-module entry: `v040/app.js?v=0423`
+- service worker cache: `fitcoach-symbio-v0423`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:

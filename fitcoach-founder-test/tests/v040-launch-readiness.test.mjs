@@ -61,6 +61,19 @@ test("premium surface uses the approved blue system rather than the retired teal
   assert.doesNotMatch(css, /#0a746c|#0b756d|#07575b/i);
 });
 
+test("body-focus onboarding inherits the blue product surface in every theme", () => {
+  const css = readFileSync(new URL("../v040/premium-redesign.css", import.meta.url), "utf8");
+  const start = css.indexOf(".ai-setup-screen:has(.body-focus-step) {");
+  const end = css.indexOf("@media (max-width: 430px)", start);
+  const focusSurface = css.slice(start, end);
+
+  assert.ok(start >= 0 && end > start, "body-focus surface styles must remain explicit");
+  assert.match(focusSurface, /linear-gradient\(180deg, var\(--bg\), var\(--bg-soft\)\)/u);
+  assert.match(focusSurface, /color:\s*var\(--text\)/u);
+  assert.match(focusSurface, /background:\s*linear-gradient\(180deg, var\(--action\), var\(--action-2\)\)/u);
+  assert.doesNotMatch(focusSurface, /#0b0c0f|rgba\(11,\s*12,\s*15/u);
+});
+
 test("expansion validator rejects duplicate ids and premature live-guide claims", () => {
   const [first] = EXERCISE_EXPANSION_TARGETS;
   const result = validateExerciseExpansionTargets([
@@ -250,7 +263,7 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0422", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0423", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);
