@@ -869,10 +869,19 @@
   .chat-surface > *, .chat-surface > header > span, .chat-log, .suggested-prompts, .coach-composer, .coach-composer label { min-width: 0; max-width: 100%; }
   .chat-surface > header { min-height: 68px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .chat-log { padding: 16px; overflow-wrap: anywhere; }
-  .coach-welcome { padding: 16px; border-radius: 18px; background: var(--surface-2); }
+  .coach-welcome { display: grid; gap: 8px; padding: 16px; border-radius: 18px; background: linear-gradient(145deg, color-mix(in srgb, var(--action) 9%, var(--surface-2)), var(--surface-2)); }
+  .coach-welcome h2 { margin: 0; font-size: 1.08rem; line-height: 1.2; }
+  .coach-welcome p { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+  .coach-welcome-boundary { display: flex; align-items: flex-start; gap: 6px; margin-top: 2px; color: var(--faint); font-size: .66rem; font-weight: 650; line-height: 1.35; }
+  .coach-welcome-boundary svg { flex: 0 0 auto; width: 14px; height: 14px; margin-top: 1px; }
   .chat-message > div { border-radius: 18px; padding: 12px 14px; }
-  .suggested-prompts { width: 100%; padding: 0 16px 12px; gap: 7px; }
-  .suggested-prompts button { min-height: 44px; border-radius: 999px; background: var(--surface-2); }
+  .suggested-prompts { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 16px 12px; gap: 8px; overflow: hidden; }
+  .suggested-prompts .coach-starter-card { min-width: 0; min-height: 72px; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; padding: 10px; border: 1px solid color-mix(in srgb, var(--border) 86%, var(--action)); border-radius: 16px; color: var(--text); background: var(--surface-2); text-align: left; box-shadow: 0 8px 18px rgba(13, 44, 97, .04); }
+  .suggested-prompts .coach-starter-card > svg { width: 28px; height: 28px; padding: 7px; border-radius: 10px; color: var(--action); background: color-mix(in srgb, var(--action) 10%, var(--surface)); }
+  .suggested-prompts .coach-starter-card > span { min-width: 0; display: grid; gap: 2px; }
+  .suggested-prompts .coach-starter-card b { overflow: hidden; font-size: .73rem; line-height: 1.18; text-overflow: ellipsis; white-space: nowrap; }
+  .suggested-prompts .coach-starter-card small { overflow: hidden; color: var(--muted); font-size: .61rem; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+  .suggested-prompts .coach-starter-card:active { transform: scale(.98); }
   .coach-composer { width: calc(100% - 24px); grid-template-columns: 44px minmax(0, 1fr) 44px; margin: 0 12px 12px; padding: 6px; border-radius: 20px; background: var(--surface-2); border: 1px solid var(--border); }
   .coach-composer textarea { width: 100%; min-width: 0; min-height: 48px; border: 0; background: transparent; box-shadow: none; }
   .chat-privacy { padding: 0 16px 16px; color: var(--faint); font-size: .72rem; }
@@ -897,12 +906,18 @@
   .progress-grid { gap: 12px; }
   .progress-grid > .card { min-width: 0; }
   .monthly-bars { min-height: 145px; }
-  .progress-empty-hero { min-height: 430px; display: grid; align-content: end; gap: 12px; border-radius: var(--radius-lg); }
+  .progress-empty-hero { min-height: 360px; display: grid; align-content: end; gap: 12px; border-radius: var(--radius-lg); }
   .progress-empty-hero h1 { max-width: 12ch; font-size: 2.45rem; }
-  .progress-empty-hero p { max-width: 32rem; }
+  .progress-empty-hero p { max-width: 31rem; }
   .progress-empty-hero .button { justify-self: stretch; margin-top: 6px; }
   .first-proof-mark { width: 66px; height: 66px; display: grid; place-items: center; margin-bottom: auto; border: 1px solid rgba(255,255,255,.18); border-radius: 22px; background: rgba(255,255,255,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
   .first-proof-mark svg { width: 30px; height: 30px; }
+  .baseline-path { display: grid; grid-template-columns: auto minmax(16px, 1fr) auto minmax(16px, 1fr) auto; align-items: center; gap: 7px; margin-top: 2px; }
+  .baseline-path span { display: grid; justify-items: center; gap: 5px; min-width: 48px; color: rgba(238, 247, 255, .72); font-size: .59rem; font-weight: 760; letter-spacing: .04em; text-transform: uppercase; }
+  .baseline-path i { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid rgba(216, 234, 255, .24); border-radius: 999px; color: #dbeaff; font-size: .56rem; font-style: normal; background: rgba(7, 23, 53, .24); }
+  .baseline-path em { height: 1px; background: linear-gradient(90deg, rgba(176, 214, 255, .5), rgba(176, 214, 255, .14)); }
+  .baseline-path span.active { color: #fff; }
+  .baseline-path span.active i { border-color: rgba(255,255,255,.46); color: #082451; background: #a9d5ff; box-shadow: 0 0 0 5px rgba(140, 203, 255, .13); }
   .first-progress-guide > div { display: grid; gap: 6px; }
   .first-progress-guide article { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; min-height: 70px; padding: 10px 0; border-top: 1px solid var(--border); }
   .first-progress-guide article > span { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; color: var(--primary); background: var(--mint-2); font-size: .7rem; font-weight: 820; }
@@ -2012,6 +2027,10 @@ input[type="checkbox"]:not(.sr-only) {
 .principle-icon svg { width: 20px; height: 20px; }
 .principle-rail strong { font-size: .98rem; }
 .principle-rail small { max-width: 23ch; color: var(--muted); font-size: .72rem; line-height: 1.35; }
+.principle-rail-cue { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 3px; color: var(--muted); font-size: .62rem; font-weight: 760; letter-spacing: .035em; }
+.principle-rail-cue span { margin-right: 3px; }
+.principle-rail-cue i { width: 5px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--action) 24%, var(--border)); }
+.principle-rail-cue i:first-of-type { width: 14px; background: var(--action); }
 
 /* Exercise library */
 .library-hero {

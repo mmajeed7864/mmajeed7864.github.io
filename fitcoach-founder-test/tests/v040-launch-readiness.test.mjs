@@ -286,7 +286,8 @@ test("first-day Progress, Coach, and Profile avoid prototype-facing UI", () => {
 
   assert.doesNotMatch(coach, /<select\b|DeepSeek|Qwen|browser online|coach unverified|deterministic action/iu);
   assert.match(coach, /Talk naturally\. Hear the answer\./u);
-  assert.match(progress, /No fake history\. Your first workout creates the baseline\./u);
+  assert.match(progress, /Your baseline starts with one session\./u);
+  assert.match(progress, /Your first three progress milestones/u);
   assert.doesNotMatch(progress, /0\/3|weekly target<\/small>/u);
   assert.doesNotMatch(profile, /<select\b/iu);
   assert.doesNotMatch(visibleProfileText, /roadmap|founder|DeepSeek|Qwen/iu);
@@ -306,7 +307,7 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0425", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0427", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

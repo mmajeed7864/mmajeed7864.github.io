@@ -3,7 +3,7 @@
   "short_name": "FitCoach",
   "description": "Premium training, nutrition, progress, and AI coaching in one focused app.",
   "version": "0.4.5",
-  "start_url": "./?v=0425",
+  "start_url": "./?v=0427",
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
@@ -12,6 +12,6 @@
   "theme_color": "#F6F9FB",
   "categories": ["fitness", "health"],
   "icons": [
-    {"src":"./assets/icon-symbio.svg?v=0425","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {"src":"./assets/icon-symbio.svg?v=0427","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
 }
