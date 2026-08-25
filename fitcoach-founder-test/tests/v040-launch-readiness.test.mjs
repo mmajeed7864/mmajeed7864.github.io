@@ -77,6 +77,23 @@ test("body-focus onboarding inherits the blue product surface in every theme", (
   assert.match(css, /\.ai-setup-screen:has\(\.body-focus-step\) main \{ padding-bottom: calc\(128px \+ var\(--safe-bottom\)\); \}/u);
 });
 
+test("focused exercise motion keeps its native geometry and one deliberate control", () => {
+  const css = readFileSync(new URL("../v040/premium-redesign.css", import.meta.url), "utf8");
+  const playerStart = css.lastIndexOf("/* Focused exercise details: one header, native video proportions, one control. */");
+  const playerStyles = css.slice(playerStart);
+  const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
+
+  assert.ok(playerStart >= 0, "the focused exercise player styles must remain explicit");
+  assert.match(playerStyles, /aspect-ratio:\s*var\(--motion-aspect, 16 \/ 9\)/u);
+  assert.match(playerStyles, /object-fit:\s*contain/u);
+  assert.match(playerStyles, /pointer-events:\s*none/u);
+  assert.match(playerStyles, /\.exercise-detail-page \.exercise-detail-visual \.media-play-hint \{ display: none; \}/u);
+  assert.match(playerStyles, /\.exercise-detail-page \.exercise-detail-visual \.exercise-motion\.media-paused:not\(\.media-error\) \.media-play-hint/u);
+  assert.doesNotMatch(playerStyles, /aspect-ratio:\s*1\s*\/\s*1/u);
+  assert.match(app, /const exerciseDetailFullscreen = ui\.route === "train" && Boolean\(ui\.exerciseDetailId\);/u);
+  assert.match(app, /dom\.nav\.hidden = focusedSurface;/u);
+});
+
 test("expansion validator rejects duplicate ids and premature live-guide claims", () => {
   const [first] = EXERCISE_EXPANSION_TARGETS;
   const result = validateExerciseExpansionTargets([

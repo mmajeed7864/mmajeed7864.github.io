@@ -1141,33 +1141,64 @@ function setMotionState(figure, state, label) {
   if (status && label) status.textContent = label;
 }
 
+function syncMotionToggle(figure, isPlaying) {
+  if (!figure) return;
+  const video = figure.querySelector("[data-media-video]");
+  const button = figure.querySelector(".motion-toggle");
+  if (!button) return;
+  const name = video?.dataset.motionName || "exercise";
+  button.setAttribute("aria-pressed", String(Boolean(isPlaying)));
+  button.setAttribute("aria-label", `${isPlaying ? "Pause" : "Play"} ${name} movement guide`);
+  button.innerHTML = `${icon(isPlaying ? "pause" : "play")}<span>${isPlaying ? "Pause motion" : "Play motion"}</span>`;
+}
+
 function playMotionVideo(figure, video) {
   if (!figure || !video) return;
+  if (figure.dataset.motionPending === "true") return;
   if (video.error?.code) {
+    figure.dataset.motionIntent = "pause";
     figure.classList.add("media-error");
     setMotionState(figure, "error", "Video could not load — try again");
+    syncMotionToggle(figure, false);
     return;
   }
+  if (!video.paused) {
+    figure.dataset.motionIntent = "play";
+    figure.classList.remove("media-paused", "media-error");
+    setMotionState(figure, "playing", "Motion playing");
+    syncMotionToggle(figure, true);
+    return;
+  }
+  figure.dataset.motionIntent = "play";
+  figure.dataset.motionPending = "true";
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
+  figure.classList.remove("media-paused");
   setMotionState(figure, "loading", "Loading motion guide");
   const attempt = video.play?.();
   if (attempt?.then) {
     attempt.then(() => {
+      delete figure.dataset.motionPending;
       figure.classList.remove("media-paused", "media-error");
       setMotionState(figure, "playing", "Motion playing");
+      syncMotionToggle(figure, true);
     }).catch(() => {
+      delete figure.dataset.motionPending;
       // iOS may reject autoplay while still allowing a user-initiated tap.
       // Treat that as paused, not as a broken asset.
+      figure.dataset.motionIntent = "pause";
       if (video.error?.code) {
         figure.classList.add("media-error");
         setMotionState(figure, "error", "Motion unavailable — use the preview");
       } else {
         figure.classList.add("media-paused");
-        setMotionState(figure, "paused", "Tap play to start the motion guide");
+        setMotionState(figure, "paused", "Use Play motion to start the guide");
       }
+      syncMotionToggle(figure, false);
     });
+  } else {
+    delete figure.dataset.motionPending;
   }
 }
 
@@ -1255,19 +1286,15 @@ function handleClick(event) {
     const figure=target.closest(".exercise-motion");
     const video=figure?.querySelector("[data-media-video]");
     if(!video)return;
-    const button=figure.querySelector(".motion-toggle");
     if(video.paused){
+      figure.dataset.motionIntent = "play";
       playMotionVideo(figure, video);
-      button?.setAttribute("aria-pressed","true");
-      if(button)button.innerHTML=`${icon("pause")}<span>Pause motion</span>`;
-      button?.setAttribute("aria-label",`Pause ${video.getAttribute("aria-label")||"exercise"} movement guide`);
     }else{
+      figure.dataset.motionIntent = "pause";
       video.pause?.();
       figure.classList.add("media-paused");
       setMotionState(figure, "paused", "Motion paused");
-      button?.setAttribute("aria-pressed","false");
-      if(button)button.innerHTML=`${icon("play")}<span>Play motion</span>`;
-      button?.setAttribute("aria-label",`Play ${video.getAttribute("aria-label")||"exercise"} movement guide`);
+      syncMotionToggle(figure, false);
     }
     return;
   }
@@ -1275,6 +1302,8 @@ function handleClick(event) {
     const figure = target.closest(".exercise-motion");
     const video = figure?.querySelector("[data-media-video]");
     if (!figure || !video) return;
+    figure.dataset.motionIntent = "play";
+    delete figure.dataset.motionPending;
     figure.classList.remove("media-error", "media-paused");
     video.hidden = false;
     setMotionState(figure, "loading", "Reloading motion guide");
@@ -1436,8 +1465,9 @@ function bootstrap() {
   document.addEventListener("input",handleInput);
   document.addEventListener("canplay",event=>{
     const video=event.target?.closest?.("[data-media-video]");
-    if(!video || ui.motionPaused) return;
+    if(!video || ui.motionPaused || video.paused === false) return;
     const figure = video.closest(".exercise-motion");
+    if (!figure || figure.dataset.motionIntent === "pause") return;
     playMotionVideo(figure, video);
   },true);
   document.addEventListener("playing", event=>{
@@ -1445,13 +1475,23 @@ function bootstrap() {
     if(!video) return;
     const figure=video.closest(".exercise-motion");
     figure?.classList.remove("media-paused", "media-error");
+    if (figure) {
+      figure.dataset.motionIntent = "play";
+      delete figure.dataset.motionPending;
+    }
     setMotionState(figure, "playing", "Motion playing");
+    syncMotionToggle(figure, true);
   },true);
   document.addEventListener("pause", event=>{
     const video=event.target?.closest?.("[data-media-video]");
     if(!video) return;
     const figure=video.closest(".exercise-motion");
-    if (figure && !figure.classList.contains("media-error")) setMotionState(figure, "paused", "Motion paused");
+    if (figure && !figure.classList.contains("media-error") && figure.dataset.motionIntent === "pause") {
+      delete figure.dataset.motionPending;
+      figure.classList.add("media-paused");
+      setMotionState(figure, "paused", "Motion paused");
+      syncMotionToggle(figure, false);
+    }
   },true);
   document.addEventListener("error",event=>{
     const media=event.target?.closest?.("[data-media-image],[data-media-video]");
@@ -1463,8 +1503,15 @@ function bootstrap() {
         if (!media.error?.code) return;
         media.hidden = true;
         const figure = media.closest("figure");
+        if (figure) {
+          figure.dataset.motionIntent = "pause";
+          delete figure.dataset.motionPending;
+        }
         figure?.classList.add("media-error");
-        if (figure?.classList.contains("exercise-motion")) setMotionState(figure, "error", "Video could not load — try again");
+        if (figure?.classList.contains("exercise-motion")) {
+          setMotionState(figure, "error", "Video could not load — try again");
+          syncMotionToggle(figure, false);
+        }
       }, 0);
       return;
     }

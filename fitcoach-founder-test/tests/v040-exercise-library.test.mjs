@@ -89,7 +89,11 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   assert.match(playing, /<video/u);
   assert.match(playing, /muted loop playsinline autoplay/u);
   assert.doesNotMatch(playing, /\scontrols(?:\s|=)/u);
-  assert.match(playing, /data-media-video data-action="toggle-exercise-motion"/u);
+  assert.match(playing, /data-media-video data-motion-id=/u);
+  assert.doesNotMatch(playing, /<video[^>]*data-action="toggle-exercise-motion"/u);
+  assert.match(playing, /disableremoteplayback tabindex="-1" aria-hidden="true"/u);
+  assert.match(playing, /<button type="button" class="motion-toggle" data-action="toggle-exercise-motion"/u);
+  assert.match(playing, /media-play-hint" aria-hidden="true">Use Play motion to continue/u);
   assert.match(playing, /--motion-aspect:720 \/ 720/u);
   assert.match(playing, /preload="auto"/u);
   assert.match(playing, /data-motion-status="loading"/u);
@@ -110,6 +114,7 @@ test("rejected generated motion is quarantined behind the reviewed poster guide"
   assert.equal(exercise.media.some(entry => entry.type === "mp4"), false);
   assert.equal(exerciseMotionMedia(exercise), null);
   assert.match(exerciseMotionGuide(exercise), /<figure class="exercise-poster/u);
+  assert.match(exerciseMotionGuide(exercise), /data-media-image/u);
   assert.doesNotMatch(exerciseMotionGuide(exercise), /<video/u);
 });
 

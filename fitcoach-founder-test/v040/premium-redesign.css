@@ -1450,16 +1450,22 @@
   border-color: rgba(113, 164, 247, .34);
 }
 .exercise-detail-page .exercise-detail-visual .guide-stage { min-height: 0; }
-.exercise-detail-page .exercise-detail-visual .exercise-motion,
-.exercise-detail-page .exercise-detail-visual .exercise-poster {
-  min-height: clamp(20rem, 92vw, 30rem);
+.exercise-detail-page .exercise-detail-visual .exercise-motion {
+  width: 100%;
+  min-height: 0;
+  display: block;
+  aspect-ratio: var(--motion-aspect, 16 / 9);
+  border-radius: 18px;
 }
+.exercise-detail-page .exercise-detail-visual .exercise-poster { min-height: clamp(20rem, 92vw, 30rem); }
 .exercise-detail-page .exercise-detail-visual .exercise-motion video {
   width: 100%;
-  min-height: clamp(20rem, 92vw, 30rem);
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: var(--motion-aspect, 16 / 9);
+  object-fit: contain;
   background: #071936;
+  pointer-events: none;
 }
 .exercise-detail-page .exercise-detail-visual .exercise-poster img {
   width: 100%;
@@ -1467,11 +1473,7 @@
   object-fit: cover;
 }
 .exercise-detail-page .exercise-detail-visual .media-play-hint {
-  display: block;
-  left: 12px;
-  bottom: 12px;
-  color: #edf5ff;
-  background: rgba(4, 16, 39, .7);
+  display: none;
 }
 .exercise-detail-page .preference-controls {
   order: 6;
@@ -1778,9 +1780,7 @@
   .exercise-detail-page .segment-control { top: calc(8px + var(--safe-top)); }
   .exercise-detail-page .exercise-detail-header h1 { font-size: clamp(2.15rem, 11vw, 3rem); }
   .exercise-detail-page .exercise-detail-header .button-primary { width: 100%; }
-  .exercise-detail-page .exercise-detail-visual .exercise-motion,
   .exercise-detail-page .exercise-detail-visual .exercise-poster,
-  .exercise-detail-page .exercise-detail-visual .exercise-motion video,
   .exercise-detail-page .exercise-detail-visual .exercise-poster img { min-height: 19rem; }
   .exercise-detail-page .muscle-panel { padding: 14px; }
 }
@@ -2149,6 +2149,7 @@ input[type="checkbox"]:not(.sr-only) {
   object-fit: contain;
   background: #06142f;
   cursor: pointer;
+  pointer-events: none;
 }
 .exercise-detail-page .exercise-detail-visual .exercise-poster { min-height: clamp(18rem, 88vw, 26rem); }
 .exercise-detail-page .exercise-detail-visual .exercise-poster img { min-height: clamp(18rem, 88vw, 26rem); object-fit: cover; }
