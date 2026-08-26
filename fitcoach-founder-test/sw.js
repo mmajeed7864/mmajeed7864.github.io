@@ -1,14 +1,14 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0431";
+const CACHE = "fitcoach-symbio-v0500";
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0431",
-  "./manifest.webmanifest?v=0431",
-  "./assets/icon-symbio.svg?v=0431",
-  "./v040/styles.css?v=0431",
-  "./v040/premium-redesign.css?v=0431",
-  "./v040/app.js?v=0431",
+  "./index.html?v=0500",
+  "./manifest.webmanifest?v=0500",
+  "./assets/icon-symbio.svg?v=0500",
+  "./v040/styles.css?v=0500",
+  "./v040/premium-redesign.css?v=0500",
+  "./v040/app.js?v=0500",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -23,6 +23,7 @@ const MODULE_ASSETS = Object.freeze([
   "./v040/data/exercise-schema.mjs",
   "./v040/data/generated-motion-definitions.mjs",
   "./v040/domain/decisions.mjs",
+  "./v040/domain/daily-board.mjs",
   "./v040/domain/nutrition-estimator.mjs",
   "./v040/domain/nutrition.mjs",
   "./v040/domain/trainer-actions.mjs",
@@ -240,12 +241,12 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0431")))
+        .catch(() => caches.match("./").then(response => response || caches.match("./index.html?v=0500")))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0431";
+  const versioned = url.searchParams.get("v") === "0500";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   const rangeRequest = event.request.headers.has("range");

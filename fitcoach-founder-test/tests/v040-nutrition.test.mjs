@@ -384,12 +384,15 @@ test("review, capture, add, and targets sheets render with honest early-access l
   assert.match(targets.body, /Not medical or dietetic advice/u);
 });
 
-test("today and progress screens expose the nutrition route entry points", () => {
+test("daily board and progress screens expose focused nutrition route entry points", () => {
   const todaySource = readFileSync(new URL("../v040/ui/today-screen.mjs", import.meta.url), "utf8");
+  const dailyBoardSource = readFileSync(new URL("../v040/domain/daily-board.mjs", import.meta.url), "utf8");
   const progressSource = readFileSync(new URL("../v040/ui/progress-screen.mjs", import.meta.url), "utf8");
   const indexSource = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(todaySource, /nutritionCard\(state, now\)/u, "Today renders the nutrition card");
-  assert.match(todaySource, /open-nutrition/u);
+  assert.match(todaySource, /title: "Log a meal"/u, "Today renders one compact food action");
+  assert.match(todaySource, /buildDailyBoard/u, "Today derives honest confirmed and draft status");
+  assert.match(dailyBoardSource, /open-nutrition/u);
+  assert.match(todaySource, /\.\.\.board\.food/u);
   assert.match(progressSource, /nutritionTrendCard\(state, now\)/u, "Progress renders the confirmed-only trend card");
   assert.match(progressSource, /Confirmed only/u);
   assert.match(indexSource, /data-route="nutrition"/u, "Nutrition must be directly visible in bottom navigation");
