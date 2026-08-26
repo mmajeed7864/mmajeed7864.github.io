@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.4.9 is the active runtime (cache generation 0431 carries premium coach actions, first-day progress visuals, polished exercise rails, range-safe motion playback, navy anatomy studio artwork, bodyweight labels, and a rebuilt onboarding body-focus composer whose highlights preserve the anatomy atlas's real muscle fibers):
+FitCoach v0.5.0 is the active runtime (cache generation 0500 adds the research-led Daily Board, a single workout-to-receipt loop, compact workout/food/coach actions, a visual exercise preview rail, explicit daily energy check-ins, and skippable optional onboarding while preserving the existing safety, voice, nutrition, exercise, and progress contracts):
 
-- document shell: `index.html?v=0431`
-- stylesheets: `v040/styles.css?v=0431` and `v040/premium-redesign.css?v=0431`
-- ES-module entry: `v040/app.js?v=0431`
-- service worker cache: `fitcoach-symbio-v0431`
+- document shell: `index.html?v=0500`
+- stylesheets: `v040/styles.css?v=0500` and `v040/premium-redesign.css?v=0500`
+- ES-module entry: `v040/app.js?v=0500`
+- service worker cache: `fitcoach-symbio-v0500`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:

@@ -75,6 +75,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
       proactive: true,
       feedbackOptIn: true,
       energy: 3,
+      energyCheckedAt: null,
       intensity: "standard",
       preferredDays: [1, 3, 5],
     },
@@ -269,6 +270,7 @@ function normalizeProfile(raw, base) {
     proactive: Boolean(profile.proactive),
     feedbackOptIn: Boolean(profile.feedbackOptIn),
     energy: safeNumber(profile.energy, base.energy, 1, 5),
+    energyCheckedAt: cleanString(profile.energyCheckedAt, "", 40) || null,
     intensity: oneOf(profile.intensity, ["light", "standard", "push"], base.intensity),
     preferredDays: unique(Array.isArray(profile.preferredDays) ? profile.preferredDays.map(Number).filter(value => value >= 1 && value <= 7) : base.preferredDays).slice(0, 7),
   };

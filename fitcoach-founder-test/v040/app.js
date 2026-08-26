@@ -1207,7 +1207,12 @@ function handleClick(event) {
   if (!target) return;
   const action = target.dataset.action;
   const value = target.dataset.value || "";
-  if (action === "exit-onboarding") { ui.mode=state?.profile?.onboarded ? "app" : "onboarding"; render(); return; }
+  if (action === "exit-onboarding") {
+    if (state?.profile?.onboarded) ui.mode="app";
+    else ui.onboardingStep=ONBOARDING_STEP_COUNT-1;
+    render();
+    return;
+  }
   if (action === "onboarding-choice") { ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
   if (action === "onboarding-setting") { ui.onboardingDraft.settings[target.dataset.field]=value; if(target.dataset.field==="theme") applyTheme(value); render(); return; }
   if (action === "onboarding-profile-field") { if(target.dataset.field==="tone") applyOnboardingTone(value); else ui.onboardingDraft.profile[target.dataset.field]=value; render(); return; }
@@ -1254,7 +1259,7 @@ function handleClick(event) {
   }
   if (action === "route") { closeModal(); navigate(value); return; }
   if (action === "train-segment") { ui.trainSegment=value;ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
-  if (action === "set-energy") { state=store.update(draft=>{draft.profile.energy=Number(value);draft.decisions=draft.decisions.filter(item=>item.date!==new Date().toLocaleDateString("en-CA"));});ensureDecision();render();toast("Energy check-in saved. Your worth did not change.");return; }
+  if (action === "set-energy") { state=store.update(draft=>{draft.profile.energy=Number(value);draft.profile.energyCheckedAt=new Date().toISOString();draft.decisions=draft.decisions.filter(item=>item.date!==new Date().toLocaleDateString("en-CA"));});ensureDecision();render();toast("Energy check-in saved. Your worth did not change.");return; }
   if (action === "propose-plan") { proposePlan(target.dataset.field,value);return; }
   if (action === "approve-proposal") { approveProposal(value);return; }
   if (action === "reject-proposal") { rejectProposal(value);return; }
