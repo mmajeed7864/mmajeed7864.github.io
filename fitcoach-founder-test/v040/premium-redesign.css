@@ -2754,3 +2754,46 @@ html[data-theme="dark"] .daily-duration button { box-shadow: inset 0 1px 0 rgba(
   .daily-energy button small { display: none; }
   .daily-hero-actions { grid-template-columns: 1fr; }
 }
+
+/* ── Keyboard focus: unlayered so it cannot be lost to cascade precedence ──────────────
+   v0.5.0 audit follow-up (2026-08-27). The baseline was already good — styles.css defines
+   a global :focus-visible and NOTHING in this codebase suppresses outlines (verified: zero
+   `outline:none` / `outline:0` rules). The real fragility is precedence: that rule lives
+   inside an @layer, and ANY unlayered rule in a later sheet outranks a layered one. This
+   block is deliberately unlayered and loads last, so the focus ring cannot be silently
+   overridden by a future style.
+   Mouse and touch presentation are untouched — :focus-visible only matches keyboard focus. */
+:where(a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]),
+       [role="button"], [role="tab"], [role="link"], [role="menuitem"],
+       [role="option"], [role="checkbox"], [role="radio"], [role="switch"]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--focus, #0b63f6) 62%, transparent);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
+
+/* Modal controls and the set-logging flow are the two surfaces called out in the audit.
+   They sit on tinted/elevated grounds where a 62% ring can drop below comfortable contrast,
+   so they get a fuller-strength ring rather than a different treatment. */
+.modal :focus-visible,
+.sheet :focus-visible,
+[role="dialog"] :focus-visible,
+.set-row :focus-visible,
+.set-log :focus-visible {
+  outline: 3px solid var(--focus, #0b63f6);
+  outline-offset: 2px;
+}
+
+/* A focus ring drawn outside a clipping ancestor is invisible. Where a control sits inside
+   a rounded/clipped container, draw the ring inward so it survives the clip. */
+.exercise-card :focus-visible,
+.coach-decision-card :focus-visible,
+.connection-card :focus-visible {
+  outline-offset: -3px;
+}
+
+@media (prefers-contrast: more) {
+  :where(a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid var(--focus, #0b63f6);
+    outline-offset: 3px;
+  }
+}
