@@ -24,12 +24,12 @@
       document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#090d16" : "#f4f6fd";
     })();
   </script>
-  <link rel="manifest" href="./manifest.webmanifest?v=0502">
-  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0502">
-  <link rel="icon" href="./assets/icon-symbio.svg?v=0502" type="image/svg+xml">
-  <link rel="stylesheet" href="./v040/styles.css?v=0502">
-  <link rel="stylesheet" href="./v040/premium-redesign.css?v=0502">
-  <title>FitCoach v0.5.2</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=0503">
+  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0503">
+  <link rel="icon" href="./assets/icon-symbio.svg?v=0503" type="image/svg+xml">
+  <link rel="stylesheet" href="./v040/styles.css?v=0503">
+  <link rel="stylesheet" href="./v040/premium-redesign.css?v=0503">
+  <title>FitCoach v0.5.3</title>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -50,11 +50,11 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js?v=0502", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./sw.js?v=0503", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     }
   </script>
-  <script type="module" src="./v040/app.js?v=0502"></script>
+  <script type="module" src="./v040/app.js?v=0503"></script>
 </body>
 </html>

@@ -6,6 +6,8 @@ import {
 import { createFitCoachStore } from "./core/store.mjs";
 import { deepClone, escapeHtml, localDateKey, safeNumber, uid } from "./core/utils.mjs";
 import { computeDecision } from "./domain/decisions.mjs";
+import { recordExerciseView } from "./domain/exercise-discovery.mjs";
+import { buildWeeklyEvidence } from "./domain/evidence.mjs";
 import {
   MEAL_SLOTS,
   MEAL_SLOT_LABELS,
@@ -80,7 +82,7 @@ const ui = {
   disclosures: {},
   trainSegment: "workout",
   exerciseDetailId: null,
-  exerciseFilters: { query: "", muscle: "", equipment: "", favorites: false },
+  exerciseFilters: { query: "", muscle: "", equipment: "", favorites: false, page: 1 },
   motionPaused: false,
   replacementIndex: null,
   replacementMode: null,
@@ -105,6 +107,7 @@ let state;
 let decision;
 let modalReturnFocus = null;
 let chatRequestController = null;
+let nutritionRequestController = null;
 let activeUtterance = null;
 let activeSpeech = null;
 let activeSpeechToken = null;
@@ -128,12 +131,22 @@ function releaseCommunityPreview() {
   communityPreviewUrl = null;
 }
 
+function releaseSavedCommunityPreviews() {
+  for (const previewUrl of communityPreviews.values()) {
+    try { URL.revokeObjectURL(previewUrl); } catch {}
+  }
+  communityPreviews.clear();
+}
+
 function nutritionDateKey() {
   return ui.nutritionDate || localDateKey(new Date());
 }
 
 const trainerClient = createTrainerClient();
 const nutritionClient = createNutritionClient();
+const freshRuntimeSessionCode = prefix => uid(prefix).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 72);
+let voiceSessionCode = freshRuntimeSessionCode("voice");
+let nutritionSessionCode = freshRuntimeSessionCode("nutrition");
 const SILENT_AUDIO_URI = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 const sharedPremiumAudio = typeof Audio === "function" ? new Audio() : null;
 let sharedVoiceAudioContext = null;
@@ -291,7 +304,7 @@ function routeTitle(route) {
     coach: ["COACH", "Your trainer"],
     progress: ["PROGRESS", "Proof of the work"],
     profile: ["PROFILE", "Your FitCoach"],
-    nutrition: ["NUTRITION", "Confirmed-only diary"],
+    nutrition: ["NUTRITION", "Food diary"],
   }[route];
 }
 
@@ -354,7 +367,9 @@ function renderAppScreen() {
     plan: state.activePlan,
     workoutSchedule: buildWorkoutSchedule(state, EXERCISES),
     progressionRows: buildProgressionTracker(state, EXERCISES),
+    weeklyEvidence: buildWeeklyEvidence(state),
     exerciseById: getExerciseById,
+    exerciseLibrary: EXERCISES,
     filteredExercises: filteredLibrary(),
     ui,
     coachConnection: coachConnection(),
@@ -746,7 +761,7 @@ function speakText(text, { messageId = null, onEnd = () => {}, onError = () => {
 
   activeSpeech = premiumVoice.speak({
     text,
-    sessionId: `fitcoach-${ui.founder}-voice-v040`,
+    sessionId: `fitcoach-${voiceSessionCode}`,
     tone: state.profile.tone,
     voicePersona: state.settings.voicePersona,
     deviceFallback: callbacks => speakDeviceText(text, callbacks),
@@ -781,9 +796,13 @@ async function sendChat(raw = null) {
   ui.pendingMessage = message;
   ui.chatDraft = "";
   ui.chatNotice = null;
-  chatRequestController = new AbortController();
+  const requestController = new AbortController();
+  chatRequestController = requestController;
   render();
-  const result = await trainerClient.requestTurn({ state: store.get(), message, approvedAction: decision.type, founder: ui.founder, signal: chatRequestController.signal });
+  const result = await trainerClient.requestTurn({ state: store.get(), message, approvedAction: decision.type, founder: ui.founder, signal: requestController.signal });
+  // A reset or newer lifecycle event invalidates the request. Never let a late
+  // response or its aborted draft write into the fresh profile.
+  if (chatRequestController !== requestController || requestController.signal.aborted) return;
   chatRequestController = null;
   ui.chatBusy = false;
   ui.pendingMessage = "";
@@ -848,8 +867,53 @@ const voiceController = createVoiceRoomController({
   },
   onStateChange: () => renderVoiceRoot(),
   onSafety: () => { ui.chatNotice = { kind: "safety", title: "Voice stopped for safety", message: "Follow the safety guidance shown in Voice Room. The intercepted transcript was not added to chat." }; },
-  createRoomId: serial => `fitcoach-${ui.founder}-voice-${serial}`,
+  createRoomId: serial => `fitcoach-${voiceSessionCode}-${serial}`,
 });
+
+function invalidateCoachActivity({ rotateSession = false } = {}) {
+  const pendingChat = chatRequestController;
+  chatRequestController = null;
+  try { pendingChat?.abort("fitcoach_thread_closed"); } catch {}
+  try { voiceController.exit(); } catch {}
+  stopSpeech({ renderCoach: false });
+  if (rotateSession) trainerClient.resetSession?.();
+  voiceLastMetadata = null;
+  voiceReturnFocus = null;
+  ui.chatBusy = false;
+  ui.pendingMessage = "";
+  ui.chatDraft = "";
+  ui.chatNotice = null;
+  ui.lastFailedChatDraft = "";
+  ui.speakingMessageId = null;
+  ui.voiceDocked = false;
+}
+
+function resetRuntimeEffects() {
+  invalidateCoachActivity({ rotateSession: true });
+  const pendingNutrition = nutritionRequestController;
+  nutritionRequestController = null;
+  try { pendingNutrition?.abort("fitcoach_reset"); } catch {}
+  voiceSessionCode = freshRuntimeSessionCode("voice");
+  nutritionSessionCode = freshRuntimeSessionCode("nutrition");
+  releaseNutritionPreview();
+  releaseCommunityPreview();
+  releaseSavedCommunityPreviews();
+  modalReturnFocus = null;
+  ui.modal = null;
+  ui.disclosures = {};
+  ui.trainSegment = "workout";
+  ui.exerciseFilters = { query: "", muscle: "", equipment: "", favorites: false, page: 1 };
+  ui.replacementIndex = null;
+  ui.replacementMode = null;
+  ui.addMode = false;
+  ui.showActiveWorkout = true;
+  ui.nutritionDate = null;
+  ui.exerciseDetailId = null;
+  ui.motionPaused = false;
+  ui.voiceProvider = "premium-ready";
+  clearTimeout(toast.timer);
+  dom.toast.classList.remove("show");
+}
 
 function openVoiceRoom() {
   if (!navigator.onLine) return openModal({type:"offline"});
@@ -887,6 +951,9 @@ function executeTrainerAction(trainerAction, { fromVoice = false } = {}) {
 
 function openExercise(exerciseId) {
   if (!getExerciseById(exerciseId)) return toast("That local exercise record is unavailable.");
+  state = store.update(draft => {
+    draft.exercisePreferences.recent = recordExerciseView(draft.exercisePreferences.recent, exerciseId);
+  });
   ui.route = "train";
   ui.trainSegment = "exercises";
   ui.showActiveWorkout = false;
@@ -1052,10 +1119,15 @@ async function lookupBarcodeFood() {
 
   ui.modal = { ...modal, barcode, lookupBusy: true, lookupError: "" };
   renderModalRoot();
+  const requestController = new AbortController();
+  nutritionRequestController = requestController;
   const result = await nutritionClient.lookupBarcode({
-    sessionId: `fitcoach-${ui.founder}-nutrition-v040`,
+    sessionId: `fitcoach-${nutritionSessionCode}`,
     barcode,
+    signal: requestController.signal,
   });
+  if (nutritionRequestController !== requestController || requestController.signal.aborted) return;
+  nutritionRequestController = null;
   if (!ui.modal || ui.modal.type !== "nutrition-add") return;
   if (result.status !== "ready") {
     ui.modal = {
@@ -1333,9 +1405,10 @@ function handleClick(event) {
   if (action === "swap-active-exercise") { const current=state.activeWorkout?.exercises?.[Number(value)];if(current?.sets.some(set=>set.done))return toast("Finish or undo completed sets before swapping this exercise.");ui.replacementMode="active";ui.replacementIndex=Number(value);ui.trainSegment="exercises";ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
   if (action === "apply-active-swap") { state=store.update(draft=>{if(draft.activeWorkout)swapWorkoutExercise(draft.activeWorkout,ui.replacementIndex,getExerciseById(value));});ui.replacementIndex=null;ui.replacementMode=null;closeModal();ui.showActiveWorkout=true;render();toast("Exercise replaced in the active workout.");return; }
   if (action === "reorder-active-exercise") { state=store.update(draft=>{const workout=draft.activeWorkout;const index=Number(value);const direction=Number(target.dataset.direction)||1;const next=index+direction;if(!workout||next<0||next>=workout.exercises.length)return;const [item]=workout.exercises.splice(index,1);workout.exercises.splice(next,0,item);workout.currentExerciseIndex=next;});render();return; }
-  if (action === "clear-exercise-search") { ui.exerciseFilters.query="";render();return; }
-  if (action === "clear-exercise-filters") { ui.exerciseFilters={query:"",muscle:"",equipment:"",favorites:false};render();return; }
-  if (action === "filter-exercises") { ui.exerciseFilters[target.dataset.field]=value;render();return; }
+  if (action === "clear-exercise-search") { ui.exerciseFilters.query="";ui.exerciseFilters.page=1;render();return; }
+  if (action === "clear-exercise-filters") { ui.exerciseFilters={query:"",muscle:"",equipment:"",favorites:false,page:1};render();return; }
+  if (action === "filter-exercises") { ui.exerciseFilters[target.dataset.field]=value;ui.exerciseFilters.page=1;render();return; }
+  if (action === "exercise-page") { ui.exerciseFilters.page=Math.max(1,Number(value)||1);render();requestAnimationFrame(()=>{const results=document.querySelector(".exercise-grid");results?.querySelector(".exercise-card-open")?.focus({preventScroll:true});results?.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});});return; }
   if (action === "ask-about-exercise") { const exercise=getExerciseById(value);ui.chatDraft=`Explain how ${exercise?.name || "this exercise"} fits my current plan without changing it.`;navigate("coach");return; }
   if (action === "open-library") { ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
   if (action === "set-theme") { state=store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
@@ -1365,7 +1438,7 @@ function handleClick(event) {
   if (action === "voice-interrupt") { voiceController.interrupt();return; }
   if (action === "voice-mute") { voiceController.setMuted(!voiceController.getState().muted);return; }
   if (action === "voice-replay") { if(!voiceController.replayLast())toast("Replay is unavailable in this voice state.");return; }
-  if (action === "connection-info") { if(!navigator.onLine)openModal({type:"offline"});else toast("Live coaching is ready. If the live service is unavailable, FitCoach falls back to safe local guidance.");return; }
+  if (action === "connection-info") { const connection=coachConnection();if(connection.state==="offline")openModal({type:"offline"});else if(connection.state==="live")toast("A live coach reply was received on this device.");else if(connection.state==="fallback")toast("Offline guidance is ready. Live coaching has not been confirmed.");else toast("Live coach status has not been confirmed yet. Workout tools remain available on this device.");return; }
   if (action === "open-apple-health-plan") { openModal({ type: "apple-health" }); return; }
   if (action === "mark-apple-health-planned") { state=store.update(draft=>{draft.integrations.appleHealth.status="planned";draft.integrations.appleHealth.syncMode="manual_until_ios";draft.integrations.appleHealth.requestedAt=new Date().toISOString();});closeModal();render();toast("Apple Health sync marked for the native iOS build.");return; }
   if (action === "open-pro-preview") { openModal({ type: "pro-preview" }); return; }
@@ -1383,14 +1456,15 @@ function handleClick(event) {
   if (action === "tutorial-back") { ui.modal={type:"tutorial",step:Math.max(0,Number(target.dataset.step || 0)-1)};renderModalRoot();return; }
   if (action === "skip-tutorial" || action === "finish-tutorial") { state=store.update(draft=>{draft.settings.tutorialDismissed=true;});closeModal();render();return; }
   if (action === "clear-chat") { openModal({type:"confirm-clear-chat"});return; }
-  if (action === "confirm-clear-chat") { state=store.update(draft=>{draft.chat=[];});closeModal();render();return; }
+  if (action === "confirm-clear-chat") { invalidateCoachActivity({rotateSession:true});state=store.update(draft=>{draft.chat=[];draft.lastApi=null;});closeModal();render();return; }
   if (action === "reset-profile") { openModal({type:"confirm-reset"});return; }
-  if (action === "confirm-reset") { state=store.reset();applyTheme(state.settings.theme);ui.onboardingStep=0;ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};ui.mode="onboarding";closeModal();render();return; }
+  if (action === "confirm-reset") { resetRuntimeEffects();state=store.reset();applyTheme(state.settings.theme);ui.route="today";ui.onboardingStep=0;ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};ui.mode="onboarding";render();return; }
   if (action === "export-data") { exportData();return; }
   if (action === "force-refresh") { void forceRefresh();return; }
   if (action === "open-nutrition") { closeModal(); navigate("nutrition"); return; }
   if (action === "nutrition-day") { shiftNutritionDay(Number(value) || 0); return; }
   if (action === "nutrition-open-add") { openModal({ type: "nutrition-add", slot: MEAL_SLOTS.includes(value) ? value : mealSlotForHour(new Date().getHours()), query: "" }); return; }
+  if (action === "nutrition-quick-food") { const kind=target.dataset.kind === "favorite" ? "favorite" : "recent";const source=kind === "favorite" ? state.nutrition.favorites : state.nutrition.recents;const item=source?.[Number(value)];if(!item)return toast("That saved food is no longer available.");openModal({type:"nutrition-add",slot:mealSlotForHour(new Date().getHours()),query:"",selected:{name:item.name,servingLabel:item.servingLabel,per:{...item.per},origin:kind},multiplier:normalizeMultiplier(item.multiplier||1)});return; }
   if (action === "nutrition-open-capture") { openModal({ type: "nutrition-capture", slot: MEAL_SLOTS.includes(value) ? value : mealSlotForHour(new Date().getHours()), context: "" }); return; }
   if (action === "nutrition-capture-slot") { if (ui.modal) { ui.modal.context = document.querySelector("#nutrition-context")?.value ?? ui.modal.context; ui.modal.query = document.querySelector("#nutrition-search")?.value ?? ui.modal.query; ui.modal.slot = value; renderModalRoot(); } return; }
   if (action === "nutrition-toggle-custom") { if (ui.modal) { ui.modal.custom = !ui.modal.custom; renderModalRoot(); } return; }
@@ -1419,6 +1493,11 @@ function handleClick(event) {
 function handleChange(event) {
   const target=event.target;
   const action=target.dataset.action;
+  if (action === "set-field" && target.dataset.field === "weight") {
+    updateSetField(target);
+    render();
+    return;
+  }
   if (action === "nutrition-photo") { handleNutritionPhoto(target); return; }
   if (action === "community-photo") { handleCommunityPhoto(target); return; }
   if (action === "onboarding-profile-field") {
@@ -1437,7 +1516,7 @@ function handleChange(event) {
   if (action === "set-answer-depth") { state=store.update(draft=>{draft.settings.coachMode=target.value;});render(); }
   if (action === "set-voice-persona") { state=store.update(draft=>{draft.settings.voicePersona=target.value;});stopSpeech({renderCoach:false});render(); }
   if (action === "gym-toggle-equipment") { const value=target.dataset.value || "";state=store.update(draft=>{const equipment=new Set(draft.gymProfile.equipment || []);if(target.checked)equipment.add(value);else equipment.delete(value);draft.gymProfile.equipment=[...equipment].slice(0,60);draft.gymProfile.source="manual";});renderModalRoot();renderAppScreen(); }
-  if (action === "filter-favorites") { ui.exerciseFilters.favorites=target.checked;render(); }
+  if (action === "filter-favorites") { ui.exerciseFilters.favorites=target.checked;ui.exerciseFilters.page=1;render(); }
 }
 
 function handleInput(event) {
@@ -1445,7 +1524,7 @@ function handleInput(event) {
   if (target.dataset.action === "onboarding-gym-name") {
     ui.onboardingDraft.gymProfile = { ...ui.onboardingDraft.gymProfile, selectedGymName: target.value.slice(0, 120), source: "manual" };
   }
-  if (target.id === "exercise-search") { ui.exerciseFilters.query=target.value;render();requestAnimationFrame(()=>{const input=document.querySelector("#exercise-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
+  if (target.id === "exercise-search") { ui.exerciseFilters.query=target.value;ui.exerciseFilters.page=1;render();requestAnimationFrame(()=>{const input=document.querySelector("#exercise-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
   if (target.dataset.action === "set-field") updateSetField(target);
   if (target.id === "workout-notes") state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
   if (target.id === "coach-input") ui.chatDraft=target.value;
@@ -1541,7 +1620,7 @@ function bootstrap() {
     if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat();}
     trapDialogFocus(event);
   });
-  window.addEventListener("online",()=>{voiceController.setForeground(document.visibilityState==="visible");render();toast("Back online. Live Coach is available.");});
+  window.addEventListener("online",()=>{voiceController.setForeground(document.visibilityState==="visible");render();toast("Back online. Live Coach will be checked with your next message.");});
   window.addEventListener("offline",()=>{voiceController.setForeground(false);render();});
   document.addEventListener("visibilitychange",()=>voiceController.setForeground(document.visibilityState==="visible"));
   window.addEventListener("pagehide",()=>{voiceController.exit();stopSpeech({renderCoach:false});chatRequestController?.abort();});

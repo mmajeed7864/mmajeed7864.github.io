@@ -206,7 +206,7 @@ test("new gym poster uses the premium local art contract", () => {
   const poster = EXERCISE_MEDIA_MANIFEST.find((entry) => entry.id === "conventional-deadlift-poster-v1");
   assert.ok(poster);
   assert.equal(poster.type, "poster");
-  assert.equal(poster.offlineCachePolicy, "precache");
+  assert.equal(poster.offlineCachePolicy, "runtime");
   assert.match(poster.path, /generated\/conventional-deadlift-premium-v1\.png$/);
   assert.equal(poster.width, 1254);
   assert.equal(poster.height, 1254);
@@ -228,14 +228,14 @@ test("the full catalogue has a local navy and electric-blue poster", () => {
   assert.ok(posters.every((entry) => entry.temporaryOriginal === true));
 });
 
-test("the reviewed motion pilot uses muted local runtime-cached MP4 guides", () => {
+test("the reviewed motion pilot uses muted local direct-stream MP4 guides", () => {
   const motions = EXERCISE_MEDIA_MANIFEST.filter((entry) => entry.type === "mp4");
   assert.equal(motions.length, 59);
   assert.ok(motions.every((entry) => entry.path.includes("/assets/exercises/motion/")));
   assert.ok(motions.every((entry) => entry.path.endsWith("-motion-v1.mp4")));
   assert.ok(motions.every((entry) => entry.hasAudio === false));
   assert.ok(motions.every((entry) => entry.motionReviewStatus === "approved"));
-  assert.ok(motions.every((entry) => entry.offlineCachePolicy === "runtime"));
+  assert.ok(motions.every((entry) => entry.offlineCachePolicy === "never"));
 });
 
 test("landscape motion clips keep their playback index near the file start for iOS", async () => {

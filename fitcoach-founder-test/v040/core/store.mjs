@@ -98,6 +98,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
     memories: [],
     exercisePreferences: {
       favorites: [],
+      recent: [],
       preferred: [],
       reduced: [],
       excluded: [],
@@ -213,10 +214,27 @@ function normalizeSession(raw, index, unit = "lb") {
     durationMinutes: safeNumber(raw.durationMinutes, 0, 0, 1_440),
     exercises,
     markedPR: Boolean(raw.markedPR || raw.pr),
+    personalRecords: normalizePerformanceRecords(raw.personalRecords, sessionUnit, "personal_record"),
+    baselines: normalizePerformanceRecords(raw.baselines, sessionUnit, "baseline"),
     rating: raw.rating == null ? null : safeNumber(raw.rating, null, 1, 5),
     notes: cleanString(raw.notes, "", 2_000),
     completionReceiptId: cleanString(raw.completionReceiptId, `receipt-${hashText(`${completedAt}:${index}`)}`, 120),
   };
+}
+
+function normalizePerformanceRecords(raw, unit = "lb", kind = "personal_record") {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isObject).slice(0, 50).map(record => ({
+    exerciseId: cleanString(record.exerciseId, "", 96),
+    exerciseName: cleanString(record.exerciseName, "Exercise", 120),
+    metric: oneOf(record.metric, ["estimated_1rm"], "estimated_1rm"),
+    value: safeNumber(record.value, 0, 0, 10_000),
+    previousValue: record.previousValue == null ? null : safeNumber(record.previousValue, null, 0, 10_000),
+    weight: safeNumber(record.weight, 0, 0, 5_000),
+    reps: safeNumber(record.reps, 0, 0, 1_000),
+    unit: normalizeUnit(record.unit, unit),
+    kind,
+  })).filter(record => record.exerciseId && record.value > 0);
 }
 
 function normalizeWorkout(raw, unit = "lb") {
@@ -272,7 +290,13 @@ function normalizeProfile(raw, base) {
     energy: safeNumber(profile.energy, base.energy, 1, 5),
     energyCheckedAt: cleanString(profile.energyCheckedAt, "", 40) || null,
     intensity: oneOf(profile.intensity, ["light", "standard", "push"], base.intensity),
-    preferredDays: unique(Array.isArray(profile.preferredDays) ? profile.preferredDays.map(Number).filter(value => value >= 1 && value <= 7) : base.preferredDays).slice(0, 7),
+    preferredDays: [...new Set(Array.isArray(profile.preferredDays)
+      ? profile.preferredDays
+        .filter(value => (typeof value === "number" && Number.isFinite(value)) || (typeof value === "string" && value.trim() !== ""))
+        .map(Number)
+        .filter(value => Number.isInteger(value) && value >= 0 && value <= 7)
+        .map(value => value === 7 ? 0 : value)
+      : base.preferredDays)].slice(0, 7),
   };
 }
 
@@ -368,6 +392,7 @@ function normalizeState(raw, founder, migration = null) {
     memories: unique((Array.isArray(raw?.memories) ? raw.memories : []).map(value => cleanString(value, "", 160))).slice(-24),
     exercisePreferences: {
       favorites: unique(Array.isArray(preferences.favorites) ? preferences.favorites.map(String) : []).slice(0, 200),
+      recent: unique(Array.isArray(preferences.recent) ? preferences.recent.map(String) : []).slice(0, 20),
       preferred: unique(Array.isArray(preferences.preferred) ? preferences.preferred.map(String) : []).slice(0, 200),
       reduced: unique(Array.isArray(preferences.reduced) ? preferences.reduced.map(String) : []).slice(0, 200),
       excluded: unique(Array.isArray(preferences.excluded) ? preferences.excluded.map(String) : []).slice(0, 200),
@@ -402,6 +427,20 @@ export function migrateLegacyPayload(raw, founder, now = new Date()) {
 
 function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
+}
+
+function clearFitCoachStorage(storage) {
+  const keys = [];
+  const length = Number(storage?.length) || 0;
+  for (let index = 0; index < length; index += 1) {
+    const key = storage.key?.(index);
+    if (typeof key === "string" && key.startsWith("fitcoach-")) keys.push(key);
+  }
+  for (const key of keys) storage.removeItem?.(key);
+  // Adapters without an enumerable Storage interface still get the known
+  // non-profile keys removed.
+  storage.removeItem?.("fitcoach-theme");
+  storage.removeItem?.("fitcoach-device-id");
 }
 
 export function createFitCoachStore({ storage = globalThis.localStorage, founder = "mo", clock = () => new Date() } = {}) {
@@ -461,7 +500,10 @@ export function createFitCoachStore({ storage = globalThis.localStorage, founder
       return persist(result === undefined ? draft : result);
     },
     replace: next => persist(next),
-    reset: () => persist(createInitialState(currentFounder, clock())),
+    reset: () => {
+      clearFitCoachStorage(storage);
+      return persist(createInitialState(currentFounder, clock()));
+    },
     export: () => JSON.stringify(current || loadFounder(currentFounder), null, 2),
     subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); },
     key: () => storageKey(currentFounder),

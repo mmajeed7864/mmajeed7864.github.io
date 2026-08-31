@@ -25,7 +25,7 @@ export const MAX_TRACKED_DAYS = 60;
 export const MAX_RECENTS = 20;
 export const MAX_FAVORITES = 30;
 
-export const NUTRITION_DISCLAIMER = "Preview nutrition tool. Nutrition values are approximate estimates for training context — not medical, dietetic, or treatment advice.";
+export const NUTRITION_DISCLAIMER = "Nutrition values may be approximate and are shown for training context — not medical, dietetic, or treatment advice.";
 
 const RAW_IMAGE_PAYLOAD = /data:image\/|;base64,|blob:/i;
 const isObject = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);

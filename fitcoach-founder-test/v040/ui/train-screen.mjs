@@ -1,6 +1,8 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
 import { escapeHtml, formatDate } from "../core/utils.mjs";
+import { buildPersonalizedExerciseLists, paginateExercises } from "../domain/exercise-discovery.mjs";
 import { restSecondsRemaining } from "../domain/workouts.mjs";
+import { buildWarmupRamp, calculatePlateLoading } from "../domain/strength-tools.mjs";
 import {
   button,
   displayEquipment,
@@ -62,19 +64,27 @@ function workoutPlan({ state, plan, exerciseById }) {
   </div>`;
 }
 
-function exerciseLibrary({ state, exercises, filters }) {
+function discoveryRail(label, copy, exercises, state) {
+  if (!exercises.length) return "";
+  return `<section class="discovery-rail"><header><div><span class="eyebrow">${escapeHtml(label.toUpperCase())}</span><h2>${escapeHtml(copy)}</h2></div><span>${exercises.length}</span></header><div class="discovery-scroll">${exercises.slice(0, 8).map(exercise => renderExerciseCard(exercise, state.exercisePreferences, { compact: true })).join("")}</div></section>`;
+}
+
+function exerciseLibrary({ state, exercises, exerciseLibrary: library, filters }) {
   const muscles = [...new Set(exercises.flatMap(item => item.primaryMuscles))].slice(0, 8);
   const equipment = ["barbell", "dumbbell", "machine", "cable", "kettlebell", "bodyweight", "resistance band", "treadmill"]
     .filter(value => exercises.some(item => item.equipment.some(itemValue => String(itemValue).replace(/s$/, "") === value.replace(/s$/, ""))));
   const visualGuideCount = exercises.filter(item => item.guideStatus === "visual-guide").length;
-  const libraryPreviews = exercises.slice(0, 3);
+  const libraryPreviews = (library || exercises).slice(0, 3);
   const hasActiveFilters = Boolean(filters.query || filters.muscle || filters.equipment || filters.favorites);
+  const personalized = buildPersonalizedExerciseLists(library || exercises, state.exercisePreferences);
+  const pagination = paginateExercises(exercises, filters.page);
   const resultLabel = exercises.length === 1 ? "exercise" : "exercises";
   const filterRail = ({ label, field, allLabel, values, activeValue }) => `<section class="filter-rail" aria-label="${escapeHtml(label)} filters"><header><span>${escapeHtml(label)}</span><small>Swipe to explore</small></header><div class="filter-scroll" role="group" aria-label="${escapeHtml(label)} filters"><button type="button" class="filter-chip ${!activeValue ? "active" : ""}" data-action="filter-exercises" data-field="${escapeHtml(field)}" data-value="" aria-pressed="${!activeValue}">${escapeHtml(allLabel)}</button>${values.map(value => `<button type="button" class="filter-chip ${activeValue === value ? "active" : ""}" data-action="filter-exercises" data-field="${escapeHtml(field)}" data-value="${escapeHtml(value)}" aria-pressed="${activeValue === value}">${escapeHtml(value)}</button>`).join("")}</div></section>`;
   return `<div class="exercise-library-view">
     <section class="library-hero"><div class="library-hero-copy"><span class="eyebrow">EXERCISE LIBRARY</span><h1>Find your next move.</h1><p>${exercises.length} coached exercises with setup, cues, substitutions, and visual technique guides.</p><div class="library-proof"><span><b>${exercises.length}</b><small>Exercises</small></span><span><b>${visualGuideCount}</b><small>Visual guides</small></span></div></div><div class="library-preview-stack" aria-hidden="true">${libraryPreviews.map((exercise, index) => exercisePoster(exercise, { className: `library-preview preview-${index + 1}`, eager: index === 0, label: false })).join("")}</div></section>
+    ${!hasActiveFilters ? `${discoveryRail("Pick up where you left off", "Recently viewed", personalized.recent, state)}${discoveryRail("Saved by you", "Favorites", personalized.favorites, state)}` : ""}
     <section class="library-tools card" aria-label="Exercise discovery tools"><div class="library-search-row"><label class="search-field ${filters.query ? "has-clear" : ""}">${icon("search")}<input id="exercise-search" type="search" maxlength="80" placeholder="Search exercises" value="${escapeHtml(filters.query || "")}" aria-label="Search exercises">${filters.query ? `<button class="search-clear" type="button" data-action="clear-exercise-search" aria-label="Clear exercise search">${icon("close")}</button>` : ""}</label><label class="favorite-filter ${filters.favorites ? "active" : ""}"><input id="exercise-favorites" class="sr-only" type="checkbox" data-action="filter-favorites" aria-label="Show favorite exercises only" ${filters.favorites ? "checked" : ""}><span class="favorite-filter-icon" aria-hidden="true">${icon("heart")}</span><span class="favorite-filter-copy"><b>Favorites</b><small>${filters.favorites ? "Showing" : "Only"}</small></span></label></div><div class="library-filter-meta"><p><b>${exercises.length}</b> ${resultLabel} ${hasActiveFilters ? "matching your filters" : "ready to explore"}</p>${hasActiveFilters ? `<button class="filter-reset" type="button" data-action="clear-exercise-filters">Clear filters</button>` : ""}</div>${filterRail({ label: "Muscle focus", field: "muscle", allLabel: "All muscles", values: muscles, activeValue: filters.muscle })}${filterRail({ label: "Equipment", field: "equipment", allLabel: "Any equipment", values: equipment, activeValue: filters.equipment })}</section>
-    ${exercises.length ? `<section class="exercise-grid">${exercises.map(exercise => renderExerciseCard(exercise,state.exercisePreferences)).join("")}</section>` : emptyState("No exercises match", "Try removing a filter or using another exercise name.", "clear-exercise-filters", "Clear filters")}
+    ${exercises.length ? `<section class="exercise-grid" aria-label="Exercise results">${pagination.items.map(exercise => renderExerciseCard(exercise,state.exercisePreferences)).join("")}</section><nav class="library-pagination" aria-label="Exercise pages"><button data-action="exercise-page" data-value="${pagination.page - 1}" ${pagination.hasPrevious ? "" : "disabled"}>${icon("chevron", "flip")}<span>Previous</span></button><span role="status" aria-live="polite" aria-atomic="true"><b>${pagination.page}</b><small>of ${pagination.totalPages}</small></span><button data-action="exercise-page" data-value="${pagination.page + 1}" ${pagination.hasNext ? "" : "disabled"}><span>Next 20</span>${icon("chevron")}</button></nav>` : emptyState("No exercises match", "Try removing a filter or using another exercise name.", "clear-exercise-filters", "Clear filters")}
   </div>`;
 }
 
@@ -175,6 +185,19 @@ function formatRest(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2,"0")}`;
 }
 
+export function renderStrengthSetupHelper(exercise, current, unit) {
+  const usesBarbell = (exercise?.equipment || current?.snapshot?.equipment || []).some(value => String(value).toLowerCase().includes("barbell"));
+  const workingWeight = Number(current?.sets?.find(set => !set.done && Number(set.weight) > 0)?.weight || current?.target?.suggestedWeight || 0);
+  if (!usesBarbell || !(workingWeight > 0)) return "";
+  const loading = calculatePlateLoading(workingWeight, unit);
+  const ramp = buildWarmupRamp(workingWeight, unit);
+  if (!loading) return "";
+  const plates = loading.perSide.length
+    ? loading.perSide.map(plate => `<span><b>${plate.weight}${escapeHtml(unit)}</b><small>× ${plate.count} / side</small></span>`).join("")
+    : `<span><b>Empty bar</b><small>${loading.barWeight}${escapeHtml(unit)}</small></span>`;
+  return `<details class="strength-helper card" data-strength-working-weight="${workingWeight}"><summary><span>${icon("equipment")}</span><span><b>Bar setup & warm-up</b><small>${loading.exact ? `Load ${workingWeight}${escapeHtml(unit)} exactly` : `Nearest safe loading: ${loading.loadedWeight}${escapeHtml(unit)}`}</small></span>${icon("chevron")}</summary><div class="strength-helper-body"><section><span class="eyebrow">PLATES PER SIDE</span><div class="plate-receipt">${plates}</div>${loading.exact ? "" : `<p>Your available standard plates cannot make the exact target. This shows ${loading.loadedWeight}${escapeHtml(unit)} instead of silently rounding.</p>`}</section>${ramp.length ? `<section><span class="eyebrow">OPTIONAL WARM-UP RAMP</span><div class="warmup-ramp">${ramp.map(stage => `<span><b>${stage.weight}${escapeHtml(unit)}</b><small>${stage.reps} reps · ${stage.actualPercent}%</small></span>`).join("")}</div></section>` : ""}<p class="strength-helper-note">Calculator only. Use a load and warm-up that fit your experience and equipment.</p></div></details>`;
+}
+
 function activeWorkout({ state, exerciseById, now, ui }) {
   const workout = state.activeWorkout;
   if (!workout) return "";
@@ -193,6 +216,7 @@ function activeWorkout({ state, exerciseById, now, ui }) {
     <section class="guide-action-list card"><button data-action="view-current-instructions">${icon("equipment")}<span>Setup</span>${icon("chevron")}</button><button data-action="view-current-instructions">${icon("play")}<span>How to move</span>${icon("chevron")}</button><button data-action="view-current-instructions">${icon("info")}<span>Common mistakes</span>${icon("chevron")}</button></section>
     <section class="workout-progress-line"><span style="width:${Math.round((completed / Math.max(1,allSets.length))*100)}%"></span><p>${completed}/${allSets.length} sets complete</p></section>
     ${rest || workout.restTimer?.paused ? `<section class="rest-timer" aria-live="off"><div><small>${workout.restTimer?.paused ? "REST PAUSED" : "REST TIMER"}</small><strong data-rest-display>${formatRest(rest || workout.restTimer?.durationSeconds || 0)}</strong><span>${paused ? "Resume the workout to continue the rest timer." : "Recovers from its end timestamp after navigation or refresh"}</span></div><div><button data-action="adjust-rest" data-value="-15" ${paused ? "disabled" : ""}>−15</button><button data-action="stop-rest" ${paused ? "disabled" : ""}>Skip</button><button data-action="adjust-rest" data-value="15" ${paused ? "disabled" : ""}>+15</button></div></section>` : ""}
+    ${renderStrengthSetupHelper(exercise, current, workout.units || state.settings.units)}
     <section class="set-logger card"><header><span><b>Sets</b><small>${paused ? "Resume before editing sets" : "Tap the circle after the set"}</small></span><button class="text-button" data-action="add-set" ${paused ? "disabled" : ""}>+ Add set</button></header><div class="set-grid set-grid-head"><span>SET</span><span>${escapeHtml((workout.units || state.settings.units).toUpperCase())}</span><span>REPS</span><span>RPE</span><span>DONE</span></div>${current.sets.map((set,setIndex) => `<div class="set-grid ${set.done ? "done" : ""} ${set.error ? "invalid" : ""}"><span class="set-index">${set.kind === "warmup" ? "W" : setIndex + 1}</span><label><span class="sr-only">Weight set ${setIndex+1}</span><input inputmode="decimal" type="number" min="0" max="5000" step="0.5" data-action="set-field" data-field="weight" data-exercise-index="${currentIndex}" data-set-index="${setIndex}" value="${set.weight}" ${paused ? "disabled" : ""}></label><label><span class="sr-only">Reps set ${setIndex+1}</span><input inputmode="numeric" type="number" min="0" max="1000" data-action="set-field" data-field="reps" data-exercise-index="${currentIndex}" data-set-index="${setIndex}" value="${set.reps}" aria-invalid="${set.error ? "true" : "false"}" ${paused ? "disabled" : ""}></label><label><span class="sr-only">RPE set ${setIndex+1}</span><input inputmode="decimal" type="number" min="1" max="10" step="0.5" data-action="set-field" data-field="rpe" data-exercise-index="${currentIndex}" data-set-index="${setIndex}" value="${set.rpe ?? ""}" placeholder="—" ${paused ? "disabled" : ""}></label><button class="set-check" data-action="toggle-set" data-exercise-index="${currentIndex}" data-set-index="${setIndex}" aria-label="${set.done ? "Mark incomplete" : "Complete"} set ${setIndex+1}" aria-pressed="${set.done}" ${paused ? "disabled" : ""}>${set.done ? icon("check") : ""}</button>${set.error ? `<p class="set-error" role="alert">${escapeHtml(set.error)}</p>` : ""}</div>`).join("")}</section>
     <section class="workout-note card"><label for="workout-notes"><b>Workout notes</b><small>Stored locally with this workout</small></label><textarea id="workout-notes" maxlength="2000" placeholder="How did the session feel?">${escapeHtml(workout.notes || "")}</textarea></section>
     <section class="active-tools"><button data-action="swap-active-exercise" data-value="${currentIndex}" ${paused ? "disabled" : ""}>${icon("swap")}<span><b>Swap exercise</b><small>Before any set is logged</small></span></button><button data-action="reorder-active-exercise" data-value="${currentIndex}" data-direction="-1" ${currentIndex === 0 ? "disabled" : ""}>${icon("grip")}<span><b>Move up</b><small>Disabled at the boundary</small></span></button><button data-action="reorder-active-exercise" data-value="${currentIndex}" data-direction="1" ${currentIndex >= workout.exercises.length - 1 ? "disabled" : ""}>${icon("grip")}<span><b>Move down</b><small>Keep viewing this exercise</small></span></button><button data-action="toggle-workout-pause">${icon(workout.status === "paused" ? "play" : "pause")}<span><b>${workout.status === "paused" ? "Resume" : "Pause"}</b><small>Keep all set data</small></span></button></section>

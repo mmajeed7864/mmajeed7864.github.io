@@ -4,12 +4,13 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.5.2 is the active runtime (cache generation 0502 applies the Symbio visual identity — deep #090d16 ground, #2f6bff/#4b8bff blue, #7a4dff purple for the live-AI surfaces — plus route-accent navigation, collapsed Coach style/memory disclosures, browser-default button cleanup, an unlayered keyboard-focus ring, and the doctor-first onboarding boundary, while preserving the v0.5.0 Daily Board loop and the existing safety, voice, nutrition, exercise, and progress contracts):
+FitCoach v0.5.3 is the active runtime (cache generation 0503 keeps the Symbio visual identity and adds paginated personalized exercise discovery, recently viewed exercises, faster confirmed-food reuse, verified performance receipts, weekly evidence, and barbell setup helpers while preserving the voice, nutrition-confirmation, plan-approval, and safety contracts):
 
-- document shell: `index.html?v=0502`
-- stylesheets: `v040/styles.css?v=0502` and `v040/premium-redesign.css?v=0502`
-- ES-module entry: `v040/app.js?v=0502`
-- service worker cache: `fitcoach-symbio-v0502`
+- document shell: `index.html?v=0503`
+- stylesheets: `v040/styles.css?v=0503` and `v040/premium-redesign.css?v=0503`
+- ES-module entry: `v040/app.js?v=0503`
+- service worker caches: `fitcoach-symbio-v0503` for the shell/anatomy graph and `fitcoach-exercise-images-v0503` for a bounded runtime image set
+- install cache: shell, module graph, and the six active anatomy maps; exercise images cache after first use with a 12-image limit, while motion video streams directly
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
@@ -33,7 +34,7 @@ The v0.3 files remain for rollback/reference only and must not be treated as act
 - `v035-trainer-chat-voice.js`
 - root `app.js`, `styles.css`, `js/*.js`, and `css/*.css`
 
-The v0.4 service worker must not precache those historical scripts or styles.
+The v0.4 service worker must not precache historical scripts, historical styles, or the 200+ MB exercise-media catalogue in one install transaction.
 
 ## Provider boundary
 
@@ -54,7 +55,7 @@ The active library has 100 filterable movements and prioritizes gym-specific bar
 Run before opening or updating a FitCoach PR:
 
 ```bash
-node --test fitcoach-founder-test/tests/v040-*.test.mjs
+node --test fitcoach-founder-test/tests/*.test.mjs
 node fitcoach-founder-test/tests/check-bundle.js
 node --check fitcoach-founder-test/v040/app.js
 find fitcoach-founder-test/v040 -name '*.mjs' -print0 | xargs -0 -n1 node --check

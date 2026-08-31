@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0502";
+const GENERATION = "0503";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -45,11 +45,12 @@ function requestUrl(specifier) {
   return new URL(specifier, APP_SCOPE).href;
 }
 
-function swAssetUrls(source) {
-  return new Set([...source.matchAll(/["'](\.\/[^"']*)["']/g)]
-    .map(match => match[1])
-    .filter(value => value && !value.includes("${"))
-    .map(requestUrl));
+function swPrecacheAssetUrls(source) {
+  const values = ["SHELL_ASSETS", "MODULE_ASSETS", "ANATOMY_ASSETS"].flatMap(name => {
+    const block = source.match(new RegExp(`const ${name} = Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\);`))?.[1] || "";
+    return [...block.matchAll(/["'](\.\/[^"']*)["']/g)].map(match => match[1]);
+  });
+  return new Set(values.map(requestUrl));
 }
 
 function syntaxCheck(file) {
@@ -91,7 +92,18 @@ function syntaxCheck(file) {
     bad(`index, manifest, service worker, and constants must agree on ${GENERATION}`);
   } else ok(`document, manifest, service worker, and constants agree on ${GENERATION}`);
 
-  const precached = swAssetUrls(sw);
+  const precached = swPrecacheAssetUrls(sw);
+  const precacheDefinition = sw.match(/const PRECACHE_ASSETS = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] || "";
+  if (precacheDefinition.includes("RUNTIME_EXERCISE_ASSETS")) bad("exercise media must remain runtime-cached rather than part of the install transaction");
+  else ok("service-worker install excludes the large exercise-media inventory");
+  const anatomyMissingFromSw = [
+    "lower-body-v2.png", "push-v2.png", "pull-v2.png", "hinge-v2.png", "core-v2.png",
+    "body-focus-neutral-v1.png",
+  ].filter(file => !precached.has(requestUrl(`./v040/assets/anatomy/${file}`)));
+  if (anatomyMissingFromSw.length) bad(`service worker missing offline anatomy asset(s): ${anatomyMissingFromSw.join(", ")}`);
+  else ok("service-worker precaches the compact anatomy set");
+  if (!sw.includes("event.waitUntil(cacheWrite)")) bad("runtime image caching must keep the service worker alive until Cache Storage writes finish");
+  else ok("runtime image cache writes are protected by FetchEvent.waitUntil");
   const graphMissingFromSw = graph.filter(file => {
     const runtimeRequest = file === entry
       ? requestUrl(`./${file}?v=${GENERATION}`)
@@ -110,8 +122,17 @@ function syntaxCheck(file) {
   const { EXERCISE_MEDIA_MANIFEST } = await import(pathToFileURL(path.join(APP_ROOT, "v040/data/exercise-media-manifest.mjs")).href);
   const posterGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "png-two-position-guide");
   const motionGuides = EXERCISE_MEDIA_MANIFEST.filter(media => media.type === "mp4");
+  const runtimeImages = EXERCISE_MEDIA_MANIFEST.filter(media => media.offlineCachePolicy === "runtime" && media.type !== "mp4");
+  const maximumRuntimeImageBytes = Math.max(0, ...runtimeImages.map(media => Number(media.bytes) || 0));
   if (posterGuides.length !== 17) bad("media manifest must retain all seventeen premium poster guides");
   if (motionGuides.length !== 59) bad("media manifest must contain the fifty-nine reviewed motion guides while the rejected clip stays quarantined");
+  if (!sw.includes('const MEDIA_CACHE = "fitcoach-exercise-images-v0503";') || !sw.includes("const MAX_MEDIA_ENTRIES = 12;")) {
+    bad("runtime exercise images must use the separate bounded twelve-entry cache");
+  } else if (maximumRuntimeImageBytes > (2.5 * 1024 * 1024) || (maximumRuntimeImageBytes * 12) > (30 * 1024 * 1024)) {
+    bad("bounded runtime exercise-image cache exceeds the 30 MiB release budget");
+  } else {
+    ok("runtime exercise-image cache is capped at twelve entries and under the 30 MiB release budget");
+  }
   for (const media of EXERCISE_MEDIA_MANIFEST) {
     const file = media.path.replace(/^\/fitcoach-founder-test\//, "");
     const runtimeRequest = requestUrl(media.path);

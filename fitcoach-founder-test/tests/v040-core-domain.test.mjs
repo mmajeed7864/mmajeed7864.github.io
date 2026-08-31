@@ -200,6 +200,30 @@ test("state snapshots are stable, isolated, and retain workout plan version acro
   assert.equal(reloaded.activeWorkout.exercises[0].sets[0].error, "Enter at least 1 rep before completing this set.");
 });
 
+test("reset removes FitCoach recovery, legacy, theme, and device keys without clearing unrelated origin data", () => {
+  const storage = new MemoryStorage([
+    [storageKey("mo"), JSON.stringify(createInitialState("mo", FIXED_NOW))],
+    [legacyStorageKey("mo"), JSON.stringify({ profile: { days: 4 } })],
+    [backupStorageKey("mo"), "legacy-backup"],
+    ["fitcoach-v040-corrupt:mo:abc", "corrupt-copy"],
+    ["fitcoach-device-id", "persistent-device"],
+    ["fitcoach-theme", "dark"],
+    ["unrelated-origin-key", "keep-me"],
+  ]);
+  const store = createFitCoachStore({ storage, founder: "mo", clock: () => FIXED_NOW });
+  store.load();
+  const reset = store.reset();
+
+  assert.equal(reset.profile.onboarded, false);
+  assert.equal(storage.getItem("unrelated-origin-key"), "keep-me");
+  assert.equal(storage.getItem(legacyStorageKey("mo")), null);
+  assert.equal(storage.getItem(backupStorageKey("mo")), null);
+  assert.equal(storage.getItem("fitcoach-v040-corrupt:mo:abc"), null);
+  assert.equal(storage.getItem("fitcoach-device-id"), null);
+  assert.equal(storage.getItem("fitcoach-theme"), null);
+  assert.ok(storage.getItem(storageKey("mo")), "a fresh current profile is persisted");
+});
+
 test("theme defaults to light and only accepts light, dark, or system", () => {
   assert.equal(createInitialState("mo", FIXED_NOW).settings.theme, "light");
   assert.equal(normalizeStateForTest({ settings: { theme: "neon" } }).settings.theme, "light");

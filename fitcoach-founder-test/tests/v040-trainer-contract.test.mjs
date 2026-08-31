@@ -8,6 +8,7 @@ import {
   createTrainerClient,
   createTrainerPayload,
   isPrivateTrainerInput,
+  resetTrainerSession,
 } from "../v040/services/trainer-client.mjs";
 
 class MemoryStorage {
@@ -108,8 +109,9 @@ test("trainer v3 payload has an exact low-sensitivity allow-list", () => {
   assert.equal(payload.data_classification, "synthetic_low_sensitivity");
   assert.equal(payload.style, "strict");
   assert.equal(payload.response_depth, "deep");
-  assert.match(payload.session_id, /^fitcoach-mo-device-[a-zA-Z0-9_-]+$/);
+  assert.match(payload.session_id, /^fitcoach-session-[a-zA-Z0-9_-]+$/);
   assert.equal(payload.session_id, createTrainerPayload({ state: trainerState(), message: "Again", storage, now: NOW }).session_id);
+  assert.equal(storage.getItem("fitcoach-device-id"), null, "chat identity must not persist as a device identifier");
   assert.deepEqual(payload.context, {
     goal_code: "get_stronger",
     experience_code: "advanced",
@@ -188,6 +190,26 @@ test("private input is rejected locally with zero network requests", async () =>
 
   assert.equal(isPrivateTrainerInput("Email me at founder@example.com"), true);
   assert.equal(isPrivateTrainerInput("My medication dosage is 20mg"), true);
+  assert.equal(isPrivateTrainerInput("I weigh 180 pounds"), true);
+  assert.equal(isPrivateTrainerInput("My waist is 34 inches"), true);
+  assert.equal(isPrivateTrainerInput("My waist is 34"), true);
+  assert.equal(isPrivateTrainerInput("I'm 13 years old"), true);
+  assert.equal(isPrivateTrainerInput("I’m 13"), true);
+  assert.equal(isPrivateTrainerInput("I'm thirteen years old"), true);
+  assert.equal(isPrivateTrainerInput("My body fat is 18"), true);
+  assert.equal(isPrivateTrainerInput("I'm 180 lbs"), true);
+  assert.equal(isPrivateTrainerInput("180 lbs"), true);
+  assert.equal(isPrivateTrainerInput("weight 180"), true);
+  assert.equal(isPrivateTrainerInput("My chest measures 40 inches"), true);
+  assert.equal(isPrivateTrainerInput("I am 6 feet tall"), true);
+  assert.equal(isPrivateTrainerInput("I lifted 180 pounds for 5 reps"), false);
+  assert.equal(isPrivateTrainerInput("I'm 20 minutes late"), false);
+  assert.equal(isPrivateTrainerInput("I am 3 weeks into the plan"), false);
+  assert.equal(isPrivateTrainerInput("I'm 5 reps short"), false);
+  assert.equal(isPrivateTrainerInput("I am twenty minutes away"), false);
+  assert.equal(isPrivateTrainerInput("Chest 3 sets"), false);
+  assert.equal(isPrivateTrainerInput("Biceps 4 sets today"), false);
+  assert.equal(isPrivateTrainerInput("Can we do chest 3 times a week?"), false);
   const result = await client.requestTurn({
     state: trainerState(),
     message: "My medication dosage is 20mg",
@@ -197,6 +219,15 @@ test("private input is rejected locally with zero network requests", async () =>
 
   assert.deepEqual(result, { status: "private_block", reason: "private_input", persistable: false });
   assert.equal(fetches, 0);
+});
+
+test("reset rotates the ephemeral provider session without persisting an identifier", () => {
+  const storage = new MemoryStorage();
+  const before = createTrainerPayload({ state: trainerState(), message: "Help me train", approvedAction: "SAY_NOTHING", storage, now: NOW }).session_id;
+  resetTrainerSession(storage);
+  const after = createTrainerPayload({ state: trainerState(), message: "Help me train", approvedAction: "SAY_NOTHING", storage, now: NOW }).session_id;
+  assert.notEqual(before, after);
+  assert.equal(storage.getItem("fitcoach-device-id"), null);
 });
 
 test("a deterministic safety response is explicitly unpersistable and never speakable", async () => {

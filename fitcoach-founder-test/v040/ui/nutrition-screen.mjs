@@ -77,6 +77,15 @@ function mealSlotCard(slot, day, dateKey, { yesterdayHasSlot }) {
   </article>`;
 }
 
+function quickFoodRail(nutrition) {
+  const favorites = (nutrition?.favorites || []).slice(0, 5).map((item, index) => ({ ...item, kind: "favorite", index }));
+  const favoriteNames = new Set(favorites.map(item => item.name.toLowerCase()));
+  const recents = (nutrition?.recents || []).filter(item => !favoriteNames.has(item.name.toLowerCase())).slice(0, 5).map((item, index) => ({ ...item, kind: "recent", index: (nutrition.recents || []).indexOf(item) }));
+  const foods = [...favorites, ...recents];
+  if (!foods.length) return "";
+  return `<section class="quick-foods"><header><div><span class="eyebrow">QUICK REPEAT</span><h2>Log familiar food faster</h2></div><small>Review, then add</small></header><div class="quick-food-scroll">${foods.map(item => `<button data-action="nutrition-quick-food" data-kind="${escapeHtml(item.kind)}" data-value="${item.index}"><span>${item.kind === "favorite" ? icon("heart") : icon("clock")}</span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${Math.round(item.per.calories * (item.multiplier || 1))} kcal</small></button>`).join("")}</div></section>`;
+}
+
 export function renderNutritionScreen({ state, ui, now = new Date() }) {
   const nutrition = state.nutrition;
   const dateKey = ui.nutritionDate || localDateKey(now);
@@ -105,6 +114,8 @@ export function renderNutritionScreen({ state, ui, now = new Date() }) {
       ${drafts ? `<button class="draft-chip" data-action="nutrition-first-draft"><b>${drafts} draft${drafts === 1 ? "" : "s"} waiting for review</b><small>Drafts count zero until you confirm them</small>${icon("chevron")}</button>` : ""}
       <div class="nutrition-hero-actions">${button({ label: "Scan food", action: "nutrition-open-capture", value: "", variant: "primary", iconName: "camera" })}${button({ label: "Quick add", action: "nutrition-open-add", value: "", variant: "secondary", iconName: "plus" })}<button class="text-button" data-action="nutrition-open-targets">Edit targets</button></div>
     </section>
+
+    ${quickFoodRail(nutrition)}
 
     <div class="meal-slots">${MEAL_SLOTS.map(slot => mealSlotCard(slot, day, dateKey, {
       yesterdayHasSlot: Boolean((yesterdayDay?.entries || []).some(entry => entry.slot === slot && entry.status === "confirmed")),
@@ -197,7 +208,7 @@ function addSheet(modal, context) {
       ${showCustom ? `
       <div class="per-serving-grid custom-food-grid"><label><span>Name</span><input id="custom-name" maxlength="120" placeholder="e.g. Mom’s dal"></label><label><span>Serving label</span><input id="custom-serving" maxlength="80" placeholder="1 bowl"></label><label><span>kcal / serving</span><input id="custom-kcal" type="number" inputmode="numeric" min="0" max="5000"></label><label><span>Protein g</span><input id="custom-protein" type="number" inputmode="decimal" min="0" max="500" value="0"></label><label><span>Carbs g</span><input id="custom-carbs" type="number" inputmode="decimal" min="0" max="800" value="0"></label><label><span>Fat g</span><input id="custom-fat" type="number" inputmode="decimal" min="0" max="500" value="0"></label></div>
       ${button({ label: "Add custom food", action: "nutrition-add-custom", variant: "primary" })}` : `
-      <div class="food-results">${results.length ? results.map((item, index) => `<button class="food-row" data-action="nutrition-pick-food" data-value="${index}"><span class="food-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${escapeHtml(item.origin === "library" ? "starter list" : item.origin)}${item.origin !== "library" ? ` · last ${fmtMultiplier(item.multiplier)}×` : ""}</small></span><span class="food-kcal"><b>${Math.round(item.per.calories)}</b><small>kcal</small></span></button>`).join("") : `<p class="meal-slot-empty">No match yet. Create it as a custom food instead.</p>`}</div>
+      <div class="food-results">${results.length ? results.map((item, index) => `<button class="food-row" data-action="nutrition-pick-food" data-value="${index}"><span class="food-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${escapeHtml(item.origin === "library" ? "reference food · verify values" : item.origin)}${item.origin !== "library" ? ` · last ${fmtMultiplier(item.multiplier)}×` : ""}</small></span><span class="food-kcal"><b>${Math.round(item.per.calories)}</b><small>kcal</small></span></button>`).join("") : `<p class="meal-slot-empty">No match yet. Create it as a custom food instead.</p>`}</div>
       <button class="text-button" data-action="nutrition-toggle-custom">Create a custom food</button>`}
     `,
     actions: button({ label: "Close", action: "close-modal", variant: "quiet" }),

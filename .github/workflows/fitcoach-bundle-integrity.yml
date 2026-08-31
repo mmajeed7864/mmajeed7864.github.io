@@ -25,8 +25,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Run FitCoach v0.4 focused tests
-        run: node --test fitcoach-founder-test/tests/v040-*.test.mjs
+      - name: Run the complete FitCoach test suite
+        run: node --test fitcoach-founder-test/tests/*.test.mjs
       - name: Verify FitCoach module graph and PWA precache
         run: node fitcoach-founder-test/tests/check-bundle.js
       - name: Syntax-check v0.4 modules

@@ -9,6 +9,8 @@ The resulting motion file must remain silent and local, and must pass human move
 
 ## Hard-gym motion pilot
 
-The app now activates 60 reviewed motion loops, including all 48 intermediate/advanced hard-gym targets. The generation queue in `v040/data/motion-generation-queue.mjs` is retained as an auditable template for future additions and is empty for the current catalogue. `scripts/openrouter-motion-pilot.mjs` records the bounded OpenRouter generation workflow; any future returned job remains inactive until it is downloaded, stripped/verified for audio, checksummed, and reviewed for movement, equipment, anatomy, and visual quality before being added to `exercise-media-manifest.mjs`.
+The app activates 59 reviewed motion loops. They cover 47 of the 48 intermediate/advanced hard-gym targets; Hollow Body Hold remains poster-only while its rejected clip stays quarantined. The generation queue in `v040/data/motion-generation-queue.mjs` retains that one pending replacement as an auditable template. `scripts/openrouter-motion-pilot.mjs` records the bounded OpenRouter generation workflow; any future returned job remains inactive until it is downloaded, stripped and verified for audio, checksummed, and reviewed for movement, equipment, anatomy, and visual quality before being added to `exercise-media-manifest.mjs`.
+
+The active service worker streams MP4 files directly so iOS range requests do not enter Cache Storage. Motion playback therefore requires a network connection; the exercise poster, anatomy map, setup, execution, and cues remain the offline fallback.
 
 The active PWA never sends provider video requests and never loads pending jobs. This keeps an incomplete or unreviewed generation run from changing workout guidance.

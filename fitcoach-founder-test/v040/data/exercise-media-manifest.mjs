@@ -42,7 +42,7 @@ function ownedGeneratedPng({ id, exerciseId, file, view, alt, bytes, sha256 }) {
     height: 1086,
     view,
     alt,
-    offlineCachePolicy: "precache",
+    offlineCachePolicy: "runtime",
     ...GENERATED_ILLUSTRATION_POLICY,
     bytes,
     sha256,
@@ -59,7 +59,7 @@ function ownedGeneratedPoster({ id, exerciseId, file, width = 1254, height = 125
     height,
     view,
     alt,
-    offlineCachePolicy: "precache",
+    offlineCachePolicy: "runtime",
     ...GENERATED_ILLUSTRATION_POLICY,
     bytes,
     sha256,
@@ -79,7 +79,9 @@ function ownedGeneratedMotion({ id, exerciseId, file, width, height, durationSec
     motionReviewStatus,
     view,
     alt,
-    offlineCachePolicy: "runtime",
+    // Safari/iOS requests video ranges. Stream the reviewed local file instead
+    // of storing partial 206 responses in Cache Storage.
+    offlineCachePolicy: "never",
     ...GENERATED_MOTION_POLICY,
     bytes,
     sha256,

@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = "0.3.1-symbio";
-const ACCESS_CODE = "LIFT26";
+const ACCESS_CODE = "";
 const ROUTES = ["today", "train", "coach", "progress", "profile"];
 const ACTIONS = [
   "SAY_NOTHING", "CHECK_IN", "RECOVER_MISSED_SESSION", "OFFER_PLAN_B",

@@ -8,6 +8,24 @@ import { clamp, slug, uid } from "../core/utils.mjs";
 import { daysSinceLastSession, journeyStage, sessionsThisWeek } from "../domain/decisions.mjs";
 
 export const PRIVATE_INPUT_PATTERN = /\b(?:(?:api[_ -]?key|password|secret|token)\s*(?:is|[:=])\s*\S+|bearer\s+(?:sk-)?[a-z0-9._~+/=-]{8,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}|medicat\w*|prescription|dosage?|\d+\s?mg\b|diagnos\w*|pregnan\w*|eating\s+disorder)\b/i;
+const AGE_WORD = "(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[-\\s](?:one|two|three|four|five|six|seven|eight|nine))?";
+const BODY_DATA_PATTERN = new RegExp(
+  `\\b(?:` +
+    `(?:i\\s+weigh|my\\s+(?:body\\s+)?weight(?:\\s+(?:is|measures?))?|weight\\s*(?:(?:is|measures?)\\s*|[:=]\\s*)?)\\s*\\d+(?:\\.\\d+)?(?:\\s*(?:lb|lbs|pounds?|kg|kilograms?|st|stone))?` +
+    `|i\\s*(?:am|['’]m)\\s*\\d+(?:\\.\\d+)?\\s*(?:lb|lbs|pounds?|kg|kilograms?|st|stone)` +
+    `|i\\s*(?:am|['’]m)\\s*\\d+(?:\\.\\d+)?\\s*(?:ft|feet|foot|in|inch|inches|cm|centimeters?)\\s+tall` +
+    `|(?:my\\s+(?:height|waist|hips?|chest|thighs?|biceps?|neck|inseam)\\s*(?:is|measures?|[:=])?|(?:height|waist|hips?|chest|thighs?|biceps?|neck|inseam)\\s*(?:is|measures?|[:=]))\\s*\\d+(?:\\.\\d+)?(?:\\s*(?:ft|feet|foot|in|inch|inches|cm|centimeters?))?` +
+    `|(?:height|waist|hips?|chest|thighs?|biceps?|neck|inseam)\\s*\\d+(?:\\.\\d+)?\\s*(?:ft|feet|foot|in|inch|inches|cm|centimeters?)` +
+    `|body\\s*fat\\s*(?:is|[:=])?\\s*\\d+(?:\\.\\d+)?(?:\\s*%)?` +
+    `|(?:my\\s+age\\s*(?:is|[:=])?|age\\s*[:=])\\s*(?:\\d{1,3}|${AGE_WORD})` +
+    `|i\\s*(?:am|['’]m)\\s*(?:\\d{1,3}|${AGE_WORD})(?:\\s*(?:years?|yrs?)(?:\\s*old)?)?(?=\\s*(?:$|[.!?,;]|\\b(?:and|but)\\b))` +
+  `)(?:\\b|$)`,
+  "i",
+);
+const STANDALONE_BODY_WEIGHT_PATTERN = /^\s*\d+(?:\.\d+)?\s*(?:lb|lbs|pounds?|kg|kilograms?|st|stone)\s*$/i;
+
+const ephemeralSessionIds = new WeakMap();
+let fallbackSessionId = null;
 
 const BROKEN_REPLY = [
   /^let(?:'|’)s make the next action specific\.?$/i,
@@ -18,7 +36,8 @@ const BROKEN_REPLY = [
 ];
 
 export function isPrivateTrainerInput(value) {
-  return PRIVATE_INPUT_PATTERN.test(String(value || "").normalize("NFKC"));
+  const normalized = String(value || "").normalize("NFKC");
+  return PRIVATE_INPUT_PATTERN.test(normalized) || BODY_DATA_PATTERN.test(normalized) || STANDALONE_BODY_WEIGHT_PATTERN.test(normalized);
 }
 
 export function normalizeTrainerMessage(value) {
@@ -30,14 +49,24 @@ export function isUsableTrainerReply(value) {
   return Boolean(reply) && reply.length <= 4_000 && !BROKEN_REPLY.some(pattern => pattern.test(reply));
 }
 
-function deviceId(storage) {
-  const key = "fitcoach-device-id";
-  let value = storage?.getItem?.(key);
-  if (!value) {
-    value = uid("device").replace(/[^a-zA-Z0-9_-]/g, "");
-    storage?.setItem?.(key, value);
+function sessionId(storage) {
+  const owner = storage && (typeof storage === "object" || typeof storage === "function") ? storage : null;
+  if (owner) {
+    let value = ephemeralSessionIds.get(owner);
+    if (!value) {
+      value = uid("session").replace(/[^a-zA-Z0-9_-]/g, "");
+      ephemeralSessionIds.set(owner, value);
+    }
+    return value;
   }
-  return value;
+  fallbackSessionId ||= uid("session").replace(/[^a-zA-Z0-9_-]/g, "");
+  return fallbackSessionId;
+}
+
+export function resetTrainerSession(storage = globalThis.localStorage) {
+  const owner = storage && (typeof storage === "object" || typeof storage === "function") ? storage : null;
+  if (owner) ephemeralSessionIds.delete(owner);
+  else fallbackSessionId = null;
 }
 
 function trainerStyle(state) {
@@ -74,7 +103,7 @@ export function createTrainerPayload({ state, message, approvedAction, founder =
   };
   return {
     message: normalizeTrainerMessage(message),
-    session_id: `fitcoach-${founder}-${deviceId(storage)}`,
+    session_id: `fitcoach-${sessionId(storage)}`,
     data_classification: "synthetic_low_sensitivity",
     style: trainerStyle(state),
     response_depth: ANSWER_DEPTHS.includes(state.settings?.coachMode) ? state.settings.coachMode : "smart",
@@ -115,6 +144,9 @@ export function createTrainerClient({
   if (typeof fetchImpl !== "function") throw new Error("A fetch implementation is required.");
 
   return {
+    resetSession() {
+      resetTrainerSession(storage);
+    },
     async requestTurn({ state, message, approvedAction, founder, signal }) {
       const normalized = normalizeTrainerMessage(message);
       if (!normalized) return { status: "invalid", reason: "empty" };

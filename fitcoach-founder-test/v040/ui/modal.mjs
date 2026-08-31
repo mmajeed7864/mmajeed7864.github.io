@@ -158,7 +158,14 @@ export function renderModal(modal, context) {
   }
   if (modal.type === "completion") {
     const summary = context.state.lastWorkoutSummary;
-    return shell("Workout saved",`<div class="completion-mark">${icon("check")}</div><p>Your active workout is closed. The recap below is computed from the saved receipt—no performance facts were invented.</p><div class="completion-grid"><span><b>${summary?.durationMinutes || 0}</b><small>minutes</small></span><span><b>${summary?.completedExercises || 0}</b><small>exercises</small></span><span><b>${summary?.completedSets || 0}</b><small>sets</small></span><span><b>${Math.round(summary?.totalVolume || 0).toLocaleString()}</b><small>volume</small></span></div><div class="rating-row"><span>How did this session feel?</span>${[1,2,3,4,5].map(value=>`<button data-action="rate-session" data-value="${value}" aria-label="Rate session ${value} out of 5">${value}</button>`).join("")}</div>`,button({label:"View Progress",action:"close-completion",value:"progress",variant:"primary"})+button({label:"Back to Today",action:"close-completion",value:"today",variant:"quiet"}),{eyebrow:"COMPLETION RECEIPT"});
+    const records = summary?.personalRecords || [];
+    const baselines = summary?.baselines || [];
+    const performance = records.length
+      ? `<section class="completion-performance pr"><span class="eyebrow">NEW PERSONAL BEST${records.length === 1 ? "" : "S"}</span>${records.map(record => `<article>${icon("spark")}<span><b>${escapeHtml(record.exerciseName)}</b><small>${record.weight}${escapeHtml(record.unit)} × ${record.reps}</small></span><strong>${Math.round(record.value)}<small>est. 1RM</small></strong></article>`).join("")}</section>`
+      : baselines.length
+        ? `<section class="completion-performance baseline"><span class="eyebrow">BASELINE CAPTURED</span><p>${baselines.length} weighted movement${baselines.length === 1 ? "" : "s"} now ${baselines.length === 1 ? "has" : "have"} a real starting point. A first log is a baseline—not a fake PR.</p></section>`
+        : "";
+    return shell("Workout saved",`<div class="completion-mark">${icon("check")}</div><p>Your active workout is closed. Every number below comes from the saved sets.</p><div class="completion-grid"><span><b>${summary?.durationMinutes || 0}</b><small>minutes</small></span><span><b>${summary?.completedExercises || 0}</b><small>exercises</small></span><span><b>${summary?.completedSets || 0}</b><small>sets</small></span><span><b>${Math.round(summary?.totalVolume || 0).toLocaleString()}</b><small>volume</small></span></div>${performance}<div class="rating-row"><span>How did this session feel?</span>${[1,2,3,4,5].map(value=>`<button data-action="rate-session" data-value="${value}" aria-label="Rate session ${value} out of 5">${value}</button>`).join("")}</div>`,button({label:"View Progress",action:"close-completion",value:"progress",variant:"primary"})+button({label:"Back to Today",action:"close-completion",value:"today",variant:"quiet"}),{eyebrow:"COMPLETION RECEIPT"});
   }
   if (modal.type === "active-swap") {
     const exercise = context.exerciseById(modal.exerciseId);
@@ -171,7 +178,7 @@ export function renderModal(modal, context) {
     return shell("Clear the Coach thread?","<p>This removes saved text messages from this local profile. Workout history and exercise preferences remain.</p>",button({label:"Keep thread",action:"close-modal",variant:"quiet"})+button({label:"Clear thread",action:"confirm-clear-chat",variant:"danger"}),{eyebrow:"LOCAL DATA"});
   }
   if (modal.type === "confirm-reset") {
-    return shell("Reset FitCoach on this device?","<p>This removes your current workouts, Coach thread, settings, food diary, and exercise preferences from this local profile.</p>",button({label:"Cancel",action:"close-modal",variant:"quiet"})+button({label:"Reset FitCoach",action:"confirm-reset",variant:"danger"}),{eyebrow:"LOCAL DATA"});
+    return shell("Reset all FitCoach data on this device?","<p>This removes every FitCoach profile, recovery copy, workout, Coach thread, setting, food-diary entry, and exercise preference stored in this browser. Other websites and apps are not affected.</p>",button({label:"Cancel",action:"close-modal",variant:"quiet"})+button({label:"Reset all FitCoach data",action:"confirm-reset",variant:"danger"}),{eyebrow:"LOCAL DATA"});
   }
   if (modal.type === "offline") {
     return shell("Live Coach is offline","<p>Your workout, exercise library, timer, set logging, and local plans remain available. FitCoach will not queue or retry a voice transcript automatically.</p>",button({label:"Continue locally",action:"close-modal",variant:"primary"}),{eyebrow:"OFFLINE MODE"});
