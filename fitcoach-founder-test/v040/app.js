@@ -77,6 +77,7 @@ const ui = {
   mode: "onboarding",
   founder: "mo",
   route: "today",
+  disclosures: {},
   trainSegment: "workout",
   exerciseDetailId: null,
   exerciseFilters: { query: "", muscle: "", equipment: "", favorites: false },
@@ -279,7 +280,7 @@ function applyTheme(preference) {
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
   localStorage.setItem("fitcoach-theme", preference);
-  const color = resolved === "dark" ? "#061126" : "#F5F8FF";
+  const color = resolved === "dark" ? "#090d16" : "#f4f6fd";
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
 }
 
@@ -1473,6 +1474,10 @@ function bootstrap() {
   document.addEventListener("click",handleClick);
   document.addEventListener("change",handleChange);
   document.addEventListener("input",handleInput);
+  document.addEventListener("toggle",event=>{
+    const disclosure=event.target?.closest?.("details[data-disclosure]");
+    if(disclosure)ui.disclosures[disclosure.dataset.disclosure]=disclosure.open;
+  },true);
   document.addEventListener("canplay",event=>{
     const video=event.target?.closest?.("[data-media-video]");
     if(!video || ui.motionPaused || video.paused === false) return;
