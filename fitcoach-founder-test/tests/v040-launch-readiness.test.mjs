@@ -57,8 +57,8 @@ test("exercise expansion target list maps 100 quality movements without claiming
 
 test("premium surface uses the approved blue system rather than the retired teal palette", () => {
   const css = readFileSync(new URL("../v040/premium-redesign.css", import.meta.url), "utf8");
-  assert.match(css, /--primary:\s*#246bfd/i);
-  assert.match(css, /linear-gradient\(145deg, #244fa5, #0b1d46/i);
+  assert.match(css, /--primary:\s*#2f6bff/i);
+  assert.match(css, /linear-gradient\(145deg, #22438f, #0e1118/i);
   assert.doesNotMatch(css, /--primary:\s*#08796f/i);
   assert.doesNotMatch(css, /#0a746c|#0b756d|#07575b/i);
 });
@@ -287,7 +287,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.5\.0/u);
+  assert.match(html, /FitCoach v0\.5\.2/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -332,7 +332,7 @@ test("the document owns service-worker upgrades and modules refresh network-firs
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0500", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0502", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

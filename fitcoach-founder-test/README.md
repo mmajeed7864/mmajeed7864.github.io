@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.5.0 is the active runtime (cache generation 0500 adds the research-led Daily Board, a single workout-to-receipt loop, compact workout/food/coach actions, a visual exercise preview rail, explicit daily energy check-ins, and skippable optional onboarding while preserving the existing safety, voice, nutrition, exercise, and progress contracts):
+FitCoach v0.5.2 is the active runtime (cache generation 0502 applies the Symbio visual identity — deep #090d16 ground, #2f6bff/#4b8bff blue, #7a4dff purple for the live-AI surfaces — plus route-accent navigation, collapsed Coach style/memory disclosures, browser-default button cleanup, an unlayered keyboard-focus ring, and the doctor-first onboarding boundary, while preserving the v0.5.0 Daily Board loop and the existing safety, voice, nutrition, exercise, and progress contracts):
 
-- document shell: `index.html?v=0500`
-- stylesheets: `v040/styles.css?v=0500` and `v040/premium-redesign.css?v=0500`
-- ES-module entry: `v040/app.js?v=0500`
-- service worker cache: `fitcoach-symbio-v0500`
+- document shell: `index.html?v=0502`
+- stylesheets: `v040/styles.css?v=0502` and `v040/premium-redesign.css?v=0502`
+- ES-module entry: `v040/app.js?v=0502`
+- service worker cache: `fitcoach-symbio-v0502`
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
 The v0.4 runtime is an ES-module app under `v040/` with these boundaries:

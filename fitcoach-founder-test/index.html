@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#F6F9FB">
+  <meta name="theme-color" content="#f4f6fd">
   <meta name="color-scheme" content="light dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -21,15 +21,15 @@
       document.documentElement.dataset.themePreference = preference;
       document.documentElement.dataset.theme = resolved;
       document.documentElement.style.colorScheme = resolved;
-      document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#071116" : "#F6F9FB";
+      document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#090d16" : "#f4f6fd";
     })();
   </script>
-  <link rel="manifest" href="./manifest.webmanifest?v=0500">
-  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0500">
-  <link rel="icon" href="./assets/icon-symbio.svg?v=0500" type="image/svg+xml">
-  <link rel="stylesheet" href="./v040/styles.css?v=0500">
-  <link rel="stylesheet" href="./v040/premium-redesign.css?v=0500">
-  <title>FitCoach v0.5.0</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=0502">
+  <link rel="apple-touch-icon" href="./assets/icon-symbio.svg?v=0502">
+  <link rel="icon" href="./assets/icon-symbio.svg?v=0502" type="image/svg+xml">
+  <link rel="stylesheet" href="./v040/styles.css?v=0502">
+  <link rel="stylesheet" href="./v040/premium-redesign.css?v=0502">
+  <title>FitCoach v0.5.2</title>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -50,11 +50,11 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js?v=0500", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./sw.js?v=0502", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     }
   </script>
-  <script type="module" src="./v040/app.js?v=0500"></script>
+  <script type="module" src="./v040/app.js?v=0502"></script>
 </body>
 </html>
