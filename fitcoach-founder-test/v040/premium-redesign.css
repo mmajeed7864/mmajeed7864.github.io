@@ -2919,3 +2919,20 @@ html[data-theme="dark"] .modal-card { background: var(--elevated); color: var(--
 }
 .coach-disclosure.trainer-memory,
 .coach-disclosure.coach-personality { background: var(--surface); }
+
+/* ── Poster pre-load ground: dark theme loads on navy, not the cream ground the
+      two-position illustrations use (an opaque poster covers it either way). */
+html[data-theme="dark"] .exercise-poster { background: linear-gradient(180deg, var(--surface-2), var(--bg-soft)); }
+
+/* ── Disclosure summary typography: keep the row to one calm line. */
+.coach-disclosure > summary h2 { font-size: .98rem; line-height: 1.2; }
+.coach-disclosure > summary .disclosure-current {
+  max-width: 44%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Route accent also reaches eyebrows that sit directly in a card section
+      (e.g. WHY THIS COACHING) — hero-panel eyebrows keep their own treatment. */
+.page > section > .eyebrow { color: var(--route-accent); }
