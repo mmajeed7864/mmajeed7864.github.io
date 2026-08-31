@@ -284,11 +284,12 @@ test("remote barcode food can be confirmed as a barcode source with portion edit
   assert.equal(entry.nutrients.protein, 34);
 });
 
-test("add-food sheet exposes verified barcode lookup separately from demo search", () => {
+test("add-food sheet exposes source-labeled barcode lookup separately from demo search", () => {
   const content = renderNutritionModalContent({ type: "nutrition-add", slot: "breakfast", query: "" }, { state: createInitialState("mo", FIXED_NOW) });
   assert.match(content.body, /id="nutrition-barcode"/);
   assert.match(content.body, /data-action="nutrition-barcode-search"/);
-  assert.match(content.body, /Uses verified product data/u);
+  assert.match(content.body, /provider-backed product records/u);
+  assert.doesNotMatch(content.body, /verified product data/iu);
 });
 
 // ── 7. Private/safety text never reaches the provider projection ───────────

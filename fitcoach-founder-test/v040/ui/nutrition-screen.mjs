@@ -185,7 +185,7 @@ function addSheet(modal, context) {
         <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
         <div class="portion-stepper" role="group" aria-label="Portion size"><span>Portion</span><button class="icon-only" data-action="nutrition-add-portion" data-value="-0.25" aria-label="Smaller portion">−</button><b>${fmtMultiplier(multiplier)} ×</b><button class="icon-only" data-action="nutrition-add-portion" data-value="0.25" aria-label="Larger portion">+</button><small>${escapeHtml(selected.servingLabel)}</small></div>
         <p class="counted-preview">Adds <b>${preview.toLocaleString()} kcal</b> · ${Math.round(selected.per.protein * multiplier)} P / ${Math.round(selected.per.carbs * multiplier)} C / ${Math.round(selected.per.fat * multiplier)} F</p>
-        ${selected.origin === "barcode" ? `<div class="receipt-box">${icon("barcode")}<p><b>${escapeHtml(selected.confidence || "medium")} confidence label data</b><small>${escapeHtml(selected.brand ? `${selected.brand} · ` : "")}${escapeHtml(selected.barcode || "barcode")} · ${escapeHtml(selected.licenseNote || "Verify the label before relying on it.")}</small></p></div>` : ""}
+        ${selected.origin === "barcode" ? `<div class="receipt-box">${icon("barcode")}<p><b>${escapeHtml(selected.provenance?.accuracyLabel || "Provider product record")} · ${escapeHtml(selected.confidence || "medium")} match confidence</b><small>${escapeHtml(selected.brand ? `${selected.brand} · ` : "")}${escapeHtml(selected.barcode || "barcode")} · ${escapeHtml(selected.provenance?.warning || "Verify the package label before relying on it.")}</small></p></div>` : ""}
       `,
       actions: button({ label: "Back", action: "nutrition-add-back", variant: "quiet" })
         + button({ label: `Add to ${MEAL_SLOT_LABELS[slot] || "meal"}`, action: "nutrition-add-confirm", variant: "primary", disabled: !slot }),
@@ -201,7 +201,7 @@ function addSheet(modal, context) {
       <div class="barcode-lookup">
         <label class="field"><span>Barcode lookup</span><input id="nutrition-barcode" inputmode="numeric" pattern="[0-9]*" maxlength="18" placeholder="Scan or type barcode digits" value="${escapeHtml(modal.barcode || "")}"></label>
         ${button({ label: modal.lookupBusy ? "Looking up…" : "Search barcode", action: "nutrition-barcode-search", variant: "secondary", iconName: "barcode", disabled: Boolean(modal.lookupBusy) })}
-        <small>Uses verified product data where available. You still choose the portion before it counts.</small>
+        <small>Uses provider-backed product records when available. The source and reliability label are shown; verify the package label. You still choose the portion before it counts.</small>
         ${modal.lookupError ? `<p class="form-error">${escapeHtml(modal.lookupError)}</p>` : ""}
       </div>
       <label class="field search-field"><span class="sr-only">Search foods</span>${icon("search")}<input id="nutrition-search" maxlength="80" placeholder="Search foods, recents, favorites…" value="${escapeHtml(modal.query || "")}"></label>
@@ -220,13 +220,16 @@ function entrySheet(modal, context) {
   const entry = (state.nutrition.days[modal.dateKey]?.entries || []).find(item => item.id === modal.entryId);
   if (!entry) return null;
   const favorite = isFavoriteFood(state.nutrition, entry.name);
+  const loggedLabel = entry.confirmedAt ? `Confirmed ${entry.confirmedAt.slice(0, 10)}` : `Logged ${entry.createdAt.slice(0, 10)}`;
+  const provenanceLabel = entry.provenance ? ` · ${entry.provenance.providerLabel} record ${entry.provenance.recordId}` : "";
+  const photoLabel = entry.photo ? ` · photo metadata ${entry.photo.hash} (image not stored)` : "";
   return {
     eyebrow: "CONFIRMED ENTRY",
     title: entry.name,
     body: `
       <div class="portion-stepper" role="group" aria-label="Portion size"><span>Portion</span><button class="icon-only" data-action="nutrition-entry-portion" data-value="-0.25" aria-label="Smaller portion">−</button><b>${fmtMultiplier(entry.multiplier)} ×</b><button class="icon-only" data-action="nutrition-entry-portion" data-value="0.25" aria-label="Larger portion">+</button><small>${escapeHtml(entry.servingLabel)}</small></div>
       <p class="counted-preview">Counting <b>${kcalRound(entry.nutrients.calories)} kcal</b> · ${entry.nutrients.protein} P / ${entry.nutrients.carbs} C / ${entry.nutrients.fat} F</p>
-      <div class="receipt-box"><span>${icon("check")}</span><p><b>${escapeHtml(SOURCE_LABELS[entry.source] || entry.source)}</b><small>${escapeHtml(entry.confirmedAt ? `Confirmed ${entry.confirmedAt.slice(0, 10)}` : `Logged ${entry.createdAt.slice(0, 10)}`)}${entry.photo ? ` · photo metadata ${escapeHtml(entry.photo.hash)} (image not stored)` : ""}</small></p></div>
+      <div class="receipt-box"><span>${icon("check")}</span><p><b>${escapeHtml(entry.provenance?.accuracyLabel || SOURCE_LABELS[entry.source] || entry.source)}</b><small>${escapeHtml(`${loggedLabel}${provenanceLabel}${photoLabel}`)}</small></p></div>
       ${entry.estimate ? `<details class="assumption-box"><summary>Estimate details · ${escapeHtml(entry.estimate.confidence)} confidence</summary><ul><li>Calorie range shown: ${fmtRange(entry.estimate.kcalRange)}</li>${entry.estimate.assumptions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}
       ${entry.history?.length ? `<details class="assumption-box"><summary>Edit history</summary><ul>${entry.history.map(item => `<li>${escapeHtml(item.change)} · ${escapeHtml(item.at.slice(0, 16).replace("T", " "))}</li>`).join("")}</ul></details>` : ""}
     `,

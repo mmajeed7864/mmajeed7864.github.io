@@ -42,17 +42,19 @@ export function displayEquipment(equipment, fallback = "Bodyweight") {
   return values.length ? values : [fallback];
 }
 
-export function exercisePoster(exercise, { className = "", eager = false, label = true } = {}) {
+export function exercisePoster(exercise, { className = "", eager = false, label = true, fullResolution = false } = {}) {
   const media = exercise?.media?.find?.(entry => entry.type === "poster")
     || exercise?.media?.find?.(entry => ["png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
-  const poster = media?.path || exercise?.snapshot?.mediaPoster || "";
+  const poster = (fullResolution ? media?.path : media?.thumbnail?.path || media?.path) || exercise?.snapshot?.mediaPoster || "";
+  const posterWidth = !fullResolution && media?.thumbnail?.path ? media.thumbnail.width : media?.width;
+  const posterHeight = !fullResolution && media?.thumbnail?.path ? media.thumbnail.height : media?.height;
   const name = exercise?.name || exercise?.snapshot?.name || "Exercise";
   if (!poster) {
     const pattern = String(exercise?.movementPattern || "movement").replaceAll("-", " ");
     const muscles = (exercise?.primaryMuscles || []).slice(0, 2).join(" · ");
     return `<div class="exercise-poster media-fallback ${escapeHtml(className)}" role="img" aria-label="${escapeHtml(name)} written coaching guide"><span class="guide-abstract" aria-hidden="true"><i></i><i></i><b></b></span><span class="guide-copy"><b>FITCOACH GUIDE</b><strong>${escapeHtml(name)}</strong><small>${escapeHtml(muscles || pattern)} · setup · cues</small></span></div>`;
   }
-  return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${media?.width || 320}" height="${media?.height || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
+  return `<figure class="exercise-poster ${escapeHtml(className)}"><img data-media-image src="${escapeHtml(poster)}" width="${posterWidth || 320}" height="${posterHeight || 240}" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} alt="${label ? escapeHtml(media?.alt || `${name} static two-position guide`) : ""}"><span class="media-fallback-label">Visual unavailable</span></figure>`;
 }
 
 export function exerciseMotionMedia(exercise) {
@@ -65,7 +67,7 @@ export function exerciseMotionMedia(exercise) {
 
 export function exerciseMotionGuide(exercise, { className = "", eager = false, paused = false } = {}) {
   const motion = exerciseMotionMedia(exercise);
-  if (!motion) return exercisePoster(exercise, { className, eager });
+  if (!motion) return exercisePoster(exercise, { className, eager, fullResolution: true });
   const poster = exercise?.media?.find?.(entry => entry.type === "poster")
     || exercise?.media?.find?.(entry => ["png-two-position-guide", "svg-two-position-guide"].includes(entry.type));
   const name = exercise?.name || "Exercise";

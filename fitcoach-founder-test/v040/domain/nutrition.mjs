@@ -3,6 +3,7 @@
 // the user explicitly confirms them in the review sheet. No provider is involved
 // anywhere in this module.
 import { clamp, deepClone, hashText, localDateKey, safeNumber, uid } from "../core/utils.mjs";
+import { normalizeNutritionProvenance } from "../policy/nutrition-providers.mjs";
 
 export const NUTRITION_SCHEMA_VERSION = 1;
 export const MEAL_SLOTS = Object.freeze(["breakfast", "lunch", "dinner", "snacks"]);
@@ -214,6 +215,7 @@ export function normalizeNutritionEntry(raw) {
     per,
     multiplier,
     nutrients,
+    provenance: source === "barcode" ? normalizeNutritionProvenance(raw.provenance || {}) : null,
     estimate,
     photo: normalizePhotoMeta(raw.photo),
     confirmedBy: raw.confirmedBy === "user" ? "user" : null,
@@ -244,6 +246,7 @@ export function createFoodEntry({ slot, source = "manual", food: foodInput, mult
     per,
     multiplier: normalizeMultiplier(multiplier),
     nutrients: null,
+    provenance: source === "barcode" ? normalizeNutritionProvenance(foodInput?.provenance || {}) : null,
     estimate: ESTIMATE_SOURCES.includes(source) ? normalizeEstimate(estimate) : null,
     photo: normalizePhotoMeta(photo),
     confirmedBy: null,

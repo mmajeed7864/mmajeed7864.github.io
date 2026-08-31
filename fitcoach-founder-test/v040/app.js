@@ -1134,8 +1134,8 @@ async function lookupBarcodeFood() {
       ...ui.modal,
       lookupBusy: false,
       lookupError: result.reason === "FOOD_NOT_FOUND"
-        ? "No verified product found for that barcode. You can still add it manually."
-        : "Barcode lookup is unavailable right now. Try manual add.",
+        ? "No provider record was found for that barcode. You can enter the package label manually."
+        : "Provider lookup is unavailable right now. Enter the package label manually instead.",
     };
     renderModalRoot();
     return;
@@ -1148,7 +1148,7 @@ async function lookupBarcodeFood() {
     multiplier: 1,
   };
   renderModalRoot();
-  toast("Verified label data loaded. Review the portion before adding it.");
+  toast(`${result.food.provenance?.accuracyLabel || "Provider record"} loaded. Review the package and portion before adding it.`);
 }
 
 function addCustomFood() {

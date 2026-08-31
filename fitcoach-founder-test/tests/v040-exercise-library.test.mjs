@@ -55,6 +55,24 @@ test("library has 100 stable, immutable exercise records with honest guide statu
   assert.equal(getExerciseById("missing-exercise"), null);
 });
 
+test("all 100 production posters have bounded WebP thumbnails for catalogue surfaces", async () => {
+  const posters = EXERCISE_MEDIA_MANIFEST.filter(entry => entry.type === "poster");
+  assert.equal(posters.length, 100);
+  let originalBytes = 0;
+  let thumbnailBytes = 0;
+  for (const poster of posters) {
+    assert.equal(poster.thumbnail?.format, "webp");
+    assert.ok(poster.thumbnail.bytes > 0 && poster.thumbnail.bytes <= 150_000);
+    const localPath = path.join(APP_ROOT, poster.thumbnail.path.replace(/^\/fitcoach-founder-test\//, ""));
+    const data = await readFile(localPath);
+    assert.equal(data.length, poster.thumbnail.bytes);
+    assert.equal(createHash("sha256").update(data).digest("hex"), poster.thumbnail.sha256);
+    originalBytes += poster.bytes;
+    thumbnailBytes += poster.thumbnail.bytes;
+  }
+  assert.ok(thumbnailBytes < originalBytes * 0.1, "catalogue thumbnails must cut poster transfer by at least 90%");
+});
+
 test("all 100 exercises expose a local muscle map without remote tutorial links", () => {
   for (const exercise of EXERCISES) {
     const map = muscleMap(exercise);
@@ -149,6 +167,15 @@ test("motion guides use local muted looping playback with a poster fallback", ()
   assert.match(exerciseMotionGuide(EXERCISES[0]), /<figure class="exercise-poster/u);
   const unreviewed = { ...exercise, media: exercise.media.map(entry => entry.type === "mp4" ? { ...entry, motionReviewStatus: "pending" } : entry) };
   assert.equal(exerciseMotionMedia(unreviewed), null);
+});
+
+test("exercise cards use thumbnails while full technique views keep source resolution", () => {
+  const exercise = getExerciseById("air-squat");
+  const card = renderExerciseCard(exercise, {});
+  assert.match(card, /generated\/thumbs\/air-squat-premium-v2\.webp/u);
+  const detail = exerciseMotionGuide(exercise, { eager: true });
+  assert.match(detail, /generated\/air-squat-premium-v2\.png/u);
+  assert.doesNotMatch(detail, /generated\/thumbs\/air-squat-premium-v2\.webp/u);
 });
 
 test("rejected generated motion is quarantined behind the reviewed poster guide", () => {

@@ -1,4 +1,5 @@
 import { BUILD, NUTRITION_API } from "../core/constants.mjs";
+import { normalizeNutritionProvenance } from "../policy/nutrition-providers.mjs";
 
 const BARCODE_RE = /^[0-9]{6,18}$/;
 const QUERY_RE = /^[\p{L}\p{N}\p{Zs}.,'’&()+/-]{2,80}$/u;
@@ -24,6 +25,16 @@ export function normalizeRemoteFood(food) {
   if ([calories, protein, carbs, fat].some(value => value === null)) return null;
   const name = clean(food.name, 120);
   if (!name) return null;
+  const provenance = normalizeNutritionProvenance({
+    provider: food.source,
+    recordId: food.sourceId || food.fdcId || food.barcode,
+    sourceUrl: food.sourceUrl,
+    retrievedAt: food.retrievedAt,
+    barcode: food.barcode,
+  });
+  // Network food without a known provider and stable source record must not be
+  // presented as a provider-backed result.
+  if (!provenance) return null;
   return {
     name,
     brand: clean(food.brand, 80),
@@ -31,8 +42,9 @@ export function normalizeRemoteFood(food) {
     servingLabel: clean(food.servingLabel, 80) || "1 serving",
     origin: "barcode",
     confidence: ["high", "medium", "low"].includes(food.confidence) ? food.confidence : "medium",
-    provider: clean(food.source, 60) || "open_food_facts",
-    licenseNote: clean(food.licenseNote, 200),
+    provider: provenance.providerId,
+    provenance,
+    licenseNote: clean(food.licenseNote, 200) || provenance.license,
     per: {
       calories: Math.round(calories),
       protein: Math.round(protein * 10) / 10,

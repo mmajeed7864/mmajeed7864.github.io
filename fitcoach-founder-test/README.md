@@ -18,6 +18,7 @@ The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
 - `core/`: constants, storage, migration, unit helpers, stable utility functions
 - `data/`: 100-movement exercise library, local premium visual-guide manifest, written-guide contracts, and schema validators
 - `domain/`: deterministic workout planning, intervention decisions, and the nutrition diary (confirmed-only totals; the photo/text estimator is an honestly-labeled deterministic preview demo; no vision provider exists in this build)
+- `policy/`: fail-closed nutrition provenance, youth-safety capability, and store-release disclosure contracts
 - `services/`: bounded trainer text and spoken-reply API payload mapping
 - `ui/`: five-tab browser UI (Today, Train, Coach, Food, Progress), header-accessible profile, modals, exercise detail, active workout, and progress
 - `voice/`: foreground half-duplex voice-room state and controller
@@ -48,7 +49,7 @@ The model may render conversational wording only. It cannot choose safety outcom
 
 ## Exercise library and media
 
-The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. All 100 movements have local original visual media: 59 reviewed, muted motion guides (including 47 hard-gym movements), 17 retained two-position guides, and 100 photoreal gym posters in the navy/electric-blue art direction with realistic athletes—never stick figures. Hollow Body Hold currently uses its premium poster while a defective generated clip remains quarantined for replacement and review. A movement may intentionally have more than one local asset (poster, motion loop, or retained two-position fallback). The local guides are demonstrations, not live form analysis, medical assessment, or competitor media.
+The active library has 100 filterable movements and prioritizes gym-specific barbell, cable, machine, and free-weight options when a user selects a full gym. All 100 movements have local original visual media: 59 reviewed, muted motion guides (including 47 hard-gym movements), 17 retained two-position guides, and 100 photoreal gym posters in the navy/electric-blue art direction with realistic athletes—never stick figures. Catalogue surfaces use 100 deterministic 480 px WebP thumbnails (1.7 MiB total versus 185.3 MiB of source PNGs); full-resolution sources remain reserved for technique detail. Hollow Body Hold currently uses its premium poster while a defective generated clip remains quarantined for replacement and review. A movement may intentionally have more than one local asset (poster, motion loop, or retained two-position fallback). The local guides are demonstrations, not live form analysis, medical assessment, or competitor media.
 
 ## Required checks
 
