@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "entitlement": "fitcoach_premium",
+  "products": [
+    {
+      "logicalId": "premium_monthly",
+      "appleProductId": "fitcoach_premium_monthly",
+      "googleProductId": "fitcoach_premium",
+      "googleBasePlanId": "monthly",
+      "status": "console_setup_required"
+    },
+    {
+      "logicalId": "premium_yearly",
+      "appleProductId": "fitcoach_premium_yearly",
+      "googleProductId": "fitcoach_premium",
+      "googleBasePlanId": "yearly",
+      "status": "console_setup_required"
+    }
+  ],
+  "rules": {
+    "localizedPriceComesFromStore": true,
+    "clientReceiptIsNotEntitlementProof": true,
+    "serverVerificationRequired": true,
+    "backendEntitlementIsSoleAuthority": true,
+    "clientEntitlementEventIsAdvisory": true,
+    "googleAcknowledgementPerformedByBackend": true,
+    "restorePurchasesRequired": true,
+    "manageSubscriptionLinkRequired": true,
+    "pendingPurchaseDoesNotUnlock": true,
+    "storeAccountBindingRequired": true
+  }
+}

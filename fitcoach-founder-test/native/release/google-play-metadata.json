@@ -1,0 +1,20 @@
+{
+  "status": "draft_not_submitted",
+  "locale": "en-US",
+  "title": "FitCoach",
+  "shortDescription": "Adaptive workouts, source-labeled food logs, progress, and an AI trainer.",
+  "category": "Health & Fitness",
+  "targetAudienceIntent": ["18+"],
+  "privacyPolicyUrl": "https://mmajeed7864.github.io/fitcoach-founder-test/legal/privacy.html",
+  "accountDeletionUrl": "https://mmajeed7864.github.io/fitcoach-founder-test/legal/delete-account.html",
+  "contactEmail": "support@symbioai.dev",
+  "declarationsRequired": [
+    "Data safety",
+    "Health apps declaration",
+    "Target audience and content",
+    "App access",
+    "Ads: none",
+    "Content rating",
+    "Foreground service: not used in the initial release"
+  ]
+}

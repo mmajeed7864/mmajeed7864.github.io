@@ -1,5 +1,6 @@
 import { GENERATED_STYLE_POSTER_DEFINITIONS } from "./generated-style-posters.mjs";
 import { GENERATED_MOTION_DEFINITIONS } from "./generated-motion-definitions.mjs";
+import { getGeneratedThumbnail } from "./generated-thumbnail-definitions.mjs";
 
 /**
  * Machine-readable provenance for every FitCoach v0.4 starter exercise asset.
@@ -42,7 +43,7 @@ function ownedGeneratedPng({ id, exerciseId, file, view, alt, bytes, sha256 }) {
     height: 1086,
     view,
     alt,
-    offlineCachePolicy: "precache",
+    offlineCachePolicy: "runtime",
     ...GENERATED_ILLUSTRATION_POLICY,
     bytes,
     sha256,
@@ -50,6 +51,7 @@ function ownedGeneratedPng({ id, exerciseId, file, view, alt, bytes, sha256 }) {
 }
 
 function ownedGeneratedPoster({ id, exerciseId, file, width = 1254, height = 1254, view, alt, bytes, sha256 }) {
+  const thumbnail = getGeneratedThumbnail(file);
   return Object.freeze({
     id,
     exerciseId,
@@ -57,9 +59,17 @@ function ownedGeneratedPoster({ id, exerciseId, file, width = 1254, height = 125
     path: `/fitcoach-founder-test/v040/assets/exercises/${file}`,
     width,
     height,
+    thumbnail: thumbnail ? Object.freeze({
+      path: `/fitcoach-founder-test/v040/assets/exercises/${thumbnail.file}`,
+      width: thumbnail.width,
+      height: thumbnail.height,
+      format: thumbnail.format,
+      bytes: thumbnail.bytes,
+      sha256: thumbnail.sha256,
+    }) : null,
     view,
     alt,
-    offlineCachePolicy: "precache",
+    offlineCachePolicy: "runtime",
     ...GENERATED_ILLUSTRATION_POLICY,
     bytes,
     sha256,
@@ -79,7 +89,9 @@ function ownedGeneratedMotion({ id, exerciseId, file, width, height, durationSec
     motionReviewStatus,
     view,
     alt,
-    offlineCachePolicy: "runtime",
+    // Safari/iOS requests video ranges. Stream the reviewed local file instead
+    // of storing partial 206 responses in Cache Storage.
+    offlineCachePolicy: "never",
     ...GENERATED_MOTION_POLICY,
     bytes,
     sha256,

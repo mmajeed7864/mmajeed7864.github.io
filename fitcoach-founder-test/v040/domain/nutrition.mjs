@@ -1,8 +1,9 @@
 // FitCoach v0.4 nutrition domain — deterministic, local-first, confirmed-only totals.
 // Drafts (photo/text estimates) contribute EXACTLY ZERO to any total until the
-// the user explicitly confirms them in the review sheet. No provider is involved
-// anywhere in this module.
+// user explicitly confirms them in the review sheet. Remote provider calls live
+// outside this domain module; trusted results arrive here as normalized records.
 import { clamp, deepClone, hashText, localDateKey, safeNumber, uid } from "../core/utils.mjs";
+import { normalizeNutritionProvenance } from "../policy/nutrition-providers.mjs";
 
 export const NUTRITION_SCHEMA_VERSION = 1;
 export const MEAL_SLOTS = Object.freeze(["breakfast", "lunch", "dinner", "snacks"]);
@@ -12,7 +13,8 @@ export const MEAL_SLOT_LABELS = Object.freeze({
   dinner: "Dinner",
   snacks: "Snacks",
 });
-export const ENTRY_SOURCES = Object.freeze(["manual", "recent", "favorite", "barcode", "photo_estimate", "text_estimate"]);
+export const ENTRY_SOURCES = Object.freeze(["manual", "recent", "favorite", "barcode", "provider", "photo_estimate", "text_estimate"]);
+export const PROVIDER_SOURCES = Object.freeze(["barcode", "provider"]);
 // Estimate sources are structurally forced to start as drafts — there is no
 // constructor path that creates a confirmed estimate entry.
 export const ESTIMATE_SOURCES = Object.freeze(["photo_estimate", "text_estimate"]);
@@ -25,7 +27,7 @@ export const MAX_TRACKED_DAYS = 60;
 export const MAX_RECENTS = 20;
 export const MAX_FAVORITES = 30;
 
-export const NUTRITION_DISCLAIMER = "Preview nutrition tool. Nutrition values are approximate estimates for training context — not medical, dietetic, or treatment advice.";
+export const NUTRITION_DISCLAIMER = "Nutrition values may be approximate and are shown for training context — not medical, dietetic, or treatment advice.";
 
 const RAW_IMAGE_PAYLOAD = /data:image\/|;base64,|blob:/i;
 const isObject = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -200,6 +202,8 @@ export function normalizeNutritionEntry(raw) {
   if (!nutrients) return null;
   const estimate = ESTIMATE_SOURCES.includes(source) ? normalizeEstimate(raw.estimate) : null;
   if (ESTIMATE_SOURCES.includes(source) && !estimate) return null; // estimates without honest metadata fail closed
+  const provenance = PROVIDER_SOURCES.includes(source) ? normalizeNutritionProvenance(raw.provenance || {}) : null;
+  if (PROVIDER_SOURCES.includes(source) && !provenance) return null;
   let status = oneOf(raw.status, ENTRY_STATUSES, "draft");
   // A confirmed estimate is only valid when the record carries an explicit
   // user confirmation receipt; otherwise it demotes to draft (counts zero).
@@ -214,6 +218,7 @@ export function normalizeNutritionEntry(raw) {
     per,
     multiplier,
     nutrients,
+    provenance,
     estimate,
     photo: normalizePhotoMeta(raw.photo),
     confirmedBy: raw.confirmedBy === "user" ? "user" : null,
@@ -244,6 +249,7 @@ export function createFoodEntry({ slot, source = "manual", food: foodInput, mult
     per,
     multiplier: normalizeMultiplier(multiplier),
     nutrients: null,
+    provenance: PROVIDER_SOURCES.includes(source) ? normalizeNutritionProvenance(foodInput?.provenance || {}) : null,
     estimate: ESTIMATE_SOURCES.includes(source) ? normalizeEstimate(estimate) : null,
     photo: normalizePhotoMeta(photo),
     confirmedBy: null,

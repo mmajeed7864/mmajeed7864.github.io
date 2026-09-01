@@ -6,7 +6,7 @@ const MODEL_MODES = Object.freeze({
   smart:{label:"Smart", detail:"Qwen Plus + fallback", models:["qwen/qwen3.7-plus","deepseek/deepseek-v4-flash"]},
   deep:{label:"Deep", detail:"Kimi K3 + Qwen fallback", models:["moonshotai/kimi-k3","qwen/qwen3.7-plus","deepseek/deepseek-v4-flash"]}
 });
-const ACCESS_CODE = "LIFT26";
+const ACCESS_CODE = "";
 const ROUTES = ["today", "train", "coach", "progress", "profile"];
 const ACTIONS = ["SAY_NOTHING","CHECK_IN","RECOVER_MISSED_SESSION","OFFER_PLAN_B","OFFER_MINIMUM_DOSE","MOVE_SESSION","RECOMMEND_REST","ASK_FOR_BLOCKER","CELEBRATE"];
 const $ = (s, root=document) => root.querySelector(s);

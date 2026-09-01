@@ -40,7 +40,7 @@ function chipOption({ value, title, copy, field, active, iconName = "" }) {
   return `<button role="radio" aria-checked="${active}" class="answer-option ${active ? "active" : ""}" data-action="onboarding-choice" data-field="${escapeHtml(field)}" data-value="${escapeHtml(value)}">${iconName ? icon(iconName) : ""}<span><b>${escapeHtml(title)}</b>${copy ? `<small>${escapeHtml(copy)}</small>` : ""}</span></button>`;
 }
 
-export const ONBOARDING_STEP_COUNT = 17;
+export const ONBOARDING_STEP_COUNT = 18;
 
 function choiceBubbleGroup({ label, field, action, options, selected, hint = "" }) {
   return `<div class="single-answer answer-choice-group" role="radiogroup" aria-label="${escapeHtml(label)}">${options.map(option => {
@@ -58,6 +58,35 @@ function toggleBubble({ title, copy, offTitle = "Keep it off for now", offCopy =
 
 function questionStep({ eyebrow, title, copy, question, answer }) {
   return `<div class="onboarding-step trainer-interview single-question"><span class="eyebrow">${escapeHtml(eyebrow)}</span><h1>${escapeHtml(title)}</h1>${copy ? `<p>${escapeHtml(copy)}</p>` : ""}${trainerBubble(question)}<div class="single-question-answer">${answer}</div></div>`;
+}
+
+function ageGateStep(draft) {
+  const selected = draft.profile.ageBand || "unknown";
+  const adult = selected === "adult_18_plus";
+  const notice = adult
+    ? "Adult experience selected. Continue when you’re ready."
+    : selected === "teen_13_17"
+    ? "Teen access is being reviewed with stronger nutrition, coaching, consent, and community safeguards. It is not open in this preview yet."
+    : selected === "under_13"
+      ? "FitCoach is not available for children under 13."
+      : "Choose the range that applies to you. FitCoach does not need your exact birthday.";
+  return questionStep({
+    eyebrow: "AGE-APPROPRIATE SETUP",
+    title: "Start with the right safety mode.",
+    copy: "This preview is currently available to adults 18 and over. We store only the age range you choose on this device.",
+    question: "Which age range are you in?",
+    answer: `${choiceBubbleGroup({
+      label: "Age range",
+      field: "ageBand",
+      action: "onboarding-profile-field",
+      options: [
+        { value: "adult_18_plus", label: "18 or older", copy: "Continue with the adult fitness experience" },
+        { value: "teen_13_17", label: "13–17", copy: "Teen mode is not released yet" },
+        { value: "under_13", label: "Under 13", copy: "FitCoach is not available" },
+      ],
+      selected,
+    })}<p class="age-gate-notice ${adult ? "ready" : ""}" role="status">${escapeHtml(notice)}</p>`,
+  });
 }
 
 function goalStep(draft) {
@@ -161,15 +190,16 @@ function boundaryStep(draft) {
 }
 
 export function renderOnboarding({step,draft}) {
-  const pages = [goalStep, genderStep, bodyFocusStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), gymNameStep, gymEquipmentStep, blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
+  const pages = [ageGateStep, goalStep, genderStep, bodyFocusStep, themeStep, d => scheduleQuestion(d, { field: "experience", title: "Start with the right challenge.", question: "How would you describe your training experience?" }), d => scheduleQuestion(d, { field: "days", title: "Build a week you can repeat.", question: "How many days can you realistically train?" }), d => scheduleQuestion(d, { field: "duration", title: "Make the sessions fit your life.", question: "How long do you usually have?" }), d => scheduleQuestion(d, { field: "equipment", title: "Use what you actually have.", question: "What equipment can I plan around?" }), d => scheduleQuestion(d, { field: "location", title: "Make the plan work where you are.", question: "Where do you usually train?" }), gymNameStep, gymEquipmentStep, blockerStep, toneStep, voiceStep, speakRepliesStep, proactiveStep, boundaryStep];
   const safeStep = Math.min(Math.max(Number(step) || 0, 0), pages.length - 1);
   const focusAreas = Array.isArray(draft.profile.focusAreas) ? draft.profile.focusAreas : [];
   const nextLabel = safeStep === ONBOARDING_STEP_COUNT - 1
     ? "Enter FitCoach"
-    : safeStep === 2 && focusAreas.includes("full body")
+    : safeStep === 3 && focusAreas.includes("full body")
       ? "Use balanced plan"
-      : safeStep === 2 && focusAreas.length
+      : safeStep === 3 && focusAreas.length
         ? `Continue with ${focusAreas.length} ${focusAreas.length === 1 ? "area" : "areas"}`
         : "Continue";
-  return `<section class="onboarding-screen ai-setup-screen"><header><button class="icon-only" data-action="exit-onboarding" aria-label="${safeStep === ONBOARDING_STEP_COUNT - 1 ? "Back to setup" : "Skip optional setup"}">${icon("chevron")}</button><div><b>Let’s get started</b><div class="onboarding-progress segmented">${Array.from({length: ONBOARDING_STEP_COUNT}, (_, index) => `<span class="${index < safeStep + 1 ? "active" : ""}"></span>`).join("")}</div></div><small>Step ${safeStep+1} of ${ONBOARDING_STEP_COUNT}</small></header><main>${pages[safeStep](draft)}</main><footer>${button({label:"Back",action:"onboarding-back",variant:"quiet",disabled:safeStep===0})}${button({label:nextLabel,action:"onboarding-next",variant:"primary",disabled:safeStep===ONBOARDING_STEP_COUNT-1&&!draft.consent})}</footer></section>`;
+  const ageGateBlocked = safeStep === 0 && draft.profile.ageBand !== "adult_18_plus";
+  return `<section class="onboarding-screen ai-setup-screen"><header><button class="icon-only" data-action="exit-onboarding" aria-label="${ageGateBlocked ? "Age verification required" : safeStep === ONBOARDING_STEP_COUNT - 1 ? "Back to setup" : "Skip optional setup"}" ${ageGateBlocked ? "disabled" : ""}>${icon("chevron")}</button><div><b>Let’s get started</b><div class="onboarding-progress segmented">${Array.from({length: ONBOARDING_STEP_COUNT}, (_, index) => `<span class="${index < safeStep + 1 ? "active" : ""}"></span>`).join("")}</div></div><small>Step ${safeStep+1} of ${ONBOARDING_STEP_COUNT}</small></header><main>${pages[safeStep](draft)}</main><footer>${button({label:"Back",action:"onboarding-back",variant:"quiet",disabled:safeStep===0})}${button({label:ageGateBlocked ? "Adult preview only" : nextLabel,action:"onboarding-next",variant:"primary",disabled:ageGateBlocked || safeStep===ONBOARDING_STEP_COUNT-1&&!draft.consent})}</footer></section>`;
 }

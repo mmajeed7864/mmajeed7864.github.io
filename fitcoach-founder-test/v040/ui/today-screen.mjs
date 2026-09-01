@@ -14,7 +14,7 @@ function weekStrip(state, now = new Date()) {
     const key = day.toLocaleDateString("en-CA");
     const today = key === now.toLocaleDateString("en-CA");
     const done = completed.has(key);
-    const planned = (state.profile.preferredDays || []).includes(index + 1);
+    const planned = (state.profile.preferredDays || []).includes(day.getDay());
     return `<span class="week-day ${today ? "today" : ""} ${done ? "done" : ""} ${planned ? "planned" : ""}"><small>${label}</small><b>${done ? icon("check") : day.getDate()}</b><em>${today ? "Today" : planned ? "Plan" : ""}</em></span>`;
   }).join("");
 }

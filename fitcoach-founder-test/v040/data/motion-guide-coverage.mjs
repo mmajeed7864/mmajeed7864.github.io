@@ -7,7 +7,7 @@ export function hasReviewedMotionGuide(exercise) {
     ["mp4", "webm"].includes(media.type)
     && media.hasAudio === false
     && media.motionReviewStatus === "approved"
-    && media.offlineCachePolicy === "runtime"
+    && media.offlineCachePolicy === "never"
   ));
 }
 
@@ -38,7 +38,7 @@ export function validateMotionGuideCoverage(exercises = EXERCISES) {
     for (const media of motion) {
       if (media.hasAudio !== false) errors.push(`${exercise.id} motion must be silent`);
       if (media.motionReviewStatus !== "approved") errors.push(`${exercise.id} motion must be reviewed before activation`);
-      if (media.offlineCachePolicy !== "runtime") errors.push(`${exercise.id} motion must use runtime caching`);
+      if (media.offlineCachePolicy !== "never") errors.push(`${exercise.id} motion must stream directly instead of caching partial responses`);
       if (!String(media.path || "").includes("/assets/exercises/motion/")) errors.push(`${exercise.id} motion must remain local`);
     }
   }

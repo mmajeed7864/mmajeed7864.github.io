@@ -10,6 +10,7 @@ import {
   createInitialNutritionState,
   normalizeNutritionState,
 } from "../domain/nutrition.mjs";
+import { normalizeAgeBand, sanitizeCoachToneForAge } from "../policy/youth-safety.mjs";
 import {
   clamp,
   deepClone,
@@ -60,6 +61,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
     founder,
     profile: {
       onboarded: false,
+      ageBand: "unknown",
       goal: "build muscle",
       gender: "prefer-not-to-say",
       focusAreas: [],
@@ -98,6 +100,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
     memories: [],
     exercisePreferences: {
       favorites: [],
+      recent: [],
       preferred: [],
       reduced: [],
       excluded: [],
@@ -121,6 +124,12 @@ export function createInitialState(founder = "mo", now = new Date()) {
         status: "not_configured",
         trialDays: 7,
         selectedPlan: "yearly",
+      },
+      cloudSync: {
+        status: "local_only",
+        revision: 0,
+        consentVersion: "",
+        lastSyncedAt: null,
       },
     },
     gymProfile: {
@@ -213,10 +222,27 @@ function normalizeSession(raw, index, unit = "lb") {
     durationMinutes: safeNumber(raw.durationMinutes, 0, 0, 1_440),
     exercises,
     markedPR: Boolean(raw.markedPR || raw.pr),
+    personalRecords: normalizePerformanceRecords(raw.personalRecords, sessionUnit, "personal_record"),
+    baselines: normalizePerformanceRecords(raw.baselines, sessionUnit, "baseline"),
     rating: raw.rating == null ? null : safeNumber(raw.rating, null, 1, 5),
     notes: cleanString(raw.notes, "", 2_000),
     completionReceiptId: cleanString(raw.completionReceiptId, `receipt-${hashText(`${completedAt}:${index}`)}`, 120),
   };
+}
+
+function normalizePerformanceRecords(raw, unit = "lb", kind = "personal_record") {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isObject).slice(0, 50).map(record => ({
+    exerciseId: cleanString(record.exerciseId, "", 96),
+    exerciseName: cleanString(record.exerciseName, "Exercise", 120),
+    metric: oneOf(record.metric, ["estimated_1rm"], "estimated_1rm"),
+    value: safeNumber(record.value, 0, 0, 10_000),
+    previousValue: record.previousValue == null ? null : safeNumber(record.previousValue, null, 0, 10_000),
+    weight: safeNumber(record.weight, 0, 0, 5_000),
+    reps: safeNumber(record.reps, 0, 0, 1_000),
+    unit: normalizeUnit(record.unit, unit),
+    kind,
+  })).filter(record => record.exerciseId && record.value > 0);
 }
 
 function normalizeWorkout(raw, unit = "lb") {
@@ -248,6 +274,7 @@ function normalizeWorkout(raw, unit = "lb") {
 
 function normalizeProfile(raw, base) {
   const profile = isObject(raw) ? raw : {};
+  const ageBand = normalizeAgeBand(profile.ageBand || base.ageBand);
   const validFocusAreas = unique(Array.isArray(profile.focusAreas)
     ? profile.focusAreas.map(value => cleanString(value, "", 30)).filter(value => ["back", "arms", "shoulders", "abs", "chest", "legs", "glutes", "full body"].includes(value))
     : base.focusAreas);
@@ -255,6 +282,7 @@ function normalizeProfile(raw, base) {
   return {
     ...base,
     onboarded: Boolean(profile.onboarded),
+    ageBand,
     goal: cleanString(profile.goal, base.goal, 60),
     gender: oneOf(profile.gender, ["female", "male", "nonbinary", "prefer-not-to-say"], base.gender),
     focusAreas,
@@ -264,7 +292,7 @@ function normalizeProfile(raw, base) {
     equipment: cleanString(profile.equipment, base.equipment, 80),
     location: oneOf(profile.location, ["gym", "home", "travel", "outdoors"], base.location),
     blocker: cleanString(profile.blocker, base.blocker, 60),
-    tone: oneOf(profile.tone || profile.style, TRAINER_TONES, base.tone),
+    tone: sanitizeCoachToneForAge(oneOf(profile.tone || profile.style, TRAINER_TONES, base.tone), ageBand),
     quietStart: /^\d{2}:\d{2}$/.test(profile.quietStart || "") ? profile.quietStart : base.quietStart,
     quietEnd: /^\d{2}:\d{2}$/.test(profile.quietEnd || "") ? profile.quietEnd : base.quietEnd,
     proactive: Boolean(profile.proactive),
@@ -272,7 +300,13 @@ function normalizeProfile(raw, base) {
     energy: safeNumber(profile.energy, base.energy, 1, 5),
     energyCheckedAt: cleanString(profile.energyCheckedAt, "", 40) || null,
     intensity: oneOf(profile.intensity, ["light", "standard", "push"], base.intensity),
-    preferredDays: unique(Array.isArray(profile.preferredDays) ? profile.preferredDays.map(Number).filter(value => value >= 1 && value <= 7) : base.preferredDays).slice(0, 7),
+    preferredDays: [...new Set(Array.isArray(profile.preferredDays)
+      ? profile.preferredDays
+        .filter(value => (typeof value === "number" && Number.isFinite(value)) || (typeof value === "string" && value.trim() !== ""))
+        .map(Number)
+        .filter(value => Number.isInteger(value) && value >= 0 && value <= 7)
+        .map(value => value === 7 ? 0 : value)
+      : base.preferredDays)].slice(0, 7),
   };
 }
 
@@ -280,9 +314,10 @@ function normalizeIntegrations(raw, base) {
   const integrations = isObject(raw) ? raw : {};
   const appleHealth = isObject(integrations.appleHealth) ? integrations.appleHealth : {};
   const payments = isObject(integrations.payments) ? integrations.payments : {};
+  const cloudSync = isObject(integrations.cloudSync) ? integrations.cloudSync : {};
   return {
     appleHealth: {
-      status: oneOf(appleHealth.status, ["native_required", "planned", "manual_until_ios", "connected"], base.appleHealth.status),
+      status: oneOf(appleHealth.status, ["native_required", "planned", "manual_until_ios", "permission_requested", "connected"], base.appleHealth.status),
       syncMode: oneOf(appleHealth.syncMode, ["manual_until_ios", "read_only", "read_write"], base.appleHealth.syncMode),
       requestedAt: cleanString(appleHealth.requestedAt, "", 40) || null,
       lastSyncedAt: cleanString(appleHealth.lastSyncedAt, "", 40) || null,
@@ -291,6 +326,12 @@ function normalizeIntegrations(raw, base) {
       status: oneOf(payments.status, ["not_configured", "preview", "sandbox", "live"], base.payments.status),
       trialDays: safeNumber(payments.trialDays, base.payments.trialDays, 0, 30),
       selectedPlan: oneOf(payments.selectedPlan, ["yearly", "monthly"], base.payments.selectedPlan),
+    },
+    cloudSync: {
+      status: oneOf(cloudSync.status, ["local_only", "connected", "conflict", "error"], base.cloudSync.status),
+      revision: safeNumber(cloudSync.revision, base.cloudSync.revision, 0, 1_000_000_000),
+      consentVersion: cleanString(cloudSync.consentVersion, "", 40),
+      lastSyncedAt: cleanString(cloudSync.lastSyncedAt, "", 40) || null,
     },
   };
 }
@@ -368,6 +409,7 @@ function normalizeState(raw, founder, migration = null) {
     memories: unique((Array.isArray(raw?.memories) ? raw.memories : []).map(value => cleanString(value, "", 160))).slice(-24),
     exercisePreferences: {
       favorites: unique(Array.isArray(preferences.favorites) ? preferences.favorites.map(String) : []).slice(0, 200),
+      recent: unique(Array.isArray(preferences.recent) ? preferences.recent.map(String) : []).slice(0, 20),
       preferred: unique(Array.isArray(preferences.preferred) ? preferences.preferred.map(String) : []).slice(0, 200),
       reduced: unique(Array.isArray(preferences.reduced) ? preferences.reduced.map(String) : []).slice(0, 200),
       excluded: unique(Array.isArray(preferences.excluded) ? preferences.excluded.map(String) : []).slice(0, 200),
@@ -402,6 +444,20 @@ export function migrateLegacyPayload(raw, founder, now = new Date()) {
 
 function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
+}
+
+function clearFitCoachStorage(storage) {
+  const keys = [];
+  const length = Number(storage?.length) || 0;
+  for (let index = 0; index < length; index += 1) {
+    const key = storage.key?.(index);
+    if (typeof key === "string" && key.startsWith("fitcoach-")) keys.push(key);
+  }
+  for (const key of keys) storage.removeItem?.(key);
+  // Adapters without an enumerable Storage interface still get the known
+  // non-profile keys removed.
+  storage.removeItem?.("fitcoach-theme");
+  storage.removeItem?.("fitcoach-device-id");
 }
 
 export function createFitCoachStore({ storage = globalThis.localStorage, founder = "mo", clock = () => new Date() } = {}) {
@@ -461,7 +517,10 @@ export function createFitCoachStore({ storage = globalThis.localStorage, founder
       return persist(result === undefined ? draft : result);
     },
     replace: next => persist(next),
-    reset: () => persist(createInitialState(currentFounder, clock())),
+    reset: () => {
+      clearFitCoachStorage(storage);
+      return persist(createInitialState(currentFounder, clock()));
+    },
     export: () => JSON.stringify(current || loadFounder(currentFounder), null, 2),
     subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); },
     key: () => storageKey(currentFounder),

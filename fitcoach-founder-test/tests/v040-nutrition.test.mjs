@@ -33,6 +33,7 @@ import {
   estimateTextMeal,
 } from "../v040/domain/nutrition-estimator.mjs";
 import {
+  createNutritionClient,
   createNutritionLookupPayload,
   normalizeBarcode,
   normalizeRemoteFood,
@@ -259,7 +260,7 @@ test("barcode lookup payload is bounded and never includes profile or nutrition 
   });
   assert.deepEqual(payload, {
     action: "barcode_lookup",
-    data_classification: "synthetic_low_sensitivity",
+    data_classification: "user_provided_food_lookup",
     session_id: "fitcoach-mo-nutrition-v040",
     barcode: "0123456789012",
   });
@@ -284,11 +285,90 @@ test("remote barcode food can be confirmed as a barcode source with portion edit
   assert.equal(entry.nutrients.protein, 34);
 });
 
-test("add-food sheet exposes verified barcode lookup separately from demo search", () => {
+test("provider food search uses a bounded envelope and preserves honest USDA provenance", async () => {
+  const requests = [];
+  const client = createNutritionClient({
+    endpoint: "https://example.test/nutrition",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return new Response(JSON.stringify({
+        ok: true,
+        foods: [{
+          name: "Plain Greek yogurt",
+          servingLabel: "170 g",
+          source: "usda_fdc",
+          sourceId: "1234567",
+          sourceUrl: "https://fdc.nal.usda.gov/food-details/1234567/nutrients",
+          retrievedAt: "2026-08-31T12:00:00.000Z",
+          confidence: "high",
+          per: { calories: 100, protein: 17, carbs: 6, fat: 0, sodium: 60 },
+        }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  const result = await client.searchFoods({
+    sessionId: "fitcoach-nutrition-search-v054",
+    query: "plain yogurt",
+  });
+  assert.equal(result.status, "ready");
+  assert.equal(result.foods[0].origin, "provider");
+  assert.equal(result.foods[0].provenance.accuracyLabel, "USDA reference record");
+  assert.equal(result.foods[0].provenance.verificationLevel, "government_reference");
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    action: "text_search",
+    data_classification: "user_provided_food_lookup",
+    session_id: "fitcoach-nutrition-search-v054",
+    query: "plain yogurt",
+  });
+  const entry = createFoodEntry({ slot: "breakfast", source: "provider", food: result.foods[0], now: FIXED_NOW });
+  assert.equal(entry.status, "confirmed", "provider results count only after the user taps the explicit Add action");
+  assert.equal(entry.source, "provider");
+  assert.equal(entry.provenance.providerId, "usda_fdc");
+});
+
+test("add-food sheet separates provider search, barcode lookup, and local/manual fallback", () => {
   const content = renderNutritionModalContent({ type: "nutrition-add", slot: "breakfast", query: "" }, { state: createInitialState("mo", FIXED_NOW) });
   assert.match(content.body, /id="nutrition-barcode"/);
   assert.match(content.body, /data-action="nutrition-barcode-search"/);
-  assert.match(content.body, /Uses verified product data/u);
+  assert.match(content.body, /provider-backed product records/u);
+  assert.match(content.body, /data-action="nutrition-provider-search"/);
+  assert.match(content.body, /SAVED \+ STARTER FOODS/u);
+  assert.match(content.body, /Create a custom food/u);
+  assert.doesNotMatch(content.body, /verified product data/iu);
+});
+
+test("provider results render provenance and require review before the Add action", () => {
+  const state = createInitialState("mo", FIXED_NOW);
+  const food = normalizeRemoteFood({
+    name: "Rolled oats",
+    servingLabel: "40 g",
+    source: "usda_fdc",
+    sourceId: "7654321",
+    per: { calories: 150, protein: 5, carbs: 27, fat: 3 },
+  }, "provider");
+  const results = renderNutritionModalContent({
+    type: "nutrition-add",
+    slot: "breakfast",
+    query: "oats",
+    providerResults: [food],
+  }, { state });
+  assert.match(results.body, /PROVIDER RESULTS/u);
+  assert.match(results.body, /USDA reference record/u);
+  assert.match(results.body, /data-action="nutrition-pick-provider-food"/u);
+  assert.doesNotMatch(results.body, /nutrition-add-confirm/u, "search results cannot be added without opening portion review");
+
+  const review = renderNutritionModalContent({ type: "nutrition-add", slot: "breakfast", query: "oats", selected: food }, { state });
+  assert.match(review.body, /USDA FoodData Central record 7654321/u);
+  assert.match(review.actions, /data-action="nutrition-add-confirm"/u);
+
+  const confirmed = createFoodEntry({ slot: "breakfast", source: "provider", food, now: FIXED_NOW });
+  addEntryToDay(state.nutrition, DATE_KEY, confirmed);
+  const entry = renderNutritionModalContent({ type: "nutrition-entry", dateKey: DATE_KEY, entryId: confirmed.id }, { state });
+  assert.match(entry.body, /CC0 1\.0 Universal/u);
+  assert.match(entry.body, /View source record/u);
+  assert.match(entry.body, /https:\/\/fdc\.nal\.usda\.gov\/food-details\/7654321\/nutrients/u);
+  assert.match(appSource, /nutritionClient\.searchFoods/u);
+  assert.match(appSource, /selected\.origin === "provider" \? "provider"/u);
 });
 
 // ── 7. Private/safety text never reaches the provider projection ───────────

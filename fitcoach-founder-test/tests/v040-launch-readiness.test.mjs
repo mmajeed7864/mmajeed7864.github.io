@@ -127,14 +127,17 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
     assert.doesNotMatch(html, /<option\b/i, `step ${step + 1} must not use native select options`);
   }
 
-  for (const step of [0, 1, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15]) {
+  for (const step of [0, 1, 2, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16]) {
     const html = renderOnboarding({ step, draft });
     assert.match(html, /answer-option/, `step ${step + 1} must render custom answer bubbles`);
   }
-  assert.match(renderOnboarding({ step: 2, draft }), /body-focus-chip/u);
-  assert.match(renderOnboarding({ step: 2, draft }), /body-focus-map/u);
-  assert.match(renderOnboarding({ step: 9, draft }), /onboarding-gym-name/u);
-  assert.match(renderOnboarding({ step: 10, draft }), /equipment-scan-option/u);
+  const ageGate = renderOnboarding({ step: 0, draft });
+  assert.match(ageGate, /Which age range are you in\?/u);
+  assert.match(ageGate, /Adult preview only/u);
+  assert.match(renderOnboarding({ step: 3, draft }), /body-focus-chip/u);
+  assert.match(renderOnboarding({ step: 3, draft }), /body-focus-map/u);
+  assert.match(renderOnboarding({ step: 10, draft }), /onboarding-gym-name/u);
+  assert.match(renderOnboarding({ step: 11, draft }), /equipment-scan-option/u);
 });
 
 test("body-focus onboarding exposes one clear visual state and a stateful action", () => {
@@ -145,7 +148,7 @@ test("body-focus onboarding exposes one clear visual state and a stateful action
     gymProfile: state.gymProfile,
     consent: true,
   };
-  const targeted = renderOnboarding({ step: 2, draft: targetedDraft });
+  const targeted = renderOnboarding({ step: 3, draft: targetedDraft });
 
   assert.match(targeted, /body-focus-selection-panel/u);
   assert.match(targeted, /body-focus-balance-chip/u);
@@ -154,7 +157,7 @@ test("body-focus onboarding exposes one clear visual state and a stateful action
   assert.match(targeted, /data-value="arms"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-value="arms"/u);
 
   const balanced = renderOnboarding({
-    step: 2,
+    step: 3,
     draft: { ...targetedDraft, profile: { ...state.profile, focusAreas: ["full body"] } },
   });
   assert.match(balanced, /Balanced full-body plan/u);
@@ -224,7 +227,7 @@ test("Progress exposes a private photo timeline without claiming public publishi
   const html = renderProgressScreen({ state, now: new Date("2026-08-20T14:00:00.000Z"), communityPreviews: new Map() });
   assert.match(html, /PROGRESS STUDIO/u);
   assert.match(html, /Add progress photo/u);
-  assert.match(html, /public community is intentionally locked/u);
+  assert.match(html, /Photo previews stay in this session/u);
   assert.doesNotMatch(html, /Publish now|Post publicly/u);
 });
 
@@ -287,7 +290,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.5\.2/u);
+  assert.match(html, /FitCoach v0\.5\.4/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -325,14 +328,18 @@ test("unverified coach status never claims readiness", () => {
   assert.match(app, /return \{ label: "Coach status", state: "unverified" \}/u);
   assert.match(app, /return \{ label: "Checking coach", state: "busy" \}/u);
   assert.doesNotMatch(app, /Coach ready/u);
+  assert.doesNotMatch(app, /Live coaching is ready/u);
+  assert.match(app, /Live coach status has not been confirmed yet/u);
 });
 
-test("the document owns service-worker upgrades and modules refresh network-first", () => {
+test("the CSP-safe boot script owns service-worker upgrades and modules refresh network-first", () => {
   const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const boot = readFileSync(new URL("../v040/boot.js", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /serviceWorker\.register\("\.\/sw\.js\?v=0502", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0504"><\/script>/u);
+  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0504", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

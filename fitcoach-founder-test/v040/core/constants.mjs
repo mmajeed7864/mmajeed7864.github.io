@@ -1,7 +1,7 @@
-export const BUILD = "0.5.2";
-export const CACHE_GENERATION = "0502";
+export const BUILD = "0.5.4";
+export const CACHE_GENERATION = "0504";
 export const ROUTES = ["today", "train", "coach", "progress", "profile", "nutrition"];
-export const TRAIN_SEGMENTS = ["workout", "exercises"];
+export const TRAIN_SEGMENTS = ["workout", "schedule", "exercises"];
 export const THEMES = ["light", "dark", "system"];
 export const TRAINER_TONES = ["Supportive", "Direct", "Strict", "Competitive", "Rude"];
 export const VOICE_PERSONAS = ["nova", "atlas", "bennett", "mira"];

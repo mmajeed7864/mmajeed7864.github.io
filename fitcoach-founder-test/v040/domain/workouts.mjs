@@ -1,5 +1,6 @@
 import { SESSION_MINUTES } from "../core/constants.mjs";
 import { convertWeight, deepClone, elapsedMinutes, hashText, normalizeUnit, safeNumber, sessionVolume, uid, unique } from "../core/utils.mjs";
+import { estimateOneRepMax } from "./strength-tools.mjs";
 
 const PLAN_SPECS = Object.freeze({
   A: { label: "Plan A", detail: "Full session", volumeFactor: 1 },
@@ -549,6 +550,63 @@ export function isValidCompletedSet(set) {
   return true;
 }
 
+function bestPerformanceForExercise(exercise, sessionUnit, displayUnit) {
+  const unit = normalizeUnit(displayUnit, "lb");
+  return (exercise?.sets || [])
+    .filter(isValidCompletedSet)
+    .map(set => {
+      const weight = convertWeight(set.weight, set.unit || exercise.units || sessionUnit || unit, unit);
+      const reps = safeNumber(set.reps, 0, 0, 1_000);
+      if (!(weight > 0) || !(reps > 0)) return null;
+      const estimatedOneRepMax = estimateOneRepMax(weight, reps);
+      if (!Number.isFinite(estimatedOneRepMax)) return null;
+      return {
+        weight: Math.round(weight * 10) / 10,
+        reps,
+        estimatedOneRepMax,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.estimatedOneRepMax - left.estimatedOneRepMax || right.weight - left.weight)[0] || null;
+}
+
+export function detectPerformanceRecords(previousSessions, completedSession, displayUnit = "lb") {
+  const unit = normalizeUnit(displayUnit, "lb");
+  const priorBest = new Map();
+  for (const session of previousSessions || []) {
+    for (const exercise of session?.exercises || []) {
+      const exerciseId = exercise.exerciseId || exercise.snapshot?.id;
+      if (!exerciseId) continue;
+      const candidate = bestPerformanceForExercise(exercise, session.units, unit);
+      if (!candidate) continue;
+      const previous = priorBest.get(exerciseId);
+      if (!previous || candidate.estimatedOneRepMax > previous.estimatedOneRepMax) priorBest.set(exerciseId, candidate);
+    }
+  }
+
+  const personalRecords = [];
+  const baselines = [];
+  for (const exercise of completedSession?.exercises || []) {
+    const exerciseId = exercise.exerciseId || exercise.snapshot?.id;
+    const current = bestPerformanceForExercise(exercise, completedSession.units, unit);
+    if (!exerciseId || !current) continue;
+    const previous = priorBest.get(exerciseId);
+    const record = {
+      exerciseId,
+      exerciseName: exercise.snapshot?.name || "Exercise",
+      metric: "estimated_1rm",
+      value: current.estimatedOneRepMax,
+      previousValue: previous?.estimatedOneRepMax ?? null,
+      weight: current.weight,
+      reps: current.reps,
+      unit,
+    };
+    if (!previous) baselines.push({ ...record, kind: "baseline" });
+    else if (current.estimatedOneRepMax > previous.estimatedOneRepMax + 0.05) personalRecords.push({ ...record, kind: "personal_record" });
+  }
+  return { personalRecords, baselines };
+}
+
 export function completeWorkout(state, now = new Date()) {
   const workout = state.activeWorkout;
   if (!workout) return { state, session: null, error: "NO_ACTIVE_WORKOUT" };
@@ -581,6 +639,10 @@ export function completeWorkout(state, now = new Date()) {
     rating: null,
     notes: workout.notes || "",
   };
+  const performance = detectPerformanceRecords(state.sessions || [], session, session.units);
+  session.personalRecords = performance.personalRecords;
+  session.baselines = performance.baselines;
+  session.markedPR = session.personalRecords.length > 0;
   session.totalVolume = sessionVolume(session);
   session.muscles = unique(exercises.flatMap(exercise => exercise.snapshot.primaryMuscles || []));
   state.sessions = [...(state.sessions || []), session];
@@ -593,6 +655,8 @@ export function completeWorkout(state, now = new Date()) {
     completedSets: completedSets.length,
     totalVolume: session.totalVolume,
     muscles: session.muscles,
+    personalRecords: deepClone(session.personalRecords),
+    baselines: deepClone(session.baselines),
     at: now.toISOString(),
   };
   return { state, session, error: null };

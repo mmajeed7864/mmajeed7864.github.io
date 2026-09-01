@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#06142f">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Privacy Notice · FitCoach</title>
+  <meta name="description" content="How the FitCoach engineering preview handles local data and optional configured services.">
+  <link rel="stylesheet" href="./legal.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">F</span><span>FitCoach</span></a>
+      <nav class="legal-nav" aria-label="Legal and support">
+        <a href="./privacy.html" aria-current="page">Privacy</a><a href="./terms.html">Terms</a><a href="./delete-account.html">Delete data</a><a href="./support.html">Support</a>
+      </nav>
+    </div>
+  </header>
+  <main id="content" class="page-shell">
+    <header class="hero">
+      <p class="eyebrow">Privacy notice</p>
+      <h1>Your fitness data deserves restraint.</h1>
+      <p class="lede">This notice explains what the FitCoach engineering preview stores locally, what limited information optional services may process, and the controls available to you.</p>
+      <span class="updated">Last updated August 31, 2026</span>
+      <div class="status-card"><span class="status-dot" aria-hidden="true"></span><div><b>Current release status</b><p>This is an 18+ engineering preview. Cloud accounts and device sync are unavailable unless production backend configuration is live and the app confirms the connection.</p></div></div>
+    </header>
+
+    <div class="content-grid">
+      <article class="document">
+        <section id="scope"><h2>1. Scope</h2><p>This notice applies to the FitCoach web preview and related FitCoach services operating under the Symbio product name. FitCoach is a fitness planning and logging tool, not medical care. Contact <a href="mailto:support@symbioai.dev">support@symbioai.dev</a> with privacy questions.</p></section>
+        <section id="local"><h2>2. Data stored on your device</h2><p>The current web preview is local-first. Your browser may store:</p><ul><li>training preferences, workout plans, completed sets, progress, and exercise preferences;</li><li>confirmed nutrition entries, manual targets, and saved food shortcuts;</li><li>Coach messages, voice preferences, app settings, and local decision receipts;</li><li>private progress-post drafts and limited photo metadata when you choose a photo.</li></ul><p>Meal and progress-photo previews use temporary browser object URLs. Current preview code does not persist raw photo bytes in the FitCoach profile. Clearing FitCoach, resetting the profile, or clearing this site’s browser storage removes local records from that browser.</p></section>
+        <section id="services"><h2>3. Optional network processing</h2><p>Some features can contact a server only when configured and used:</p><ul><li><strong>AI Coach:</strong> limited Coach text and bounded training context may be sent to a Symbio API. Nutrition diary text, raw photos, and microphone audio are not part of the current Coach request contract.</li><li><strong>Spoken replies:</strong> bounded Coach reply text may be sent for text-to-speech. FitCoach does not persist microphone audio. Browser speech recognition may be processed by the browser, operating system, or its speech service.</li><li><strong>Food lookup:</strong> a barcode or food-search query may be sent to a configured nutrition service. Results show their source and require your review before they count.</li><li><strong>Accounts and sync:</strong> unavailable until backend configuration is live. If later enabled, authentication identifiers and the data you choose to sync would be processed for sign-in, recovery, sync, export, and deletion.</li><li><strong>Native health connections:</strong> unavailable in this web preview. Future HealthKit or Health Connect access must use explicit system permission and only the data types disclosed at that time.</li></ul></section>
+        <section id="purposes"><h2>4. Why data is used</h2><p>FitCoach uses data to show your plan, record workouts and meals, personalize local recommendations, provide Coach replies you request, operate selected accessibility and voice features, secure optional accounts, troubleshoot failures, and honor export or deletion requests. Health and youth data must not be used for targeted advertising or marketing.</p></section>
+        <section id="providers"><h2>5. Service providers</h2><p>Depending on which production features are configured and used, processors or data sources may include:</p><ul><li><strong>Supabase</strong> for optional authentication, database, and sync;</li><li><strong>Vercel</strong> for hosting and server functions;</li><li><strong>ElevenLabs</strong> for optional text-to-speech;</li><li><strong>USDA FoodData Central</strong> for government food-reference records;</li><li><strong>Open Food Facts</strong> for community-contributed product records;</li><li><strong>Apple and Google</strong> for native distribution, purchases, device speech, and user-authorized health connections.</li></ul><p>A provider is involved only when the related feature is configured and used. Open Food Facts records are community-contributed and are not presented as guaranteed or laboratory-verified.</p></section>
+        <section id="retention"><h2>6. Retention and deletion</h2><p>Local data remains until you reset FitCoach, clear individual content where offered, or clear the site’s browser storage. Cloud account data is not created by this preview while backend account configuration is unavailable. If cloud accounts are activated, the production privacy notice must state the exact retention schedule and the account-deletion workflow must be tested before launch.</p><p>See <a href="./delete-account.html">Delete FitCoach data</a> for current local controls and the cloud-account status.</p></section>
+        <section id="choices"><h2>7. Your choices</h2><ul><li>Use the preview without enabling optional voice or network features.</li><li>Turn spoken replies off and manage browser microphone permission in device settings.</li><li>Review food source, serving, and portion before adding it.</li><li>Export local FitCoach data from the app tools.</li><li>Reset FitCoach to remove FitCoach profiles and local records from the browser.</li><li>Contact support to ask what data exists in a configured cloud service.</li></ul></section>
+        <section id="age"><h2>8. Age requirement</h2><p>The current engineering preview is for people age 18 and older. It is not offered to children or teens. A future 13–17 experience requires a neutral age gate, region-aware consent review, teen-safe coaching and nutrition rules, moderation, reporting, export, deletion, and an updated public policy before release.</p></section>
+        <section id="security"><h2>9. Security and limitations</h2><p>FitCoach uses data minimization, bounded provider contracts, and local confirmation boundaries. No storage or transmission method is completely secure. Do not enter passwords, API keys, medical records, medication details, credentials, or other highly sensitive information into Coach or nutrition text fields.</p></section>
+        <section id="changes"><h2>10. Changes and contact</h2><p>This notice may change when real account, payment, nutrition, health, or community services launch. The updated date will change and material changes should be presented in the product. Email <a href="mailto:support@symbioai.dev">support@symbioai.dev</a> for privacy or data questions.</p></section>
+      </article>
+      <aside class="toc" aria-label="On this page"><b>On this page</b><a href="#scope">Scope</a><a href="#local">Local data</a><a href="#services">Optional services</a><a href="#providers">Providers</a><a href="#retention">Retention</a><a href="#choices">Your choices</a><a href="#age">Age</a><a href="#security">Security</a></aside>
+    </div>
+  </main>
+  <footer class="site-footer"><div class="footer-card"><span>FitCoach · Symbio product preview</span><span class="footer-links"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./delete-account.html">Delete data</a><a href="./support.html">Support</a></span></div></footer>
+</body>
+</html>

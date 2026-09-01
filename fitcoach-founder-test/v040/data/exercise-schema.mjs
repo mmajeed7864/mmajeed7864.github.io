@@ -97,6 +97,27 @@ export function validateExerciseMediaManifest(entries) {
         errors.push(`${label}.motionReviewStatus must be approved before publication.`);
       }
     }
+    if (entry.type === "poster") {
+      const thumbnail = entry.thumbnail;
+      if (!thumbnail || typeof thumbnail !== "object") {
+        errors.push(`${label}.thumbnail is required for production poster delivery.`);
+      } else {
+        if (!isNonEmptyString(thumbnail.path) || !thumbnail.path.startsWith(OWNED_MEDIA_PREFIX) || !thumbnail.path.endsWith(".webp")) {
+          errors.push(`${label}.thumbnail.path must be a local FitCoach WebP asset.`);
+        }
+        if (thumbnail.format !== "webp") errors.push(`${label}.thumbnail.format must be webp.`);
+        if (!Number.isInteger(thumbnail.width) || thumbnail.width <= 0 || thumbnail.width > 640) {
+          errors.push(`${label}.thumbnail.width must be between 1 and 640.`);
+        }
+        if (!Number.isInteger(thumbnail.height) || thumbnail.height <= 0 || thumbnail.height > 640) {
+          errors.push(`${label}.thumbnail.height must be between 1 and 640.`);
+        }
+        if (!Number.isInteger(thumbnail.bytes) || thumbnail.bytes <= 0 || thumbnail.bytes > 150_000) {
+          errors.push(`${label}.thumbnail.bytes exceeds the 150 kB card-media budget.`);
+        }
+        if (!/^[a-f0-9]{64}$/.test(thumbnail.sha256 || "")) errors.push(`${label}.thumbnail.sha256 is invalid.`);
+      }
+    }
     if (!isNonEmptyString(entry.view)) errors.push(`${label}.view is required.`);
     if (!CACHE_POLICIES.includes(entry.offlineCachePolicy)) {
       errors.push(`${label}.offlineCachePolicy is unsupported.`);

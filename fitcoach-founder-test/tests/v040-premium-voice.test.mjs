@@ -17,7 +17,7 @@ test("premium voice payload is exact, bounded, and maps reviewed personas to gen
   }), {
     text: "One honest set.",
     session_id: "fitcoach-mo-voice-v040",
-    data_classification: "synthetic_low_sensitivity",
+    data_classification: "generated_coach_reply_text",
     tone: "supportive",
     voice_gender: "female",
     voice_profile: "nova",
