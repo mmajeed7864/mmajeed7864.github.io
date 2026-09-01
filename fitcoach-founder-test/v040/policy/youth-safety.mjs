@@ -71,6 +71,10 @@ export function normalizeAgeBand(value) {
   return AGE_BANDS.includes(value) ? value : "unknown";
 }
 
+export function canAccessCurrentRelease(value) {
+  return CURRENT_RELEASE_MINIMUM_AGE === 18 && normalizeAgeBand(value) === "adult_18_plus";
+}
+
 export function ageBandFromAge(value) {
   const age = Number(value);
   if (!Number.isInteger(age) || age < 0 || age > 120) return "unknown";

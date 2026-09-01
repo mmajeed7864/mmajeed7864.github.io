@@ -16,7 +16,7 @@ export function normalizeBarcode(value) {
   return BARCODE_RE.test(barcode) ? barcode : "";
 }
 
-export function normalizeRemoteFood(food) {
+export function normalizeRemoteFood(food, requestedOrigin = food?.barcode ? "barcode" : "provider", retrievedAt = new Date().toISOString()) {
   if (!isRecord(food) || !isRecord(food.per)) return null;
   const calories = number(food.per.calories);
   const protein = number(food.per.protein);
@@ -29,7 +29,7 @@ export function normalizeRemoteFood(food) {
     provider: food.source,
     recordId: food.sourceId || food.fdcId || food.barcode,
     sourceUrl: food.sourceUrl,
-    retrievedAt: food.retrievedAt,
+    retrievedAt: food.retrievedAt || retrievedAt,
     barcode: food.barcode,
   });
   // Network food without a known provider and stable source record must not be
@@ -40,7 +40,7 @@ export function normalizeRemoteFood(food) {
     brand: clean(food.brand, 80),
     barcode: clean(food.barcode, 24),
     servingLabel: clean(food.servingLabel, 80) || "1 serving",
-    origin: "barcode",
+    origin: requestedOrigin === "barcode" ? "barcode" : "provider",
     confidence: ["high", "medium", "low"].includes(food.confidence) ? food.confidence : "medium",
     provider: provenance.providerId,
     provenance,
@@ -60,7 +60,7 @@ export function normalizeRemoteFood(food) {
 export function createNutritionLookupPayload({ action, sessionId, barcode, query, image }) {
   const base = {
     action,
-    data_classification: "synthetic_low_sensitivity",
+    data_classification: "user_provided_food_lookup",
     session_id: clean(sessionId, 120),
   };
   if (action === "barcode_lookup") {
@@ -128,7 +128,7 @@ export function createNutritionClient({
       if (!payload) return { status: "invalid", reason: "invalid_barcode" };
       const result = await post(payload, signal);
       if (result.status !== "ready") return result;
-      const food = normalizeRemoteFood(result.body.food);
+      const food = normalizeRemoteFood(result.body.food, "barcode");
       return food ? { status: "ready", food, metadata: result.body } : { status: "error", reason: "invalid_food_result", retryable: false };
     },
 
@@ -137,7 +137,10 @@ export function createNutritionClient({
       if (!payload) return { status: "invalid", reason: "invalid_query" };
       const result = await post(payload, signal);
       if (result.status !== "ready") return result;
-      const foods = (Array.isArray(result.body.foods) ? result.body.foods : []).map(normalizeRemoteFood).filter(Boolean).slice(0, 5);
+      const foods = (Array.isArray(result.body.foods) ? result.body.foods : [])
+        .map(food => normalizeRemoteFood(food, "provider"))
+        .filter(Boolean)
+        .slice(0, 5);
       return foods.length ? { status: "ready", foods, metadata: result.body } : { status: "error", reason: "no_food_results", retryable: false };
     },
   };

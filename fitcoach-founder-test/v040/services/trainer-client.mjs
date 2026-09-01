@@ -104,7 +104,7 @@ export function createTrainerPayload({ state, message, approvedAction, founder =
   return {
     message: normalizeTrainerMessage(message),
     session_id: `fitcoach-${sessionId(storage)}`,
-    data_classification: "synthetic_low_sensitivity",
+    data_classification: "user_provided_fitness_coaching_text",
     style: trainerStyle(state),
     response_depth: ANSWER_DEPTHS.includes(state.settings?.coachMode) ? state.settings.coachMode : "smart",
     context: {

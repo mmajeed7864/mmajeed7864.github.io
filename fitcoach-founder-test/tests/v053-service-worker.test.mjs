@@ -4,8 +4,8 @@ import test from "node:test";
 import vm from "node:vm";
 
 const ORIGIN = "https://fitcoach.test";
-const SHELL_CACHE = "fitcoach-symbio-v0503";
-const MEDIA_CACHE = "fitcoach-exercise-images-v0503";
+const SHELL_CACHE = "fitcoach-symbio-v0504";
+const MEDIA_CACHE = "fitcoach-exercise-images-v0504";
 
 function requestKey(value) {
   if (value instanceof Request) return value.url;
@@ -79,7 +79,7 @@ class FakeCacheStorage {
   }
 }
 
-function createHarness() {
+function createHarness({ fetchImpl } = {}) {
   const source = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
   const handlers = new Map();
   const caches = new FakeCacheStorage();
@@ -94,6 +94,7 @@ function createHarness() {
   };
   const fetch = async (request, options = {}) => {
     fetchCalls.push({ request, options });
+    if (fetchImpl) return fetchImpl(request, options);
     return new Response("online", { status: 200 });
   };
   vm.runInNewContext(source, {
@@ -214,6 +215,49 @@ test("install and activation preserve shell media separation and unrelated origi
   assert.ok(names.includes(MEDIA_CACHE));
   assert.ok(names.includes("another-product-cache"));
   assert.ok(!names.includes("fitcoach-old-v0499"));
+});
+
+test("legal navigation cannot replace the offline app shell", async () => {
+  const harness = createHarness();
+  await harness.dispatchLifecycle("install");
+  const shell = await harness.caches.open(SHELL_CACHE);
+  const originalShell = await (await shell.match("./")).text();
+  const privacyRequest = {
+    method: "GET",
+    mode: "navigate",
+    url: `${ORIGIN}/fitcoach-founder-test/legal/privacy.html`,
+    headers: new Headers(),
+    toString() { return this.url; },
+  };
+  await harness.beginFetch(privacyRequest).complete();
+  assert.equal(await (await shell.match("./")).text(), originalShell);
+  assert.equal(await (await shell.match(privacyRequest)).text(), "online");
+});
+
+test("failed navigation responses never replace the known-good offline shell", async () => {
+  const harness = createHarness({ fetchImpl: async () => new Response("temporary failure", { status: 503 }) });
+  await harness.dispatchLifecycle("install");
+  const shell = await harness.caches.open(SHELL_CACHE);
+  const originalShell = await (await shell.match("./")).text();
+  const rootRequest = {
+    method: "GET",
+    mode: "navigate",
+    url: `${ORIGIN}/fitcoach-founder-test/`,
+    headers: new Headers(),
+    toString() { return this.url; },
+  };
+  const response = await harness.beginFetch(rootRequest).complete();
+  assert.equal(response.status, 503);
+  assert.equal(await (await shell.match("./")).text(), originalShell);
+});
+
+test("the precached legal stylesheet remains available offline", async () => {
+  const harness = createHarness({ fetchImpl: async () => { throw new Error("offline"); } });
+  await harness.dispatchLifecycle("install");
+  const request = new Request(`${ORIGIN}/fitcoach-founder-test/legal/legal.css`);
+  const response = await harness.beginFetch(request).complete();
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "precache");
 });
 
 test("motion, Range, and cache-write failures never break a successful network response", async () => {

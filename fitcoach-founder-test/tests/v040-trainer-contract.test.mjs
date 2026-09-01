@@ -68,7 +68,7 @@ function jsonResponse(payload, { status = 200 } = {}) {
   };
 }
 
-test("trainer v3 payload has an exact low-sensitivity allow-list", () => {
+test("trainer v3 payload has an exact bounded allow-list", () => {
   const storage = new MemoryStorage();
   const payload = createTrainerPayload({
     state: trainerState(),
@@ -106,7 +106,7 @@ test("trainer v3 payload has an exact low-sensitivity allow-list", () => {
     "weekly_target",
   ]);
   assert.equal(payload.message, "Help me choose today's workout.");
-  assert.equal(payload.data_classification, "synthetic_low_sensitivity");
+  assert.equal(payload.data_classification, "user_provided_fitness_coaching_text");
   assert.equal(payload.style, "strict");
   assert.equal(payload.response_depth, "deep");
   assert.match(payload.session_id, /^fitcoach-session-[a-zA-Z0-9_-]+$/);

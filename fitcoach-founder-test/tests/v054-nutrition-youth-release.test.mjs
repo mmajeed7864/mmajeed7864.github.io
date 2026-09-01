@@ -10,6 +10,7 @@ import {
   CURRENT_RELEASE_MINIMUM_AGE,
   TEEN_RELEASE_GATE,
   ageBandFromAge,
+  canAccessCurrentRelease,
   capabilitiesForAgeBand,
   sanitizeCoachToneForAge,
   teenReleaseEligibility,
@@ -22,11 +23,14 @@ import {
 import { normalizeRemoteFood } from "../v040/services/nutrition-client.mjs";
 import { createFoodEntry, normalizeNutritionEntry } from "../v040/domain/nutrition.mjs";
 
+const RETRIEVED_AT = "2026-08-31T12:00:00.000Z";
+
 test("nutrition provenance never upgrades a community product record to verified", () => {
   const off = normalizeNutritionProvenance({
     provider: "open_food_facts",
     barcode: "0123456789012",
     sourceUrl: "https://world.openfoodfacts.org/product/0123456789012",
+    retrievedAt: RETRIEVED_AT,
   });
   assert.equal(off.verificationLevel, "community_label");
   assert.equal(nutritionSourceDisclosure(off).verified, false);
@@ -36,6 +40,7 @@ test("nutrition provenance never upgrades a community product record to verified
     provider: "usda_fdc",
     fdcId: "171077",
     sourceUrl: "https://fdc.nal.usda.gov/food-details/171077/nutrients",
+    retrievedAt: RETRIEVED_AT,
   });
   assert.equal(usda.verificationLevel, "government_reference");
   assert.equal(nutritionSourceDisclosure(usda).verified, true);
@@ -44,6 +49,8 @@ test("nutrition provenance never upgrades a community product record to verified
 
 test("unknown providers and untrusted provenance URLs fail closed", () => {
   assert.equal(normalizeNutritionProvenance({ provider: "mystery", recordId: "42" }), null);
+  assert.equal(normalizeNutritionProvenance({ provider: "usda_fdc", recordId: "not-a-usda-id", retrievedAt: RETRIEVED_AT }), null);
+  assert.equal(normalizeNutritionProvenance({ provider: "usda_fdc", recordId: "171077" }), null, "provider records without retrieval evidence fail closed");
   const food = normalizeRemoteFood({
     name: "Mystery bar",
     barcode: "0123456789012",
@@ -56,6 +63,7 @@ test("unknown providers and untrusted provenance URLs fail closed", () => {
     provider: "open_food_facts",
     barcode: "0123456789012",
     sourceUrl: "https://tracker.example/food/0123456789012",
+    retrievedAt: RETRIEVED_AT,
   });
   assert.equal(off.sourceUrl, "https://world.openfoodfacts.org/product/0123456789012");
 });
@@ -75,9 +83,31 @@ test("provider provenance survives a confirmed barcode entry and storage normali
   assert.equal(normalizeNutritionEntry(JSON.parse(JSON.stringify(entry))).provenance.recordId, "0123456789012");
 });
 
-test("nutrition provider remains a release blocker until server-side integration is proven", () => {
-  assert.equal(NUTRITION_PROVIDER_RELEASE_GATE.productionReady, false);
-  assert.match(NUTRITION_PROVIDER_RELEASE_GATE.blocker, /not been verified/i);
+test("barcode entries without trusted provider provenance fail closed", () => {
+  const food = {
+    name: "Unverified snack",
+    servingLabel: "1 bar",
+    per: { calories: 180, protein: 5, carbs: 28, fat: 6 },
+  };
+  assert.equal(createFoodEntry({ slot: "snack", source: "barcode", food }), null);
+  assert.equal(normalizeNutritionEntry({
+    id: "forged-barcode",
+    slot: "snack",
+    status: "confirmed",
+    source: "barcode",
+    name: food.name,
+    servingLabel: food.servingLabel,
+    per: food.per,
+    multiplier: 1,
+    provenance: null,
+  }), null);
+});
+
+test("community nutrition search is live while government-reference search stays fail-closed", () => {
+  assert.equal(NUTRITION_PROVIDER_RELEASE_GATE.productionReady, true);
+  assert.equal(NUTRITION_PROVIDER_RELEASE_GATE.liveProvider, "open_food_facts");
+  assert.equal(NUTRITION_PROVIDER_RELEASE_GATE.governmentReferenceReady, false);
+  assert.match(NUTRITION_PROVIDER_RELEASE_GATE.blocker, /USDA FoodData Central.*disabled/i);
   assert.ok(NUTRITION_PROVIDER_RELEASE_GATE.requirements.some(item => /server/i.test(item)));
 });
 
@@ -102,6 +132,10 @@ test("teen policy disables humiliation, public sharing, calorie targets, ads, an
 
 test("teen access fails closed until every consent, deletion, moderation, and review gate is live", () => {
   assert.equal(CURRENT_RELEASE_MINIMUM_AGE, 18);
+  assert.equal(canAccessCurrentRelease("adult_18_plus"), true);
+  assert.equal(canAccessCurrentRelease("teen_13_17"), false);
+  assert.equal(canAccessCurrentRelease("under_13"), false);
+  assert.equal(canAccessCurrentRelease("unknown"), false);
   assert.match(TEEN_RELEASE_GATE.status, /blocked/);
   const blocked = teenReleaseEligibility({ ageBand: "teen_13_17", neutralAgeGate: true });
   assert.equal(blocked.eligible, false);

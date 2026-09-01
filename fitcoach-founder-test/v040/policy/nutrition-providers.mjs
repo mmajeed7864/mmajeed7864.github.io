@@ -51,8 +51,10 @@ export const NUTRITION_PROVIDERS = Object.freeze({
 });
 
 export const NUTRITION_PROVIDER_RELEASE_GATE = Object.freeze({
-  productionReady: false,
-  blocker: "The browser contract is ready, but the production nutrition proxy and provider credentials have not been verified in this repository.",
+  productionReady: true,
+  liveProvider: "open_food_facts",
+  governmentReferenceReady: false,
+  blocker: "USDA FoodData Central government-reference search remains disabled until its server-side API key is configured. Live search uses clearly labeled Open Food Facts community records.",
   requirements: Object.freeze([
     "Keep provider API keys on the server; never ship them in the browser bundle.",
     "Return a stable provider record ID, retrieval time, serving basis, and source URL with every result.",
@@ -96,22 +98,29 @@ function defaultSourceUrl(providerId, recordId) {
   return "";
 }
 
+function validRecordId(providerId, recordId) {
+  if (providerId === "usda_fdc") return /^\d{1,12}$/.test(recordId);
+  if (providerId === "open_food_facts") return /^\d{6,18}$/.test(recordId);
+  return false;
+}
+
 /** Normalize provenance without trusting authority labels sent by a provider. */
 export function normalizeNutritionProvenance(raw = {}) {
   const providerId = canonicalProviderId(raw.providerId || raw.provider || raw.source);
   const provider = NUTRITION_PROVIDERS[providerId];
   if (!provider || providerId === "user_entered") return null;
   const recordId = clean(raw.recordId || raw.sourceId || raw.fdcId || raw.barcode, 40);
-  if (!recordId) return null;
+  if (!validRecordId(providerId, recordId)) return null;
   const suppliedUrl = safeSourceUrl(raw.sourceUrl, provider);
   const sourceUrl = suppliedUrl || defaultSourceUrl(providerId, recordId);
   const parsedRetrievedAt = Date.parse(raw.retrievedAt || "");
+  if (!sourceUrl || !Number.isFinite(parsedRetrievedAt)) return null;
   return Object.freeze({
     providerId,
     providerLabel: provider.label,
     recordId,
     sourceUrl,
-    retrievedAt: Number.isFinite(parsedRetrievedAt) ? new Date(parsedRetrievedAt).toISOString() : null,
+    retrievedAt: new Date(parsedRetrievedAt).toISOString(),
     verificationLevel: provider.verificationLevel,
     accuracyLabel: provider.accuracyLabel,
     license: provider.license,

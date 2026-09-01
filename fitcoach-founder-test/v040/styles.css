@@ -2575,6 +2575,17 @@
   .barcode-lookup { display: grid; gap: .55rem; padding: .75rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); }
   .barcode-lookup .button { width: 100%; }
   .barcode-lookup small { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+  .provider-search-block { display: grid; gap: .65rem; padding: .75rem; border: 1px solid var(--border); border-radius: var(--radius); background: color-mix(in srgb, var(--primary) 4%, var(--surface-2)); }
+  .provider-search-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .55rem; align-items: end; }
+  .provider-search-controls .field { margin: 0; }
+  .provider-search-controls .button { min-height: 48px; white-space: nowrap; }
+  .provider-search-disclosure { color: var(--muted); font-size: .75rem; line-height: 1.45; }
+  .result-group-label { display: block; padding: .15rem .2rem; color: var(--primary); font-size: .65rem; font-weight: 850; letter-spacing: .12em; }
+  .food-row .food-copy em { display: block; margin-top: .16rem; color: var(--muted); font-size: .7rem; font-style: normal; }
+  @media (max-width: 480px) {
+    .provider-search-controls { grid-template-columns: 1fr; }
+    .provider-search-controls .button { width: 100%; }
+  }
   .form-error { color: var(--danger); font-size: .84rem; font-weight: 700; }
 
   .search-field { position: relative; display: flex; align-items: center; gap: .5rem; }

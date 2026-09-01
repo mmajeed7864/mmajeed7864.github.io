@@ -1,6 +1,6 @@
 import { CACHE_GENERATION, SPEECH_API, TRAINER_TONES, VOICE_PERSONAS } from "../core/constants.mjs";
 
-export const SPEECH_DATA_CLASSIFICATION = "synthetic_low_sensitivity";
+export const SPEECH_DATA_CLASSIFICATION = "generated_coach_reply_text";
 export const MAX_SPEECH_TEXT_CHARS = 1_200;
 export const MAX_SPEECH_AUDIO_BYTES = 5_000_000;
 

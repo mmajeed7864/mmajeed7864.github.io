@@ -32,6 +32,14 @@ jobs:
       - name: Syntax-check v0.4 modules
         run: |
           node --check fitcoach-founder-test/v040/app.js
+          node --check fitcoach-founder-test/v040/boot.js
           find fitcoach-founder-test/v040 -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Verify native bridge and store-package code gates
+        run: |
+          node --test fitcoach-founder-test/native/tests/*.test.mjs
+          node fitcoach-founder-test/native/scripts/release-readiness.mjs
+      - name: Audit production native dependencies
+        working-directory: fitcoach-founder-test/native
+        run: npm audit --omit=dev --audit-level=high
       - name: Check diff whitespace
         run: git diff --check

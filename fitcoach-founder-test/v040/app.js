@@ -3,11 +3,16 @@ import {
   DEFAULT_VOICE_BY_TONE,
   ROUTES,
 } from "./core/constants.mjs";
-import { createFitCoachStore } from "./core/store.mjs";
+import { V040_SCHEMA_VERSION, createFitCoachStore } from "./core/store.mjs";
 import { deepClone, escapeHtml, localDateKey, safeNumber, uid } from "./core/utils.mjs";
 import { computeDecision } from "./domain/decisions.mjs";
 import { recordExerciseView } from "./domain/exercise-discovery.mjs";
 import { buildWeeklyEvidence } from "./domain/evidence.mjs";
+import {
+  hasUnsyncedLocalChanges,
+  mergeRemoteStateWithLocalOnlyFields,
+  projectStateForEncryptedSync,
+} from "./domain/sync-projection.mjs";
 import {
   MEAL_SLOTS,
   MEAL_SLOT_LABELS,
@@ -49,8 +54,16 @@ import {
   getExerciseById,
 } from "./data/exercise-library.mjs";
 import { createTrainerClient, isPrivateTrainerInput } from "./services/trainer-client.mjs";
+import { createAccountClient } from "./services/account-client.mjs";
+import {
+  createNativeRoutedAudio,
+  isTransientNativePurchaseReconciliationError,
+  reconcileVerifiedSubscription,
+} from "./services/native-lifecycle.mjs";
+import { createNativePlatformClient } from "./services/native-client.mjs";
 import { createNutritionClient, normalizeBarcode } from "./services/nutrition-client.mjs";
 import { createPremiumVoiceClient } from "./services/voice-client.mjs";
+import { canAccessCurrentRelease } from "./policy/youth-safety.mjs";
 import { renderCoachScreen, renderVoiceRoom } from "./ui/coach-screen.mjs";
 import { icon } from "./ui/components.mjs";
 import { ONBOARDING_STEP_COUNT, renderOnboarding } from "./ui/onboarding.mjs";
@@ -100,6 +113,25 @@ const ui = {
   voiceProvider: "premium-ready",
   voiceDocked: false,
   lastFailedChatDraft: "",
+  account: {
+    phase: "checking",
+    config: null,
+    session: null,
+    email: "",
+    codeSent: false,
+    busy: false,
+    error: "",
+    entitlement: null,
+    pendingRemote: null,
+    confirmDelete: false,
+  },
+  native: {
+    available: false,
+    health: { available: false },
+    healthSummary: null,
+    billingAvailable: false,
+    offerings: [],
+  },
 };
 
 let store;
@@ -144,6 +176,14 @@ function nutritionDateKey() {
 
 const trainerClient = createTrainerClient();
 const nutritionClient = createNutritionClient();
+const nativeClient = createNativePlatformClient();
+const accountClient = createAccountClient({ secureStorage: nativeClient.secureSessionStorage });
+const CLOUD_DEVICE_KEY = "fitcoach-cloud-device-id";
+let nativePlatformListeners = [];
+let platformInitializationSequence = 0;
+const nativeTransactionVerifications = new Map();
+const completedNativeTransactions = new Set();
+const pendingNativeTransactions = new Map();
 const freshRuntimeSessionCode = prefix => uid(prefix).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 72);
 let voiceSessionCode = freshRuntimeSessionCode("voice");
 let nutritionSessionCode = freshRuntimeSessionCode("nutrition");
@@ -196,17 +236,21 @@ function webAudioHandle(blob, context) {
   return handle;
 }
 
+function nativeRoutedAudio(base) {
+  return createNativeRoutedAudio(base, nativeClient);
+}
+
 const premiumVoice = createPremiumVoiceClient({
   audioFactory: (url, { blob } = {}) => {
     const context = sharedVoiceAudioContext;
-    if (blob && context?.state === "running") return webAudioHandle(blob, context);
-    if (!sharedPremiumAudio) return new Audio(url);
+    if (blob && context?.state === "running") return nativeRoutedAudio(webAudioHandle(blob, context));
+    if (!sharedPremiumAudio) return nativeRoutedAudio(new Audio(url));
     sharedPremiumAudio.src = url;
     sharedPremiumAudio.preload = "auto";
     sharedPremiumAudio.loop = false;
     sharedPremiumAudio.muted = false;
     sharedPremiumAudio.volume = 1;
-    return sharedPremiumAudio;
+    return nativeRoutedAudio(sharedPremiumAudio);
   },
 });
 
@@ -451,7 +495,12 @@ function openModal(modal) {
 }
 
 function closeModal() {
-  if (ui.modal && typeof ui.modal.type === "string" && ui.modal.type.startsWith("nutrition-")) releaseNutritionPreview();
+  if (ui.modal && typeof ui.modal.type === "string" && ui.modal.type.startsWith("nutrition-")) {
+    releaseNutritionPreview();
+    const pendingNutrition = nutritionRequestController;
+    nutritionRequestController = null;
+    try { pendingNutrition?.abort("nutrition_modal_closed"); } catch {}
+  }
   if (ui.modal?.type === "community-draft") releaseCommunityPreview();
   ui.modal = null;
   renderModalRoot();
@@ -841,7 +890,8 @@ const voiceSpeech = {
 };
 
 const voiceController = createVoiceRoomController({
-  recognitionFactory: browserVoice.recognitionFactory,
+  recognitionFactory: callbacks => nativeClient.createRecognitionSession(callbacks)
+    || browserVoice.recognitionFactory?.(callbacks),
   speech: voiceSpeech,
   classifyInput: transcript => ({ kind: isPrivateTrainerInput(transcript) ? "private" : "normal" }),
   requestTurn: async ({ transcript, signal }) => {
@@ -1022,6 +1072,486 @@ function exportData() {
   setTimeout(()=>URL.revokeObjectURL(link.href),500);
 }
 
+function downloadJson(value, filename) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 500);
+}
+
+function cloudDeviceId() {
+  let value = "";
+  try { value = localStorage.getItem(CLOUD_DEVICE_KEY) || ""; } catch {}
+  if (/^[a-zA-Z0-9_-]{8,80}$/u.test(value)) return value;
+  const random = globalThis.crypto?.randomUUID?.() || uid("device");
+  value = `device_${String(random).replace(/[^a-zA-Z0-9_-]/gu, "").slice(0, 64)}`;
+  try { localStorage.setItem(CLOUD_DEVICE_KEY, value); } catch {}
+  return value;
+}
+
+function accountErrorCopy(error) {
+  const code = String(error?.message || error || "");
+  return ({
+    RECENT_AUTH_REQUIRED: "For your protection, sign out and use a fresh email code before exporting or deleting the account.",
+    ACCOUNT_SYNC_NOT_CONFIGURED: "Encrypted sync is not active on the server yet. Your device data was not changed.",
+    ACCOUNT_EXPORT_NOT_CONFIGURED: "Cloud export is not active on the server yet.",
+    ACCOUNT_DELETION_NOT_CONFIGURED: "Server-side account deletion is not active yet.",
+    account_deletion_not_confirmed: "The server did not confirm cloud deletion. Your account and local data were kept so you can retry safely.",
+    SUBSCRIPTION_VERIFIER_SETUP_REQUIRED: "Store verification is not active yet, so Premium stayed locked.",
+    subscription_not_verified: "The store purchase is not verified yet, so Premium stayed locked.",
+    subscription_completion_proof_required: "The server did not return valid completion proof, so the store transaction remains available for retry.",
+    native_purchase_proof_required: "The store transaction is missing verified completion proof and remains unfinished.",
+    native_purchase_account_binding_required: "This store purchase could not be tied to your signed-in FitCoach account, so checkout did not start.",
+    APP_STORE_SERVER_FINISH_PENDING: "Apple still reports this transaction as unfinished. Premium stays locked while the server safely retries completion.",
+    secure_session_storage_failed: "This device could not protect the account session, so sign-in was not retained.",
+    secure_session_clear_failed: "This device could not erase its protected account session. Nothing else was reset; retry before handing the device to someone else.",
+    authentication_required: "Sign in with your email code first.",
+    invalid_email: "Enter a valid email address.",
+    invalid_email_code: "Enter the one-time code from your email.",
+  })[code] || "That secure service is unavailable right now. Your local data was not changed.";
+}
+
+function hasActivePremiumEntitlement(value) {
+  return value?.premium === true;
+}
+
+function setAccountBusy(busy, error = "") {
+  ui.account.busy = Boolean(busy);
+  ui.account.error = error;
+  render();
+}
+
+async function refreshEntitlements() {
+  if (!accountClient.session || ui.account.config?.capabilities?.entitlements !== true) {
+    ui.account.entitlement = null;
+    return null;
+  }
+  try {
+    const result = await accountClient.getEntitlements();
+    ui.account.entitlement = result;
+    return result;
+  } catch {
+    ui.account.entitlement = null;
+    return null;
+  }
+}
+
+async function removeNativePlatformListeners() {
+  const previous = nativePlatformListeners;
+  nativePlatformListeners = [];
+  await Promise.all(previous.map(async handle => {
+    try { await handle?.remove?.(); } catch {}
+  }));
+}
+
+function invalidateNativePlatform() {
+  platformInitializationSequence += 1;
+  void removeNativePlatformListeners();
+}
+
+async function replaceNativePlatformListeners(initializationSequence) {
+  await removeNativePlatformListeners();
+  if (initializationSequence !== platformInitializationSequence || !nativeClient.available) return;
+  const handles = [];
+  try {
+    handles.push(await nativeClient.onVoiceInterrupted(() => {
+      voiceController.pause();
+      renderVoiceRoot();
+    }));
+    handles.push(await nativeClient.onSubscriptionTransactionAvailable(transaction => {
+      if (initializationSequence !== platformInitializationSequence) return;
+      void handleNativeTransaction(transaction, "reconcile");
+    }));
+    handles.push(await nativeClient.onSubscriptionEntitlementChanged(() => {
+      if (initializationSequence !== platformInitializationSequence) return;
+      void refreshEntitlements().finally(render);
+    }));
+  } catch {
+    await Promise.all(handles.map(async handle => { try { await handle?.remove?.(); } catch {} }));
+    return;
+  }
+  if (initializationSequence !== platformInitializationSequence) {
+    await Promise.all(handles.map(async handle => { try { await handle?.remove?.(); } catch {} }));
+    return;
+  }
+  nativePlatformListeners = handles;
+}
+
+async function initializePlatform() {
+  const initializationSequence = ++platformInitializationSequence;
+  ui.account.phase = "checking";
+  render();
+  await accountClient.hydrateSession();
+  if (initializationSequence !== platformInitializationSequence) return;
+  ui.account.session = accountClient.session;
+  const [config, native] = await Promise.all([
+    accountClient.fetchPlatformConfig(),
+    nativeClient.initialize(),
+  ]);
+  if (initializationSequence !== platformInitializationSequence) return;
+  ui.account.config = config;
+  ui.account.session = accountClient.session;
+  ui.account.phase = config.authAvailable ? "ready" : "unavailable";
+  ui.native = { ...ui.native, ...native };
+  if (ui.account.session) await refreshEntitlements();
+  await replaceNativePlatformListeners(initializationSequence);
+  render();
+}
+
+function applyRemoteCloudState(remote) {
+  const merged = mergeRemoteStateWithLocalOnlyFields(remote?.state, store.get());
+  if (!merged) throw new Error("invalid_cloud_state");
+  merged.integrations = merged.integrations || {};
+  merged.integrations.cloudSync = {
+    status: "connected",
+    revision: Number(remote.revision) || 0,
+    consentVersion: ui.account.config?.consentVersion || "",
+    lastSyncedAt: remote.updatedAt || new Date().toISOString(),
+  };
+  state = store.replace(merged);
+  ui.account.pendingRemote = null;
+  const releaseAccessAllowed = canAccessCurrentRelease(state.profile?.ageBand);
+  if (!releaseAccessAllowed) {
+    resetRuntimeEffects();
+    ui.route = "today";
+    ui.onboardingStep = 0;
+    ui.onboardingDraft = { profile: deepClone(state.profile), settings: deepClone(state.settings), gymProfile: deepClone(state.gymProfile), consent: false };
+    ui.mode = "onboarding";
+  }
+  return releaseAccessAllowed;
+}
+
+async function ensureSyncConsent() {
+  const version = ui.account.config?.consentVersion || "";
+  if (!version) throw new Error("ACCOUNT_SYNC_NOT_CONFIGURED");
+  if (state.integrations?.cloudSync?.consentVersion === version) return;
+  await accountClient.recordSyncConsent({ policyVersion: version, decision: "accepted" });
+  state = store.update(draft => { draft.integrations.cloudSync.consentVersion = version; });
+}
+
+async function syncAccount(preference = "auto") {
+  if (!ui.account.config?.capabilities?.sync) return setAccountBusy(false, "Encrypted sync is not active on the server yet.");
+  setAccountBusy(true);
+  try {
+    await ensureSyncConsent();
+    const remote = preference === "cloud" && ui.account.pendingRemote
+      ? ui.account.pendingRemote
+      : await accountClient.pullSync();
+    const local = store.get();
+    const localRevision = Number(local.integrations?.cloudSync?.revision) || 0;
+    const remoteRevision = Number(remote?.revision) || 0;
+    const localChanged = hasUnsyncedLocalChanges(local);
+
+    let releaseAccessAllowed = true;
+    if (remote?.state && preference === "cloud") {
+      releaseAccessAllowed = applyRemoteCloudState(remote);
+    } else if (remote?.state && preference === "auto" && remoteRevision !== localRevision && localChanged) {
+      ui.account.pendingRemote = remote;
+      state = store.update(draft => { draft.integrations.cloudSync.status = "conflict"; });
+      setAccountBusy(false);
+      return;
+    } else if (remote?.state && preference === "auto" && remoteRevision !== localRevision && !localChanged) {
+      releaseAccessAllowed = applyRemoteCloudState(remote);
+    } else if (remote?.state && preference === "auto" && remoteRevision === localRevision && !localChanged) {
+      state = store.update(draft => {
+        draft.integrations.cloudSync.status = "connected";
+        draft.integrations.cloudSync.lastSyncedAt = remote.updatedAt || new Date().toISOString();
+      });
+    } else {
+      const result = await accountClient.pushSync({
+        baseRevision: remoteRevision,
+        deviceId: cloudDeviceId(),
+        schemaVersion: V040_SCHEMA_VERSION,
+        state: projectStateForEncryptedSync(local),
+      });
+      state = store.update(draft => {
+        draft.integrations.cloudSync.status = "connected";
+        draft.integrations.cloudSync.revision = Number(result.revision) || remoteRevision;
+        draft.integrations.cloudSync.consentVersion = ui.account.config?.consentVersion || "";
+        draft.integrations.cloudSync.lastSyncedAt = result.updatedAt || new Date().toISOString();
+      });
+      ui.account.pendingRemote = null;
+    }
+    setAccountBusy(false);
+    toast(!releaseAccessAllowed
+      ? "Cloud copy restored. Complete the current age-appropriate setup before entering FitCoach."
+      : preference === "cloud" ? "Cloud copy restored. Local-only Coach and photo drafts stayed here." : "Encrypted sync is up to date.");
+  } catch (error) {
+    state = store.update(draft => { draft.integrations.cloudSync.status = "error"; });
+    setAccountBusy(false, accountErrorCopy(error));
+  }
+}
+
+async function requestAccountCode() {
+  const email = document.querySelector("#account-email")?.value || ui.account.email;
+  setAccountBusy(true);
+  try {
+    const result = await accountClient.requestEmailCode(email);
+    ui.account.email = result.email;
+    ui.account.codeSent = true;
+    setAccountBusy(false);
+    toast("One-time code sent. Check your email.");
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
+}
+
+async function verifyAccountCode() {
+  const email = document.querySelector("#account-email")?.value || ui.account.email;
+  const code = document.querySelector("#account-code")?.value || "";
+  setAccountBusy(true);
+  try {
+    ui.account.session = await accountClient.verifyEmailCode(email, code);
+    ui.account.codeSent = false;
+    await refreshEntitlements();
+    await replayPendingNativeTransactions();
+    setAccountBusy(false);
+    toast("Account connected. Sync remains off until you enable it.");
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
+}
+
+async function signOutAccount() {
+  setAccountBusy(true);
+  await accountClient.signOut();
+  ui.account.session = null;
+  ui.account.entitlement = null;
+  ui.account.pendingRemote = null;
+  ui.account.confirmDelete = false;
+  state = store.update(draft => { draft.integrations.cloudSync.status = "local_only"; });
+  setAccountBusy(false);
+}
+
+async function resetFitCoachAccountAndDevice() {
+  try {
+    await accountClient.clearSession();
+  } catch (error) {
+    ui.account.error = accountErrorCopy(error);
+    toast(ui.account.error);
+    renderModalRoot();
+    return;
+  }
+  resetRuntimeEffects();
+  ui.account.session = null;
+  ui.account.entitlement = null;
+  ui.account.pendingRemote = null;
+  ui.account.confirmDelete = false;
+  ui.account.codeSent = false;
+  ui.account.busy = false;
+  ui.account.error = "";
+  state = store.reset();
+  applyTheme(state.settings.theme);
+  ui.route = "today";
+  ui.onboardingStep = 0;
+  ui.onboardingDraft = { profile: deepClone(state.profile), settings: deepClone(state.settings), gymProfile: deepClone(state.gymProfile), consent: false };
+  ui.mode = "onboarding";
+  render();
+}
+
+async function exportCloudAccount() {
+  setAccountBusy(true);
+  try {
+    const result = await accountClient.exportAccount();
+    downloadJson(result.export, `fitcoach-cloud-export-${new Date().toLocaleDateString("en-CA")}.json`);
+    setAccountBusy(false);
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
+}
+
+async function deleteCloudAccount() {
+  const confirmation = document.querySelector("#account-delete-confirmation")?.value || "";
+  if (confirmation !== "DELETE MY FITCOACH ACCOUNT") {
+    ui.account.error = "Type the exact deletion phrase to continue.";
+    render();
+    return;
+  }
+  setAccountBusy(true);
+  try {
+    await accountClient.deleteAccount();
+    await accountClient.signOut();
+    resetRuntimeEffects();
+    ui.account.session = null;
+    ui.account.entitlement = null;
+    ui.account.pendingRemote = null;
+    ui.account.confirmDelete = false;
+    state = store.reset();
+    ui.mode = "onboarding";
+    ui.onboardingStep = 0;
+    ui.onboardingDraft = { profile: deepClone(state.profile), settings: deepClone(state.settings), gymProfile: deepClone(state.gymProfile), consent: false };
+    setAccountBusy(false);
+    toast("Cloud account and this device’s FitCoach data were deleted.");
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
+}
+
+async function connectNativeHealth() {
+  if (!ui.native.available || ui.native.health?.available !== true) {
+    openModal({ type: "apple-health" });
+    return;
+  }
+  ui.native.healthBusy = true;
+  render();
+  try {
+    const permission = await nativeClient.requestHealthAuthorization();
+    if (permission?.requested !== true) throw new Error("health_permission_denied");
+    ui.native.healthSummary = await nativeClient.readDailyHealthSummary();
+    ui.native.healthError = "";
+    state = store.update(draft => {
+      // Apple intentionally does not disclose read denial. This records only
+      // that permission was requested and an aggregate query completed.
+      draft.integrations.appleHealth.status = "permission_requested";
+      draft.integrations.appleHealth.syncMode = "read_only";
+      draft.integrations.appleHealth.lastSyncedAt = new Date().toISOString();
+    });
+    toast("Health access was requested. FitCoach shows only the daily totals the system makes available.");
+  } catch {
+    ui.native.healthError = "Health access was not enabled. FitCoach still works without it.";
+  }
+  ui.native.healthBusy = false;
+  render();
+}
+
+async function verifyNativeTransaction(transaction, operation = "verify") {
+  if (transaction?.status !== "verification_required" || !transaction?.productId) throw new Error("invalid_store_transaction");
+  if (ui.account.config?.capabilities?.subscriptions !== true || ui.account.config?.capabilities?.entitlements !== true) throw new Error("SUBSCRIPTION_VERIFIER_SETUP_REQUIRED");
+  const platform = transaction.store === "google_play" ? "google" : "apple";
+  if (platform === "google" ? !transaction.purchaseToken : !transaction.transactionId) throw new Error("invalid_store_transaction");
+  const payload = {
+    operation,
+    platform,
+    product_id: transaction.productId,
+    ...(platform === "google" ? { purchase_token: transaction.purchaseToken } : { transaction_id: transaction.transactionId }),
+  };
+  const verified = await accountClient.verifySubscription(payload);
+  const verificationId = String(verified.verification_id || verified.verificationId || "");
+  if (!/^[A-Za-z0-9_-]{16,128}$/u.test(verificationId)) throw new Error("subscription_completion_proof_required");
+  return reconcileVerifiedSubscription({
+    refreshEntitlements: () => accountClient.getEntitlements(),
+    hasActiveEntitlement: hasActivePremiumEntitlement,
+    onAuthoritativeEntitlement: authoritativeEntitlement => {
+      ui.account.entitlement = authoritativeEntitlement;
+      render();
+    },
+    completePurchase: () => nativeClient.completeVerifiedPurchase({
+      transactionId: transaction.transactionId,
+      purchaseToken: transaction.purchaseToken,
+      verificationId,
+    }),
+  });
+}
+
+function nativeTransactionKey(transaction) {
+  const reference = transaction?.transactionId || transaction?.purchaseToken || "";
+  return reference ? `${transaction.store || "store"}:${reference}` : "";
+}
+
+async function processNativeTransaction(transaction, operation = "verify") {
+  if (["pending", "cancelled", "failed"].includes(transaction?.status)) return false;
+  const key = nativeTransactionKey(transaction);
+  if (!key) throw new Error("invalid_store_transaction");
+  if (completedNativeTransactions.has(key)) return false;
+  const existing = nativeTransactionVerifications.get(key);
+  if (existing) {
+    await existing;
+    return false;
+  }
+  const verification = verifyNativeTransaction(transaction, operation);
+  nativeTransactionVerifications.set(key, verification);
+  try {
+    await verification;
+    completedNativeTransactions.add(key);
+    pendingNativeTransactions.delete(key);
+    if (completedNativeTransactions.size > 50) completedNativeTransactions.delete(completedNativeTransactions.values().next().value);
+    return true;
+  } catch (error) {
+    if (isTransientNativePurchaseReconciliationError(error)) {
+      pendingNativeTransactions.set(key, transaction);
+      if (pendingNativeTransactions.size > 20) pendingNativeTransactions.delete(pendingNativeTransactions.keys().next().value);
+    }
+    throw error;
+  } finally {
+    nativeTransactionVerifications.delete(key);
+  }
+}
+
+async function handleNativeTransaction(transaction, operation = "reconcile") {
+  if (transaction?.status === "pending") {
+    setAccountBusy(false);
+    toast("The store purchase is pending approval. Premium stays locked until verification completes.");
+    return;
+  }
+  if (transaction?.status === "cancelled") {
+    setAccountBusy(false);
+    toast("Purchase cancelled. Nothing was charged by FitCoach.");
+    return;
+  }
+  if (transaction?.status === "failed") {
+    setAccountBusy(false);
+    toast("Google Play could not complete checkout. Premium stayed locked; retry when the store is available.");
+    return;
+  }
+  if (!accountClient.session
+      || ui.account.config?.capabilities?.subscriptions !== true
+      || ui.account.config?.capabilities?.entitlements !== true) {
+    const key = nativeTransactionKey(transaction);
+    if (key) {
+      pendingNativeTransactions.set(key, transaction);
+      if (pendingNativeTransactions.size > 20) pendingNativeTransactions.delete(pendingNativeTransactions.keys().next().value);
+    }
+    return;
+  }
+  setAccountBusy(true);
+  try {
+    const completedNow = await processNativeTransaction(transaction, operation);
+    setAccountBusy(false);
+    if (completedNow) toast("Premium was verified by the store and FitCoach server.");
+  } catch (error) {
+    setAccountBusy(false, accountErrorCopy(error));
+  }
+}
+
+async function replayPendingNativeTransactions() {
+  if (!accountClient.session
+      || ui.account.config?.capabilities?.subscriptions !== true
+      || ui.account.config?.capabilities?.entitlements !== true) return;
+  for (const transaction of [...pendingNativeTransactions.values()]) {
+    await handleNativeTransaction(transaction, "reconcile");
+  }
+}
+
+async function purchaseSubscription(logicalId) {
+  setAccountBusy(true);
+  try {
+    if (!accountClient.session) throw new Error("authentication_required");
+    if (ui.account.config?.capabilities?.subscriptions !== true || ui.account.config?.capabilities?.entitlements !== true) throw new Error("SUBSCRIPTION_VERIFIER_SETUP_REQUIRED");
+    const transaction = await nativeClient.purchaseSubscription(logicalId, accountClient.session.user.id);
+    if (transaction?.launched === true) {
+      setAccountBusy(false);
+      toast("Finish in Google Play. Premium stays locked until the verified result returns.");
+      return;
+    }
+    if (["pending", "cancelled", "failed"].includes(transaction?.status)) {
+      setAccountBusy(false);
+      await handleNativeTransaction(transaction, "verify");
+      return;
+    }
+    const completedNow = await processNativeTransaction(transaction, "verify");
+    setAccountBusy(false);
+    if (completedNow) toast("Premium was verified by the store and FitCoach server.");
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
+}
+
+async function restoreSubscriptions() {
+  setAccountBusy(true);
+  try {
+    if (!accountClient.session) throw new Error("authentication_required");
+    if (ui.account.config?.capabilities?.subscriptions !== true || ui.account.config?.capabilities?.entitlements !== true) throw new Error("SUBSCRIPTION_VERIFIER_SETUP_REQUIRED");
+    const result = await nativeClient.restorePurchases();
+    const transactions = Array.isArray(result?.transactions) ? result.transactions : [];
+    for (const transaction of transactions) await processNativeTransaction(transaction, "restore");
+    await refreshEntitlements();
+    setAccountBusy(false);
+    toast(transactions.length ? "Store purchases checked against your account." : "No restorable purchase was found.");
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
+}
+
 
 // ── Nutrition flows ─────────────────────────────────────────────────────────
 // The ONLY call to confirmNutritionEntry in this app lives in the
@@ -1092,7 +1622,7 @@ function addSelectedFood() {
   const selected = modal?.selected;
   const slot = MEAL_SLOTS.includes(modal?.slot) ? modal.slot : null;
   if (!selected || !slot) return toast("Choose a meal slot first.");
-  const source = selected.origin === "favorite" ? "favorite" : selected.origin === "recent" ? "recent" : selected.origin === "barcode" ? "barcode" : "manual";
+  const source = selected.origin === "favorite" ? "favorite" : selected.origin === "recent" ? "recent" : selected.origin === "barcode" ? "barcode" : selected.origin === "provider" ? "provider" : "manual";
   const dateKey = nutritionDateKey();
   let added = false;
   state = store.update(draft => {
@@ -1119,6 +1649,9 @@ async function lookupBarcodeFood() {
 
   ui.modal = { ...modal, barcode, lookupBusy: true, lookupError: "" };
   renderModalRoot();
+  const previousRequest = nutritionRequestController;
+  nutritionRequestController = null;
+  try { previousRequest?.abort("nutrition_request_replaced"); } catch {}
   const requestController = new AbortController();
   nutritionRequestController = requestController;
   const result = await nutritionClient.lookupBarcode({
@@ -1149,6 +1682,54 @@ async function lookupBarcodeFood() {
   };
   renderModalRoot();
   toast(`${result.food.provenance?.accuracyLabel || "Provider record"} loaded. Review the package and portion before adding it.`);
+}
+
+async function searchProviderFoods() {
+  const modal = ui.modal;
+  if (!modal || modal.type !== "nutrition-add") return;
+  const query = String(document.querySelector("#nutrition-search")?.value || modal.query || "").trim().slice(0, 80);
+  if (query.length < 2) {
+    ui.modal = { ...modal, query, providerResults: [], providerSearchBusy: false, providerSearchError: "Enter at least two characters to search nutrition providers." };
+    renderModalRoot();
+    return;
+  }
+
+  const previousRequest = nutritionRequestController;
+  nutritionRequestController = null;
+  try { previousRequest?.abort("nutrition_request_replaced"); } catch {}
+  const requestController = new AbortController();
+  nutritionRequestController = requestController;
+  ui.modal = { ...modal, query, providerResults: [], providerSearchBusy: true, providerSearchError: "" };
+  renderModalRoot();
+
+  const result = await nutritionClient.searchFoods({
+    sessionId: `fitcoach-${nutritionSessionCode}`,
+    query,
+    signal: requestController.signal,
+  });
+  if (nutritionRequestController !== requestController || requestController.signal.aborted) return;
+  nutritionRequestController = null;
+  if (!ui.modal || ui.modal.type !== "nutrition-add" || ui.modal.query !== query) return;
+  if (result.status !== "ready") {
+    const noResults = result.reason === "no_food_results" || result.reason === "FOOD_NOT_FOUND";
+    ui.modal = {
+      ...ui.modal,
+      providerResults: [],
+      providerSearchBusy: false,
+      providerSearchError: noResults
+        ? "No provider match was found. Try a simpler name, scan a barcode, or use the package label below."
+        : "Nutrition provider search is unavailable right now. Saved foods, starter foods, and manual package-label entry still work.",
+    };
+    renderModalRoot();
+    return;
+  }
+  ui.modal = {
+    ...ui.modal,
+    providerResults: result.foods,
+    providerSearchBusy: false,
+    providerSearchError: "",
+  };
+  renderModalRoot();
 }
 
 function addCustomFood() {
@@ -1281,7 +1862,8 @@ function handleClick(event) {
   const action = target.dataset.action;
   const value = target.dataset.value || "";
   if (action === "exit-onboarding") {
-    if (state?.profile?.onboarded) ui.mode="app";
+    if (state?.profile?.onboarded && canAccessCurrentRelease(state.profile.ageBand)) ui.mode="app";
+    else if (!canAccessCurrentRelease(ui.onboardingDraft?.profile?.ageBand)) ui.onboardingStep=0;
     else ui.onboardingStep=ONBOARDING_STEP_COUNT-1;
     render();
     return;
@@ -1325,6 +1907,12 @@ function handleClick(event) {
   if (action === "onboarding-consent") { ui.onboardingDraft.consent=target.checked; render(); return; }
   if (action === "onboarding-back") { ui.onboardingStep=Math.max(0,ui.onboardingStep-1); render(); return; }
   if (action === "onboarding-next") {
+    if (!canAccessCurrentRelease(ui.onboardingDraft?.profile?.ageBand)) {
+      ui.onboardingStep=0;
+      toast("The current preview is available to adults 18 and over.");
+      render();
+      return;
+    }
     if (ui.onboardingStep < ONBOARDING_STEP_COUNT - 1) { ui.onboardingStep+=1; render(); return; }
     if (!ui.onboardingDraft.consent) return;
     state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.gymProfile={...draft.gymProfile,...ui.onboardingDraft.gymProfile,source:"manual"};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile},gymProfile:draft.gymProfile},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`Focus: ${draft.profile.focusAreas?.join(", ") || "balanced training"}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Training space: ${draft.gymProfile.selectedGymName || draft.profile.location}`,`${draft.gymProfile.equipment.length} equipment types available`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
@@ -1439,7 +2027,22 @@ function handleClick(event) {
   if (action === "voice-mute") { voiceController.setMuted(!voiceController.getState().muted);return; }
   if (action === "voice-replay") { if(!voiceController.replayLast())toast("Replay is unavailable in this voice state.");return; }
   if (action === "connection-info") { const connection=coachConnection();if(connection.state==="offline")openModal({type:"offline"});else if(connection.state==="live")toast("A live coach reply was received on this device.");else if(connection.state==="fallback")toast("Offline guidance is ready. Live coaching has not been confirmed.");else toast("Live coach status has not been confirmed yet. Workout tools remain available on this device.");return; }
-  if (action === "open-apple-health-plan") { openModal({ type: "apple-health" }); return; }
+  if (action === "account-retry") { void initializePlatform(); return; }
+  if (action === "account-request-code") { void requestAccountCode(); return; }
+  if (action === "account-verify-code") { void verifyAccountCode(); return; }
+  if (action === "account-sync") { void syncAccount("auto"); return; }
+  if (action === "account-resolve-cloud") { void syncAccount("cloud"); return; }
+  if (action === "account-resolve-device") { void syncAccount("device"); return; }
+  if (action === "account-export-cloud") { void exportCloudAccount(); return; }
+  if (action === "account-sign-out") { void signOutAccount(); return; }
+  if (action === "account-delete-start") { ui.account.confirmDelete=true;ui.account.error="";render();return; }
+  if (action === "account-delete-cancel") { ui.account.confirmDelete=false;ui.account.error="";render();return; }
+  if (action === "account-delete-confirm") { void deleteCloudAccount(); return; }
+  if (action === "account-refresh-entitlement") { setAccountBusy(true);void refreshEntitlements().finally(()=>setAccountBusy(false));return; }
+  if (action === "subscription-purchase") { void purchaseSubscription(value); return; }
+  if (action === "subscription-restore") { void restoreSubscriptions(); return; }
+  if (action === "subscription-manage") { void nativeClient.openManageSubscriptions().catch(()=>toast("Subscription management is available in the native app."));return; }
+  if (action === "open-apple-health-plan") { void connectNativeHealth(); return; }
   if (action === "mark-apple-health-planned") { state=store.update(draft=>{draft.integrations.appleHealth.status="planned";draft.integrations.appleHealth.syncMode="manual_until_ios";draft.integrations.appleHealth.requestedAt=new Date().toISOString();});closeModal();render();toast("Apple Health sync marked for the native iOS build.");return; }
   if (action === "open-pro-preview") { openModal({ type: "pro-preview" }); return; }
   if (action === "select-pro-plan") { state=store.update(draft=>{draft.integrations.payments.selectedPlan=value==="monthly"?"monthly":"yearly";draft.integrations.payments.status="preview";});renderModalRoot();renderAppScreen();return; }
@@ -1458,7 +2061,7 @@ function handleClick(event) {
   if (action === "clear-chat") { openModal({type:"confirm-clear-chat"});return; }
   if (action === "confirm-clear-chat") { invalidateCoachActivity({rotateSession:true});state=store.update(draft=>{draft.chat=[];draft.lastApi=null;});closeModal();render();return; }
   if (action === "reset-profile") { openModal({type:"confirm-reset"});return; }
-  if (action === "confirm-reset") { resetRuntimeEffects();state=store.reset();applyTheme(state.settings.theme);ui.route="today";ui.onboardingStep=0;ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};ui.mode="onboarding";render();return; }
+  if (action === "confirm-reset") { void resetFitCoachAccountAndDevice();return; }
   if (action === "export-data") { exportData();return; }
   if (action === "force-refresh") { void forceRefresh();return; }
   if (action === "open-nutrition") { closeModal(); navigate("nutrition"); return; }
@@ -1469,9 +2072,11 @@ function handleClick(event) {
   if (action === "nutrition-capture-slot") { if (ui.modal) { ui.modal.context = document.querySelector("#nutrition-context")?.value ?? ui.modal.context; ui.modal.query = document.querySelector("#nutrition-search")?.value ?? ui.modal.query; ui.modal.slot = value; renderModalRoot(); } return; }
   if (action === "nutrition-toggle-custom") { if (ui.modal) { ui.modal.custom = !ui.modal.custom; renderModalRoot(); } return; }
   if (action === "nutrition-pick-food") { const results = searchFoods(state.nutrition, ui.modal?.query || ""); const item = results[Number(value)]; if (item && ui.modal) { ui.modal.selected = { name: item.name, servingLabel: item.servingLabel, per: { ...item.per }, origin: item.origin }; ui.modal.multiplier = normalizeMultiplier(item.multiplier || 1); renderModalRoot(); } return; }
+  if (action === "nutrition-pick-provider-food") { const item = ui.modal?.providerResults?.[Number(value)]; if (item && ui.modal) { ui.modal.selected = { ...item, per: { ...item.per }, provenance: item.provenance ? { ...item.provenance } : null }; ui.modal.multiplier = 1; renderModalRoot(); } return; }
   if (action === "nutrition-add-back") { if (ui.modal) { ui.modal.selected = null; renderModalRoot(); } return; }
   if (action === "nutrition-add-portion") { if (ui.modal) { ui.modal.multiplier = normalizeMultiplier((ui.modal.multiplier || 1) + Number(value)); renderModalRoot(); } return; }
   if (action === "nutrition-barcode-search") { lookupBarcodeFood(); return; }
+  if (action === "nutrition-provider-search") { searchProviderFoods(); return; }
   if (action === "nutrition-add-confirm") { addSelectedFood(); return; }
   if (action === "nutrition-add-custom") { addCustomFood(); return; }
   if (action === "nutrition-copy-yesterday") { const dateKey = nutritionDateKey(); const from = new Date(`${dateKey}T12:00:00`); from.setDate(from.getDate() - 1); let copied = 0; state = store.update(draft => { copied = copySlotFromDay(draft.nutrition, localDateKey(from), dateKey, value); }); render(); toast(copied ? `Copied ${copied} confirmed item${copied === 1 ? "" : "s"} from yesterday.` : "Nothing confirmed yesterday to copy."); return; }
@@ -1528,7 +2133,7 @@ function handleInput(event) {
   if (target.dataset.action === "set-field") updateSetField(target);
   if (target.id === "workout-notes") state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
   if (target.id === "coach-input") ui.chatDraft=target.value;
-  if (target.id === "nutrition-search" && ui.modal) { ui.modal.query=target.value; renderModalRoot(); requestAnimationFrame(()=>{const input=document.querySelector("#nutrition-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
+  if (target.id === "nutrition-search" && ui.modal) { const pendingNutrition=nutritionRequestController;nutritionRequestController=null;try{pendingNutrition?.abort("nutrition_query_changed");}catch{}ui.modal.query=target.value;ui.modal.providerResults=[];ui.modal.providerSearchBusy=false;ui.modal.providerSearchError="";renderModalRoot();requestAnimationFrame(()=>{const input=document.querySelector("#nutrition-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
   if (target.id === "nutrition-barcode" && ui.modal) ui.modal.barcode=target.value;
   if (target.id === "nutrition-context" && ui.modal) ui.modal.context=target.value;
 }
@@ -1546,7 +2151,7 @@ function trapDialogFocus(event) {
 
 function bootstrap() {
   createStore(ui.founder);
-  ui.mode=state.profile.onboarded?"app":"onboarding";
+  ui.mode=state.profile.onboarded && canAccessCurrentRelease(state.profile.ageBand)?"app":"onboarding";
   ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};
   const route=new URLSearchParams(location.search).get("route");
   if(ROUTES.includes(route))ui.route=route;
@@ -1623,11 +2228,12 @@ function bootstrap() {
   window.addEventListener("online",()=>{voiceController.setForeground(document.visibilityState==="visible");render();toast("Back online. Live Coach will be checked with your next message.");});
   window.addEventListener("offline",()=>{voiceController.setForeground(false);render();});
   document.addEventListener("visibilitychange",()=>voiceController.setForeground(document.visibilityState==="visible"));
-  window.addEventListener("pagehide",()=>{voiceController.exit();stopSpeech({renderCoach:false});chatRequestController?.abort();});
+  window.addEventListener("pagehide",()=>{voiceController.exit();invalidateNativePlatform();void nativeClient.endVoiceSession();stopSpeech({renderCoach:false});chatRequestController?.abort();});
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(state?.settings.theme==="system")applyTheme("system");});
   beginRestTicker();
   maybeOpenTutorial();
   render();
+  void initializePlatform();
 }
 
 bootstrap();

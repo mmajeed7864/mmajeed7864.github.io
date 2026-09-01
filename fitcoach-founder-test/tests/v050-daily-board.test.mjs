@@ -102,5 +102,5 @@ test("optional onboarding can skip to the required final boundary review", () =>
 
   assert.match(app, /else ui\.onboardingStep=ONBOARDING_STEP_COUNT-1/u);
   assert.match(onboarding, /Skip optional setup/u);
-  assert.match(onboarding, /disabled:safeStep===ONBOARDING_STEP_COUNT-1&&!draft\.consent/u);
+  assert.match(onboarding, /disabled:ageGateBlocked \|\| safeStep===ONBOARDING_STEP_COUNT-1&&!draft\.consent/u);
 });

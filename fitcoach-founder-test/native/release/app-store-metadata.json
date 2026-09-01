@@ -1,0 +1,22 @@
+{
+  "status": "draft_not_submitted",
+  "locale": "en-US",
+  "name": "FitCoach",
+  "subtitle": "Training that adapts to you",
+  "primaryCategory": "Health & Fitness",
+  "secondaryCategory": "Lifestyle",
+  "promotionalText": "Plan, train, log food, and review progress with one evidence-led AI coach.",
+  "keywords": ["workout", "fitness", "strength", "gym", "nutrition", "trainer", "progress"],
+  "privacyPolicyUrl": "https://mmajeed7864.github.io/fitcoach-founder-test/legal/privacy.html",
+  "supportUrl": "https://mmajeed7864.github.io/fitcoach-founder-test/legal/support.html",
+  "marketingUrl": "https://mmajeed7864.github.io/fitcoach-founder-test/",
+  "ageRatingIntent": "18+ initial release; final rating is determined by the App Store Connect questionnaire",
+  "reviewNotesRequired": [
+    "Demo account or review mode",
+    "How plan approval works",
+    "HealthKit permissions are contextual and optional",
+    "Voice interruption and text fallback behavior",
+    "Subscription restore and account deletion paths",
+    "Fitness guidance is not medical care or form assessment"
+  ]
+}

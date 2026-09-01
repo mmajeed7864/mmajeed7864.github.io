@@ -1,0 +1,28 @@
+// Merge into Capacitor 8.5.1's generated app/build.gradle. Keep the generated
+// Android application plugin first, then apply Kotlin for the local bridge.
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+android {
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 26
+        targetSdk 36
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.health.connect:connect-client:1.1.0'
+    implementation 'com.android.billingclient:billing:9.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+}

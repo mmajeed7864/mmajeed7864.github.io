@@ -1,0 +1,8 @@
+// Merge these lines into Capacitor 8.5.1's generated root build.gradle.
+// Preserve the generated google() and mavenCentral() buildscript repositories.
+buildscript {
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.2'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.20'
+    }
+}

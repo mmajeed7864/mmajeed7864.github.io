@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.4 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.5.3 is the active runtime (cache generation 0503 keeps the Symbio visual identity and adds paginated personalized exercise discovery, recently viewed exercises, faster confirmed-food reuse, verified performance receipts, weekly evidence, and barbell setup helpers while preserving the voice, nutrition-confirmation, plan-approval, and safety contracts):
+FitCoach v0.5.4 is the active runtime. Cache generation 0504 adds optional passwordless accounts, consent-gated encrypted sync, account export/deletion controls, store-verified membership surfaces, native voice/Health bridge discovery, 18+ release gating, public policy pages, nutrition provenance, and compressed exercise thumbnails while preserving the local-first workout, nutrition-confirmation, plan-approval, and safety contracts. Every remote capability fails closed when its reviewed server or store configuration is absent.
 
-- document shell: `index.html?v=0503`
-- stylesheets: `v040/styles.css?v=0503` and `v040/premium-redesign.css?v=0503`
-- ES-module entry: `v040/app.js?v=0503`
-- service worker caches: `fitcoach-symbio-v0503` for the shell/anatomy graph and `fitcoach-exercise-images-v0503` for a bounded runtime image set
+- document shell: `index.html?v=0504`
+- stylesheets: `v040/styles.css?v=0504` and `v040/premium-redesign.css?v=0504`
+- ES-module entry: `v040/app.js?v=0504`
+- service worker caches: `fitcoach-symbio-v0504` for the shell/anatomy graph and `fitcoach-exercise-images-v0504` for a bounded runtime image set
 - install cache: shell, module graph, and the six active anatomy maps; exercise images cache after first use with a 12-image limit, while motion video streams directly
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 
@@ -19,9 +19,9 @@ The v0.4 runtime is an ES-module app under `v040/` with these boundaries:
 - `data/`: 100-movement exercise library, local premium visual-guide manifest, written-guide contracts, and schema validators
 - `domain/`: deterministic workout planning, intervention decisions, and the nutrition diary (confirmed-only totals; the photo/text estimator is an honestly-labeled deterministic preview demo; no vision provider exists in this build)
 - `policy/`: fail-closed nutrition provenance, youth-safety capability, and store-release disclosure contracts
-- `services/`: bounded trainer text and spoken-reply API payload mapping
+- `services/`: bounded trainer text/spoken-reply payloads plus optional account and native capability adapters
 - `ui/`: five-tab browser UI (Today, Train, Coach, Food, Progress), header-accessible profile, modals, exercise detail, active workout, and progress
-- `voice/`: foreground half-duplex voice-room state and controller
+- `voice/`: foreground half-duplex voice-room state and controller; native builds may supply interruption-aware speech recognition and Bluetooth routing without background microphone capture
 
 ## Historical prototypes
 
@@ -39,9 +39,11 @@ The v0.4 service worker must not precache historical scripts, historical styles,
 
 ## Provider boundary
 
-The browser sends ordinary low-sensitivity trainer text only to `/api/fitcoach-chat-v3` through Symbio's server. DeepSeek remains the primary server-side provider, direct Qwen US may be used only as a server-configured backup, and deterministic local fallback remains available.
+The browser sends only the trainer message the user submits plus a bounded workout-context allow-list to `/api/fitcoach-chat-v3` through Symbio's server. It does not label real user text as synthetic. DeepSeek remains the primary server-side provider, direct Qwen US may be used only as a server-configured backup, and deterministic local fallback remains available.
 
 Nutrition data never enters the provider payload: the chat-v3 contract has no nutrition fields and this build adds none. Coach nutrition help is local-only (deterministic action cards that open the diary or create UNCONFIRMED drafts). Meal photos are never read, uploaded, or stored — a draft keeps only file name/size metadata and a session-scoped preview object URL that is revoked on close.
+
+Food search and barcode lookup use the production chat-v3 nutrition route. Open Food Facts results are identified as community-contributed, keep source and license attribution, and count only after portion review and an explicit Add action. USDA FoodData Central support is implemented server-side but remains unavailable until its server-only API key is configured; the UI must not describe community records as USDA-verified data.
 
 When spoken replies are enabled, the browser may send only the bounded coach reply text to `/api/fitcoach-speech-v2`. That server-only route uses ElevenLabs when configured, offers Nova (female) and Atlas (male) delivery profiles, and falls back to device speech. FitCoach does not create, store, or upload microphone audio.
 

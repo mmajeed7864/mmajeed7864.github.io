@@ -1,18 +1,24 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0503";
-const MEDIA_CACHE = "fitcoach-exercise-images-v0503";
+const CACHE = "fitcoach-symbio-v0504";
+const MEDIA_CACHE = "fitcoach-exercise-images-v0504";
 const MAX_MEDIA_ENTRIES = 12;
 const CURRENT_CACHES = new Set([CACHE, MEDIA_CACHE]);
 let mediaWriteQueue = Promise.resolve();
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0503",
-  "./manifest.webmanifest?v=0503",
-  "./assets/icon-symbio.svg?v=0503",
-  "./v040/styles.css?v=0503",
-  "./v040/premium-redesign.css?v=0503",
-  "./v040/app.js?v=0503",
+  "./index.html?v=0504",
+  "./manifest.webmanifest?v=0504",
+  "./assets/icon-symbio.svg?v=0504",
+  "./v040/boot.js?v=0504",
+  "./legal/legal.css",
+  "./legal/privacy.html",
+  "./legal/terms.html",
+  "./legal/delete-account.html",
+  "./legal/support.html",
+  "./v040/styles.css?v=0504",
+  "./v040/premium-redesign.css?v=0504",
+  "./v040/app.js?v=0504",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -34,9 +40,14 @@ const MODULE_ASSETS = Object.freeze([
   "./v040/domain/nutrition-estimator.mjs",
   "./v040/domain/nutrition.mjs",
   "./v040/domain/strength-tools.mjs",
+  "./v040/domain/sync-projection.mjs",
   "./v040/domain/trainer-actions.mjs",
   "./v040/domain/workouts.mjs",
   "./v040/policy/nutrition-providers.mjs",
+  "./v040/policy/youth-safety.mjs",
+  "./v040/services/account-client.mjs",
+  "./v040/services/native-lifecycle.mjs",
+  "./v040/services/native-client.mjs",
   "./v040/services/nutrition-client.mjs",
   "./v040/services/trainer-client.mjs",
   "./v040/services/voice-client.mjs",
@@ -153,24 +164,29 @@ self.addEventListener("fetch", event => {
   if (url.pathname.includes("/api/")) return;
 
   if (event.request.mode === "navigate") {
+    const isShellNavigation = /\/(?:index\.html)?$/u.test(url.pathname);
+    const navigationCacheKey = isShellNavigation ? "./" : event.request;
     event.respondWith(
       fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put("./", copy)).catch(() => {});
+        .then(async response => {
+          if (response.ok && response.status === 200) {
+            const copy = response.clone();
+            await caches.open(CACHE).then(cache => cache.put(navigationCacheKey, copy)).catch(() => {});
+          }
           return response;
         })
         .catch(() => caches.open(CACHE).then(cache => (
-          cache.match("./").then(response => response || cache.match("./index.html?v=0503"))
+          cache.match(navigationCacheKey).then(response => response || cache.match("./index.html?v=0504"))
         )))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0503";
+  const versioned = url.searchParams.get("v") === "0504";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   const anatomyAsset = url.pathname.includes("/v040/assets/anatomy/");
+  const legalAsset = url.pathname.endsWith("/legal/legal.css");
   const rangeRequest = event.request.headers.has("range");
   const motionVideo = exerciseAsset && url.pathname.endsWith(".mp4");
   const exerciseImage = exerciseAsset && /\.(?:png|webp|avif)$/iu.test(url.pathname);
@@ -192,7 +208,7 @@ self.addEventListener("fetch", event => {
     }));
     return;
   }
-  if (anatomyAsset) {
+  if (anatomyAsset || legalAsset) {
     event.respondWith(cachedOrFetch(event.request, event));
   }
 });

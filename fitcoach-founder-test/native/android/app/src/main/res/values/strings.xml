@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FitCoach</string>
+    <string name="health_rationale_title">Your health data stays under your control</string>
+    <string name="health_rationale_body">FitCoach reads optional daily steps and active energy to show activity beside your plan. This release does not write Health Connect data. Health data is never used for advertising or sold.</string>
+</resources>

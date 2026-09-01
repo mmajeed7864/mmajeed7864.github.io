@@ -49,7 +49,7 @@ export function evaluateStoreReleaseReadiness(flags = {}) {
 export const CURRENT_STORE_DISCLOSURES = Object.freeze({
   releaseChannel: "web_preview",
   accountStorage: "Local browser profile in the current build; account sync is not yet verified here.",
-  nutrition: "Manual and demo estimates are user-reviewed. Provider-backed barcode readiness is not proof that a production provider is active.",
+  nutrition: "Open Food Facts community search and barcode records are live, source-labeled, and user-reviewed before counting. USDA government-reference search remains disabled until its server key is configured.",
   photos: "Meal and progress-photo previews are local object URLs; current preview code does not persist or upload raw image bytes.",
   microphone: "Browser speech recognition may be processed by the browser or operating system. FitCoach does not persist microphone audio in app state.",
   health: "HealthKit and Health Connect require native apps and explicit system permission; no live sync is claimed by this web preview.",

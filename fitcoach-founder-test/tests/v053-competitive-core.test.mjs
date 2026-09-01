@@ -80,10 +80,10 @@ test("competitive discovery, evidence, and strength modules are available offlin
   assert.match(sw, /domain\/strength-tools\.mjs/u);
   assert.match(sw, /\.\.\.ANATOMY_ASSETS/u);
   assert.match(sw, /event\.waitUntil\(cacheWrite\)/u);
-  assert.match(sw, /const MEDIA_CACHE = "fitcoach-exercise-images-v0503"/u);
+  assert.match(sw, /const MEDIA_CACHE = "fitcoach-exercise-images-v0504"/u);
   assert.match(sw, /const MAX_MEDIA_ENTRIES = 12/u);
   assert.match(sw, /if \(exerciseImage\)[\s\S]*?cacheName: MEDIA_CACHE,[\s\S]*?maximumEntries: MAX_MEDIA_ENTRIES/u);
-  assert.match(sw, /if \(anatomyAsset\)[\s\S]*?cachedOrFetch\(event\.request, event\)/u);
+  assert.match(sw, /if \(anatomyAsset \|\| legalAsset\)[\s\S]*?cachedOrFetch\(event\.request, event\)/u);
 });
 
 test("exercise pagination and food reuse remain explicit user actions", () => {
@@ -146,6 +146,13 @@ test("device reset invalidates async coach work and session-only image previews"
   assert.match(app, /voiceSessionCode = freshRuntimeSessionCode\("voice"\)/u);
   assert.match(app, /nutritionSessionCode = freshRuntimeSessionCode\("nutrition"\)/u);
   assert.match(app, /pendingNutrition\?\.abort\("fitcoach_reset"\)/u);
+  assert.match(app, /async function resetFitCoachAccountAndDevice\(\)/u);
+  assert.match(app, /await accountClient\.clearSession\(\)/u);
+  assert.match(app, /secure_session_clear_failed/u);
+  assert.match(app, /catch \(error\) \{[\s\S]*?ui\.account\.error = accountErrorCopy\(error\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?resetRuntimeEffects\(\);/u);
+  assert.doesNotMatch(app, /accountClient\.clearSession\(\); \} catch \{\}/u);
+  assert.match(app, /ui\.account\.session = null/u);
+  assert.match(app, /ui\.account\.entitlement = null/u);
   assert.doesNotMatch(app, /fitcoach-\$\{ui\.founder\}-(?:voice|nutrition)-v040/u);
   assert.match(app, /confirm-clear-chat[^\n]+invalidateCoachActivity\(\{rotateSession:true\}\)/u);
   assert.match(app, /Back online\. Live Coach will be checked with your next message\./u);
