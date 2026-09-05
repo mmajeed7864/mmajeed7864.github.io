@@ -1,6 +1,10 @@
 import { escapeHtml, formatDate, formatTime, sessionVolume } from "../core/utils.mjs";
 
 const ICONS = Object.freeze({
+  food: '<path d="M6 3v7m-3-7v5a3 3 0 0 0 6 0V3M6 11v10M17 3c-3 4-4 8 1 8V3h1v18"/>',
+  droplet: '<path d="M12 3S5 10 5 15a7 7 0 0 0 14 0c0-5-7-12-7-12z"/><path d="M8 15a4 4 0 0 0 4 4"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/>',
+  moon: '<path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14z"/>',
   today: '<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/>',
   train: '<path d="M4 9v6m3-9v12m10-12v12m3-9v6M7 12h10"/>',
   progress: '<path d="M4 20V10m6 10V4m6 16v-7m4 7V7"/>',
@@ -384,9 +388,9 @@ export function planExerciseRow(item, index, exercise, units = "lb", { editable 
   </article>`;
 }
 
-export function renderMessage(message, speakingId = null) {
+export function renderMessage(message, speakingId = null, trainerName = "Coach") {
   const coach = message.role !== "user";
-  const meta = coach ? (message.provider === "deterministic-copy" ? "FitCoach" : message.provider ? "Nova" : "Coach") : formatTime(message.at);
+  const meta = coach ? (message.provider === "on-device" ? "FitCoach tools · on this device" : message.provider === "deterministic-copy" ? "FitCoach" : trainerName) : formatTime(message.at);
   return `<article class="chat-message ${coach ? "coach" : "user"}" data-message-id="${escapeHtml(message.id)}">
     <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
     ${coach && message.action ? `<button class="trainer-action-card" data-action="coach-message-action" data-kind="${escapeHtml(message.action.kind)}" data-value="${escapeHtml(message.action.value)}"><span>${icon(message.action.kind === "open_exercise" ? "play" : message.action.kind === "open_voice" ? "mic" : message.action.kind === "open_progress" ? "progress" : "chevron")}</span><span><b>${escapeHtml(message.action.label)}</b><small>${escapeHtml(message.action.detail || "Open in FitCoach")}</small></span>${icon("chevron")}</button>` : ""}

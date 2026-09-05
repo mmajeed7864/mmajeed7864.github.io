@@ -11,6 +11,7 @@ import {
   normalizeNutritionState,
 } from "../domain/nutrition.mjs";
 import { normalizeAgeBand, sanitizeCoachToneForAge } from "../policy/youth-safety.mjs";
+import { normalizeHydration } from "../domain/hydration.mjs";
 import {
   clamp,
   deepClone,
@@ -140,6 +141,7 @@ export function createInitialState(founder = "mo", now = new Date()) {
     },
     socialDrafts: [],
     nutrition: createInitialNutritionState(),
+    hydration: { entries: [] },
     migration: {
       source: "fresh-v040",
       migratedAt: createdAt,
@@ -428,6 +430,7 @@ function normalizeState(raw, founder, migration = null) {
     // Fail-closed nutrition normalization: corrupted nutrition entries are
     // dropped individually and can never reset the rest of the app state.
     nutrition: normalizeNutritionState(raw?.nutrition),
+    hydration: normalizeHydration(raw?.hydration),
     migration: migration || (isObject(raw?.migration) ? raw.migration : base.migration),
     createdAt: cleanString(raw?.createdAt, base.createdAt, 40),
     updatedAt: cleanString(raw?.updatedAt, base.updatedAt, 40),

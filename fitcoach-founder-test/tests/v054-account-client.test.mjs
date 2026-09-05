@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { BUILD } from "../v040/core/constants.mjs";
 
 import {
   clearAccountSession,
@@ -23,6 +24,20 @@ const authPayload = {
   expires_in: 3600,
   user: { id: "8dc8d384-a565-4ef7-bcb6-6a81caf9bf91", email: "person@example.com" },
 };
+
+test("platform requests declare the current web build rather than a stale release", async () => {
+  const requests = [];
+  const client = createAccountClient({
+    storage: memoryStorage(),
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return { ok: true, json: async () => ({ ok: true, auth: { enabled: false } }) };
+    },
+  });
+  await client.fetchPlatformConfig();
+  assert.equal(requests[0].options.headers["X-FitCoach-Build"], BUILD);
+  assert.equal(requests[0].options.cache, "no-store");
+});
 
 test("account session uses session storage and can be cleared", () => {
   const storage = memoryStorage();

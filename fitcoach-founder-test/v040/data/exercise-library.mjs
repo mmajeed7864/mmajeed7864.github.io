@@ -523,6 +523,7 @@ export function getExerciseById(id) {
 export function filterExercises(filters = {}) {
   const normalizedQuery = String(filters.query || "").trim().toLocaleLowerCase();
   const normalizedEquipment = String(filters.equipment || "").trim().toLocaleLowerCase()
+    .replace(/^none$/, "bodyweight")
     .replace(/dumbbells?/g, "dumbbell")
     .replace(/kettlebells?/g, "kettlebell");
   return EXERCISES.filter((item) => {
@@ -534,6 +535,7 @@ export function filterExercises(filters = {}) {
       (!filters.primaryMuscle || item.primaryMuscles.includes(filters.primaryMuscle)) &&
       (!filters.secondaryMuscle || item.secondaryMuscles.includes(filters.secondaryMuscle)) &&
       (!normalizedEquipment || item.equipment.some(equipment => String(equipment).toLocaleLowerCase()
+        .replace(/^none$/, "bodyweight")
         .replace(/dumbbells?/g, "dumbbell")
         .replace(/kettlebells?/g, "kettlebell") === normalizedEquipment)) &&
       (!filters.location || item.location.includes(filters.location)) &&

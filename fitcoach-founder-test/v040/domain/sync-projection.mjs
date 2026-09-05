@@ -27,6 +27,7 @@ export const OMITTED_SYNC_FIELDS = Object.freeze([
   "chat",
   "memories",
   "socialDrafts",
+  "hydration",
   "lastApi",
   "founder",
   "migration",

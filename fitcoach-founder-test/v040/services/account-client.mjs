@@ -1,3 +1,5 @@
+import { BUILD } from "../core/constants.mjs";
+
 const DEFAULT_API_BASE = "https://symbioai.dev/api";
 const SESSION_STORAGE_KEY = "fitcoach-v054-auth-session";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
@@ -201,7 +203,7 @@ export function createAccountClient({
     try {
       const response = await fetchImpl(`${apiBase}/fitcoach-platform-config-v1`, {
         method: "GET",
-        headers: { Accept: "application/json", "X-FitCoach-Build": "0.5.4" },
+        headers: { Accept: "application/json", "X-FitCoach-Build": BUILD },
         cache: "no-store",
         signal,
       });
@@ -297,7 +299,7 @@ export function createAccountClient({
         Accept: "application/json",
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
-        "X-FitCoach-Build": "0.5.4",
+        "X-FitCoach-Build": BUILD,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
