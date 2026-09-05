@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createInitialState } from "../v040/core/store.mjs";
 import { EXERCISES, filterExercises, getExerciseById } from "../v040/data/exercise-library.mjs";
 import { buildPlan, startWorkoutFromPlan } from "../v040/domain/workouts.mjs";
@@ -117,6 +118,17 @@ test("reviewed motion remains playable while rejected motion stays quarantined",
   const rejected = renderTrainScreen(context({ ui: { exerciseDetailId: "hollow-body-hold", motionPaused: false } }));
   assert.doesNotMatch(rejected, /<video\b/);
   assert.match(rejected, /data-media-image/);
+});
+
+test("exercise details override legacy dark inheritance and keep the guide before supporting sections", () => {
+  const css = readFileSync(new URL("../v040/ui/train-v060.css", import.meta.url), "utf8");
+  assert.match(css, /\.train-page\.exercise-detail-page \{[^}]*color: var\(--text\);[^}]*background: transparent;/u);
+  for (const [selector, order] of [["exercise-detail-nav",0], ["exercise-detail-visual",1], ["training-detail-heading",2], ["training-detail-action",3], ["training-detail-facts",4], ["training-key-cue",5], ["training-detail-sections",6], ["preference-controls",7]]) {
+    assert.ok(css.includes(`.exercise-detail-page .training-detail > .${selector} { order: ${order};`), `${selector} must have an explicit position unaffected by legacy order rules`);
+  }
+  assert.match(css, /\.exercise-detail-page \.training-detail \.preference-controls b \{ color: var\(--text\); \}/u);
+  assert.match(css, /\.exercise-detail-page \.training-detail \.preference-controls small \{ color: var\(--muted\); \}/u);
+  assert.match(css, /\.exercise-detail-page \.training-detail \.preference-controls \.filter-chip \{ color: var\(--text\); background: var\(--surface-2\);/u);
 });
 
 test("paused logbook protects edits and retains units, notes, error and rest state", () => {

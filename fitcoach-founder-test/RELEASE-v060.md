@@ -1,5 +1,11 @@
 # FitCoach 0.6.0 — a visual redesign, with the product preserved
 
+### 0.6.1 release verification patch
+
+Postdeployment checking found exercise detail still inherited dark legacy colors and layout ordering. The follow-up restores theme-aware text and surfaces, places navigation and media before supporting instructions, and makes preference controls legible. The short coach composer prompt no longer wraps into its one-row input. Web build and cache generation are now `0.6.1` / `0601` so an installed 0.6.0 shell receives the corrected assets. No stored data or motion playback behavior changes.
+
+The follow-up passes 339 web tests and the complete bundle check. Separately, coach server renderer `2026-09-04.1` was deployed after 82 server tests, build/lint checks, and full/production dependency audits with zero vulnerabilities. A live synthetic question returned the new renderer through DeepSeek without fallback, and ElevenLabs returned HTTP 200 with MPEG audio. This verifies the provider path, not a physical-device microphone or headphone session.
+
 ## Release scope
 
 This is a web UI release, not a replacement app or a claim of native store readiness. Existing local storage keys, saved sessions, routines, nutrition entries, approvals, progress photos, and settings retain their existing contracts. No database migration, provider activation, store submission, or payment configuration is part of this release.

@@ -4,8 +4,8 @@ import test from "node:test";
 import vm from "node:vm";
 
 const ORIGIN = "https://fitcoach.test";
-const SHELL_CACHE = "fitcoach-symbio-v0600";
-const MEDIA_CACHE = "fitcoach-exercise-images-v0600";
+const SHELL_CACHE = "fitcoach-symbio-v0601";
+const MEDIA_CACHE = "fitcoach-exercise-images-v0601";
 
 function requestKey(value) {
   if (value instanceof Request) return value.url;
