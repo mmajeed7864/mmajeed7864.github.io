@@ -129,6 +129,8 @@ test("exercise details override legacy dark inheritance and keep the guide befor
   assert.match(css, /\.exercise-detail-page \.training-detail \.preference-controls b \{ color: var\(--text\); \}/u);
   assert.match(css, /\.exercise-detail-page \.training-detail \.preference-controls small \{ color: var\(--muted\); \}/u);
   assert.match(css, /\.exercise-detail-page \.training-detail \.preference-controls \.filter-chip \{ color: var\(--text\); background: var\(--surface-2\);/u);
+  assert.match(css, /\.exercise-detail-page \.training-detail \.muscle-cloud strong,[\s\S]*?\{ color: #2052d6; \}/u);
+  assert.match(css, /html\[data-theme="dark"\] \.exercise-detail-page \.training-detail \.muscle-cloud strong,[\s\S]*?\{ color: #8ab5ff; \}/u);
 });
 
 test("paused logbook protects edits and retains units, notes, error and rest state", () => {

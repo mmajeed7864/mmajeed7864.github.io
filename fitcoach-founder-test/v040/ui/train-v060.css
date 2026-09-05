@@ -191,6 +191,12 @@
 .exercise-detail-page .training-detail .preference-controls small { color: var(--muted); }
 .exercise-detail-page .training-detail .preference-controls .filter-chip { color: var(--text); background: var(--surface-2); border: 1px solid var(--border); }
 .exercise-detail-page .training-detail .preference-controls .filter-chip.active { color: #fff; background: var(--action); border-color: var(--action); }
+.exercise-detail-page .training-detail .muscle-cloud strong,
+.exercise-detail-page .training-detail .training-key-cue small,
+.exercise-detail-page .training-detail .training-detail-facts > button { color: #2052d6; }
+html[data-theme="dark"] .exercise-detail-page .training-detail .muscle-cloud strong,
+html[data-theme="dark"] .exercise-detail-page .training-detail .training-key-cue small,
+html[data-theme="dark"] .exercise-detail-page .training-detail .training-detail-facts > button { color: #8ab5ff; }
 .exercise-detail-page .training-detail .exercise-detail-visual .guide-stage { padding: 0; }
 .exercise-detail-page .training-detail .exercise-detail-visual .exercise-motion,
 .exercise-detail-page .training-detail .exercise-detail-visual .exercise-poster { margin: 0; min-height: 0; border: 0; border-radius: 0; }
