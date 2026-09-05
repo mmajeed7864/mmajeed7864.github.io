@@ -1,5 +1,11 @@
 # FitCoach 0.6.0 — a visual redesign, with the product preserved
 
+### 0.6.2 reliable app-help patch
+
+Live model testing still produced contradictory descriptions of the app's navigation abilities. Clear questions about FitCoach's own capabilities now receive truthful on-device help rather than a model-invented capability summary. These informational replies do not navigate, mutate data, enter provider history, or pretend to be a live AI response. Ordinary coaching questions still use the checked live provider. Both text and voice retain this distinction. Build/cache `0.6.2` / `0602` delivers the final behavior to installed shells.
+
+The final web suite passes 343 tests, including real text/voice handlers, generic and app-specific help questions, rejected off-topic/private variants, null-action behavior, and provider-history isolation.
+
 ### 0.6.1 release verification patch
 
 Postdeployment checking found exercise detail still inherited dark legacy colors and layout ordering. The follow-up restores theme-aware text and surfaces, places navigation and media before supporting instructions, and makes preference controls legible. The short coach composer prompt no longer wraps into its one-row input. Web build and cache generation are now `0.6.1` / `0601` so an installed 0.6.0 shell receives the corrected assets. No stored data or motion playback behavior changes.

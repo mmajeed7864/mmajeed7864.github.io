@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0601";
+const GENERATION = "0602";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -133,7 +133,7 @@ function syntaxCheck(file) {
   const maximumRuntimeImageBytes = Math.max(0, ...runtimeImages.map(media => Number(media.bytes) || 0));
   if (posterGuides.length !== 17) bad("media manifest must retain all seventeen premium poster guides");
   if (motionGuides.length !== 59) bad("media manifest must contain the fifty-nine reviewed motion guides while the rejected clip stays quarantined");
-  if (!sw.includes('const MEDIA_CACHE = "fitcoach-exercise-images-v0601";') || !sw.includes("const MAX_MEDIA_ENTRIES = 12;")) {
+  if (!sw.includes('const MEDIA_CACHE = "fitcoach-exercise-images-v0602";') || !sw.includes("const MAX_MEDIA_ENTRIES = 12;")) {
     bad("runtime exercise images must use the separate bounded twelve-entry cache");
   } else if (maximumRuntimeImageBytes > (2.5 * 1024 * 1024) || (maximumRuntimeImageBytes * 12) > (30 * 1024 * 1024)) {
     bad("bounded runtime exercise-image cache exceeds the 30 MiB release budget");

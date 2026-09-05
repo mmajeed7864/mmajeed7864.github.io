@@ -370,3 +370,93 @@ test("actual voice fallback resolves the current exercise but commits the origin
   assert.equal(ui.voiceDocked, true);
   assert.deepEqual(store.get().activeWorkout, before);
 });
+
+test("precise app-capability questions return truthful local help with an explicit null action", () => {
+  const state = fixture(true);
+  const before = JSON.stringify(state);
+  const questions = [
+    "What can you help me do in FitCoach? Keep it concise.",
+    "What can you do inside FitCoach? Can you open my workout, food diary, progress, and exercise guides? Answer briefly.",
+    "What can you do in FitCoach?", "What can you help me with in this app?",
+    "Which FitCoach sections can you open?", "Can you open my workout, food diary, progress, and exercise guides?",
+    "  WHAT CAN YOU DO WITHIN FITCOACH? Please answer concisely!  ",
+    "What can you do?", "What can you help me with?", "How can you help me?",
+    "What are your capabilities?", "What can FitCoach do?",
+    "What can you do? Keep it brief.", "How can you help me? Answer briefly.",
+  ];
+  for (const message of questions) {
+    const result = localCoachCommand({ state, message, exercises: EXERCISES });
+    assert.equal(result?.status, "ready", message);
+    assert.equal(result.localCommand, true);
+    assert.equal(result.provider, "on-device");
+    assert.equal(result.model, "fitcoach-tools-v1");
+    assert.equal(result.action, null);
+    assert.ok(Object.hasOwn(result, "action"));
+    assert.match(result.reply, /I can open your workout, today’s food diary, progress, and exercise guides/);
+    assert.match(result.reply, /only after approval/);
+    assert.match(result.reply, /drafts until you confirm/);
+    assert.doesNotMatch(result.reply, /I (?:have |just )?opened|day one|first day|low energy|you reported|already changed/i);
+  }
+  assert.equal(JSON.stringify(state), before);
+});
+
+test("app help does not intercept exercise, health, private, negated, or mixed-intent questions", () => {
+  const state = fixture(true);
+  const questions = [
+    "What can you help me do for knee pain?", "What can you help me do with an Air Squat?",
+    "What can you do in FitCoach for my medication?", "What can you do in FitCoach? My password is secret123.",
+    "Don't tell me what you can do in FitCoach.", "What can you do in FitCoach? Don't open my workout.",
+    "What can you do in FitCoach? Open my workout.", "What can you do in FitCoach? Is this exercise safe for chest pain?",
+    "What can you do in FitCoach? Explain Air Squat.", "What can you do in FitCoach? Send my diary to a friend.",
+    "Can you open my workout, food diary, progress, and exercise guides without my permission?",
+    "What can you do in FitCoach? Keep it concise. Delete my data.",
+    "How can you help me with squats?", "What can you do? I have knee pain.",
+    "What are your capabilities for diagnosing injuries?", "What can FitCoach do for my medication?",
+    "What should I train today?", "Can you help me get stronger?",
+  ];
+  for (const message of questions) assert.equal(localCoachCommand({ state, message, exercises: EXERCISES }), null, message);
+});
+
+test("actual text capability help never calls AI, derives an action, navigates, or leaks into provider history", async () => {
+  const { sandbox, store, storage, calls, ui } = appHarness({ active: true });
+  const before = store.get();
+  const modal = ui.modal;
+  sandbox.deriveTrainerAction = () => { throw new Error("Local help must not derive a fallback action"); };
+  const message = "What can you do inside FitCoach? Can you open my workout, food diary, progress, and exercise guides? Answer briefly.";
+  await sandbox.sendChat(message);
+  assert.equal(calls.provider.length, 0);
+  assert.equal(calls.urls.length, 0);
+  assert.equal(ui.route, "coach");
+  assert.equal(ui.modal, modal);
+  assert.equal(ui.chatBusy, false);
+  const reloaded = createFitCoachStore({ storage }).load();
+  assert.equal(reloaded.chat[0].text, message);
+  assert.equal(reloaded.chat[1].action, null);
+  assert.ok(reloaded.chat.every(item => !item.providerEligible && item.contractVersion === "fitcoach-local-tools-v1"));
+  assert.deepEqual(reloaded.activeWorkout, before.activeWorkout);
+  assert.deepEqual(reloaded.activePlan, before.activePlan);
+  assert.deepEqual(reloaded.pendingPlanProposal, before.pendingPlanProposal);
+  assert.deepEqual(reloaded.lastApi, before.lastApi);
+  assert.deepEqual(createTrainerPayload({ state: reloaded, message: "How do I build consistency?", storage, now: NOW }).conversation, []);
+});
+
+test("actual voice capability help speaks without AI, navigation, action chips, or remote-history eligibility", async () => {
+  const { sandbox, store, calls, ui } = appHarness({ active: true, voiceActive: true });
+  const before = store.get();
+  sandbox.deriveTrainerAction = () => { throw new Error("Voice help must preserve explicit null action"); };
+  const transcript = "What can you help me do in FitCoach? Keep it concise.";
+  const reply = await sandbox.voiceOptions.requestTurn({ transcript, signal: new AbortController().signal });
+  assert.equal(calls.provider.length, 0);
+  assert.equal(reply.speak, true);
+  sandbox.voiceOptions.onCommitTurn({ transcript, reply: reply.text });
+  assert.equal(calls.urls.length, 0);
+  assert.equal(calls.openedVoice, 0);
+  assert.equal(ui.route, "coach");
+  assert.equal(ui.voiceDocked, false);
+  assert.equal(store.get().chat[0].text, transcript);
+  assert.equal(store.get().chat[1].action, null);
+  assert.ok(store.get().chat.every(item => !item.providerEligible && item.contractVersion === "fitcoach-local-tools-v1"));
+  assert.deepEqual(store.get().lastApi, before.lastApi);
+  assert.deepEqual(store.get().activeWorkout, before.activeWorkout);
+  assert.deepEqual(createTrainerPayload({ state: store.get(), message: "How do I build consistency?", now: NOW }).conversation, []);
+});

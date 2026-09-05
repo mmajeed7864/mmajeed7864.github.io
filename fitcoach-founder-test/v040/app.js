@@ -887,7 +887,7 @@ async function sendChat(raw = null) {
     render();
     return;
   }
-  const trainerAction = result.action || deriveTrainerAction({ state: store.get(), message, exercises: EXERCISES });
+  const trainerAction = result.localCommand ? result.action ?? null : result.action || deriveTrainerAction({ state: store.get(), message, exercises: EXERCISES });
   const at = new Date().toISOString();
   const userMessage = { id: uid("message"), role: "user", text: message, at };
   const coachMessage = { id: uid("message"), role: "coach", text: result.reply, at: new Date().toISOString(), provider: result.provider, model: result.model, speakAllowed: result.speakAllowed, action: trainerAction };
@@ -901,7 +901,7 @@ async function sendChat(raw = null) {
   });
   ui.chatNotice = null;
   render();
-  if (result.localCommand) { executeTrainerAction(trainerAction); toast(trainerAction.label); }
+  if (result.localCommand && trainerAction) { executeTrainerAction(trainerAction); toast(trainerAction.label); }
   if (state.settings.speakReplies && result.speakAllowed) speakText(coachMessage.text,{messageId:coachMessage.id});
 }
 
@@ -927,7 +927,7 @@ const voiceController = createVoiceRoomController({
   },
   onCommitTurn: turn => {
     const meta = voiceLastMetadata || {};
-    const trainerAction = meta.action || deriveTrainerAction({ state: store.get(), message: turn.transcript, exercises: EXERCISES });
+    const trainerAction = meta.localCommand ? meta.action ?? null : meta.action || deriveTrainerAction({ state: store.get(), message: turn.transcript, exercises: EXERCISES });
     state = store.update(draft => {
       draft.chat.push(
         { id: uid("message"), role: "user", text: turn.transcript, at: new Date().toISOString(), source: "voice-transcript", providerEligible: !meta.localCommand, contractVersion: meta.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3" },
