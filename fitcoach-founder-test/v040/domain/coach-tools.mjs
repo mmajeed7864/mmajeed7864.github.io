@@ -1,12 +1,22 @@
 import { deriveTrainerAction } from "./trainer-actions.mjs";
 import { isPrivateTrainerInput, normalizeTrainerMessage } from "../services/trainer-client.mjs";
 
-// Only complete, explicit UI commands run locally. Questions, negations,
-// medical/sensitive text, and ambiguous phrases still use the existing trainer
-// path and its safety checks. This is not an unrestricted model tool executor.
+// Only complete, explicit UI commands and narrowly scoped app-help questions
+// run locally. Training questions, negations, medical/sensitive text, and
+// ambiguous phrases still use the existing trainer path and its safety checks.
 const NAVIGATION = /^(?:please\s+)?(?:open|show(?:\s+me)?|pull\s+up|bring\s+up|take\s+me\s+to)\s+(?:(?:my|the|today['’]?s)\s+)?(?:workout|plan|progress|workout\s+history|nutrition|food\s+(?:diary|log)|nutrition\s+diary|voice\s+room)(?:\s+(?:for\s+today|please))?$/iu;
 const RESUME = /^(?:please\s+)?(?:resume|return\s+to|take\s+me\s+back\s+to)\s+(?:(?:my|the)\s+)?(?:workout|session)$/iu;
 const MINUTES = /^(?:i\s+(?:only\s+)?have\s+(?:12|20|30|45|60)\s+minutes?(?:\s+today)?|(?:please\s+)?make\s+(?:(?:my|the|today['’]?s)\s+)?workout\s+(?:12|20|30|45|60)\s+minutes?)$/iu;
+const APP_HELP = /^(?:please\s+)?(?:what\s+can\s+you\s+(?:do|help\s+me\s+(?:do|with))(?:\s+(?:in|inside|within)\s+(?:fitcoach|this\s+app))?|how\s+can\s+you\s+help\s+me|what\s+are\s+your\s+capabilities|what\s+can\s+fitcoach\s+do|which\s+(?:fitcoach|app)\s+sections\s+can\s+you\s+open)$/iu;
+const APP_SECTIONS = /^can\s+you\s+open\s+(?:my\s+)?workout,\s*(?:my\s+)?food\s+diary,\s*(?:my\s+)?progress,?\s+and\s+(?:my\s+)?exercise\s+guides$/iu;
+const BRIEF_HELP = /^(?:please\s+)?(?:keep\s+it\s+(?:brief|concise)|answer\s+(?:briefly|concisely))$/iu;
+
+function isAppHelpQuestion(text) {
+  const parts = text.split(/[.!?]+/u).map(part => part.trim()).filter(Boolean);
+  if (!APP_HELP.test(parts[0] || "") && !APP_SECTIONS.test(parts[0] || "")) return false;
+  if (APP_HELP.test(parts[0]) && APP_SECTIONS.test(parts[1] || "")) parts.splice(1, 1);
+  return parts.length === 1 || (parts.length === 2 && BRIEF_HELP.test(parts[1]));
+}
 
 export function contextualCoachMessage({ state, message, exercises }) {
   const text = normalizeTrainerMessage(message);
@@ -32,6 +42,17 @@ function isGuideCommand(message, action, exercises) {
 export function localCoachCommand({ state, message, exercises }) {
   const text = normalizeTrainerMessage(message).replace(/[.!?]+$/u, "").trim();
   if (!text || isPrivateTrainerInput(text)) return null;
+  if (isAppHelpQuestion(text)) {
+    return Object.freeze({
+      status: "ready",
+      reply: "I can open your workout, today’s food diary, progress, and exercise guides. Try “Open my workout,” “Show my food diary,” or “Open Air Squat.” You can keep Voice Room active while using the app. Ask for a 20-minute workout to review an option; your plan changes only after approval. Food estimates stay drafts until you confirm them.",
+      action: null,
+      provider: "on-device",
+      model: "fitcoach-tools-v1",
+      speakAllowed: true,
+      localCommand: true,
+    });
+  }
   const canonical = RESUME.test(text) ? "show my workout"
     : MINUTES.test(text) ? `make my workout ${text.match(/\b(?:12|20|30|45|60)\b/u)[0]} minutes`
     : text.replace(/^(?:please\s+)?(?:bring\s+up|pull\s+up|take\s+me\s+to)\s+/iu, "show ");
