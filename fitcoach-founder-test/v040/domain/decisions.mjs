@@ -19,7 +19,10 @@ export function sessionsThisWeek(state, now = new Date()) {
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   monday.setHours(0, 0, 0, 0);
   return (state.sessions || []).filter(session => {
-    const date = new Date(session.completedAt || session.date);
+    const value = session.completedAt || session.date;
+    const date = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/u.test(value)
+      ? new Date(`${value}T00:00:00`)
+      : new Date(value);
     return date >= monday && date <= now;
   });
 }

@@ -43,14 +43,12 @@ export function macroBar(label, value, target, unit = "g") {
   return `<div class="macro-bar fuel-macro" data-macro="${escapeHtml(label.toLowerCase())}"><span class="macro-name">${escapeHtml(label)}</span><span class="fuel-macro-value"><b>${Math.round(value)}</b><small> / ${Math.round(target)} ${escapeHtml(unit)}</small></span><i class="macro-track" aria-hidden="true"><em style="width:${percent}%"></em></i></div>`;
 }
 
-function calorieRing(totals, targets) {
+function calorieLedger(totals, targets) {
   const percent = Math.max(0, Math.min(100, targets.calories ? (totals.calories / targets.calories) * 100 : 0));
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - percent / 100);
-  return `<div class="calorie-ring fuel-ring" role="img" aria-label="${kcalRound(totals.calories)} of ${kcalRound(targets.calories)} target calories confirmed">
-    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="ring-track" cx="60" cy="60" r="${radius}"/><circle class="ring-value" cx="60" cy="60" r="${radius}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/></svg>
-    <span aria-hidden="true"><small>LOGGED</small><b>${kcalRound(totals.calories)}</b><small>kcal</small></span>
+  return `<div class="fuel-ledger" role="img" aria-label="${kcalRound(totals.calories)} of ${kcalRound(targets.calories)} target calories confirmed">
+    <div class="fuel-ledger-label" aria-hidden="true"><span>CONFIRMED ENERGY</span><span>kcal</span></div>
+    <b class="fuel-ledger-number" aria-hidden="true">${kcalRound(totals.calories)}</b>
+    <div class="fuel-ledger-meter" aria-hidden="true"><span style="width:${percent.toFixed(2)}%"></span></div>
   </div>`;
 }
 
@@ -80,7 +78,7 @@ function mealSlotCard(slot, day, dateKey, { yesterdayHasSlot }) {
   const totals = slotTotals(day, slot);
   const confirmedCount = entries.filter(entry => entry.status === "confirmed").length;
   return `<article class="fuel-meal" data-slot="${escapeHtml(slot)}">
-    <header class="fuel-meal-head"><span class="fuel-meal-visual fuel-meal-${escapeHtml(slot)}">${mealIllustration(slot)}</span><span class="fuel-meal-copy"><small class="sr-only">${escapeHtml(MEAL_SLOT_LABELS[slot].toUpperCase())}</small><h3>${escapeHtml(MEAL_SLOT_LABELS[slot])}</h3><small>${confirmedCount ? `${confirmedCount} food${confirmedCount === 1 ? "" : "s"} · ${kcalRound(totals.calories)} kcal` : entries.length ? "A draft is ready to review" : "Ready when you are"}</small></span>
+    <header class="fuel-meal-head"><span class="fuel-meal-number" aria-hidden="true">${String(MEAL_SLOTS.indexOf(slot) + 1).padStart(2, "0")}</span><span class="fuel-meal-visual fuel-meal-${escapeHtml(slot)}">${mealIllustration(slot)}</span><span class="fuel-meal-copy"><small class="sr-only">${escapeHtml(MEAL_SLOT_LABELS[slot].toUpperCase())}</small><h3>${escapeHtml(MEAL_SLOT_LABELS[slot])}</h3><small>${confirmedCount ? `${confirmedCount} food${confirmedCount === 1 ? "" : "s"} · ${kcalRound(totals.calories)} kcal` : entries.length ? "A draft is ready to review" : "Ready when you are"}</small></span>
       <button class="fuel-meal-add" data-action="nutrition-open-add" data-value="${escapeHtml(slot)}" aria-label="Add food to ${escapeHtml(MEAL_SLOT_LABELS[slot])}">${icon("plus")}</button>
     </header>
     ${entries.length ? `<div class="food-rows fuel-food-rows">${entries.map(entry => foodRow(entry, dateKey)).join("")}</div>` : ""}
@@ -112,28 +110,30 @@ export function renderNutritionScreen({ state, ui, now = new Date() }) {
   const yesterdayKey = localDateKey(yesterday);
   const yesterdayDay = nutrition.days[yesterdayKey];
   const overTarget = remaining.calories < 0;
-  return `<div class="page nutrition-page fuel-page">
-    <header class="fuel-page-heading"><div><span class="fuel-eyebrow">NUTRITION DIARY</span><h1>Fuel your day.</h1><p>Good food. A little more clarity.</p></div></header>
+  return `<div class="page nutrition-page fuel-page fuel-v070">
+    <header class="fuel-page-heading"><div><span class="fuel-eyebrow">FOOD / NUTRITION DIARY</span><h1>Fuel your day.</h1></div><span class="fuel-editorial-mark" aria-hidden="true">${mealIllustration("dinner")}</span><p>Eat. Train. Repeat.<br><span>Your food, with a little more clarity.</span></p></header>
     <div class="fuel-date-row"><div class="fuel-date-nav" role="group" aria-label="Diary date"><button data-action="nutrition-day" data-value="-1" aria-label="Previous day">${icon("chevron", "flip")}</button><b>${escapeHtml(dateLabel(dateKey, now))}</b><button data-action="nutrition-day" data-value="1" aria-label="Next day" ${dateKey >= todayKey ? "disabled" : ""}>${icon("chevron")}</button></div><button class="fuel-target-button" data-action="nutrition-open-targets">Edit targets</button></div>
+    <div class="fuel-editorial-layout"><div class="fuel-dashboard">
+    <div class="fuel-add-actions"><button class="fuel-search-food" data-action="nutrition-open-add" data-value="">${icon("search")}<span>Find & add food</span>${icon("plus")}</button><button class="fuel-barcode" data-action="nutrition-open-add" data-value="" data-focus="barcode" aria-label="Look up a food barcode">${icon("barcode")}<span>Barcode</span></button></div>
     <section class="fuel-summary" aria-label="Daily nutrition summary">
       <div class="fuel-energy">
-        ${calorieRing(totals, targets)}
-        <div class="fuel-energy-copy"><span class="fuel-eyebrow">DAILY ENERGY</span><p><b>${kcalRound(Math.abs(remaining.calories))}</b><span>kcal ${overTarget ? "above target" : "remaining"}</span></p><span class="fuel-energy-target">${kcalRound(targets.calories)} kcal ${targets.userSet ? "daily target" : "starting target"}</span>${overTarget ? '<small class="fuel-energy-note">One day is part of a bigger picture.</small>' : ""}</div>
+        ${calorieLedger(totals, targets)}
+        <div class="fuel-energy-copy"><p><b>${kcalRound(Math.abs(remaining.calories))}</b><span>kcal ${overTarget ? "above target" : "remaining"}</span></p><span class="fuel-energy-target">${kcalRound(targets.calories)} kcal<br>${targets.userSet ? "daily target" : "starting target"}</span></div>${overTarget ? '<small class="fuel-energy-note">One day is part of a bigger picture.</small>' : ""}
       </div>
       <div class="fuel-macros" aria-label="Confirmed macronutrients">${macroBar("Protein", totals.protein, targets.protein)}${macroBar("Carbs", totals.carbs, targets.carbs)}${macroBar("Fat", totals.fat, targets.fat)}</div>
       <p class="fuel-counting-note">${targets.userSet ? "Confirmed food only" : "Starting targets · yours to edit"}</p>
     </section>
-    <div class="fuel-add-actions"><button class="fuel-search-food" data-action="nutrition-open-add" data-value="">${icon("search")}<span>Find & add food</span>${icon("plus")}</button><button class="fuel-barcode" data-action="nutrition-open-add" data-value="" data-focus="barcode" aria-label="Look up a food barcode">${icon("barcode")}<span>Barcode</span></button></div>
     ${drafts ? `<button class="draft-chip fuel-draft-review" data-action="nutrition-first-draft"><span class="fuel-draft-icon">${icon("info")}</span><span><b>${drafts} draft${drafts === 1 ? "" : "s"} to review</b><small>Not counted until you confirm</small></span>${icon("chevron")}</button>` : ""}
     ${quickFoodRail(nutrition)}
-    <section class="fuel-diary" aria-labelledby="fuel-diary-title"><header class="fuel-section-heading"><h2 id="fuel-diary-title">On the menu</h2><small>${confirmedFoods} food${confirmedFoods === 1 ? "" : "s"} logged</small></header><div class="fuel-meals">${MEAL_SLOTS.map(slot => mealSlotCard(slot, day, dateKey, {
+    </div><div class="fuel-journal">
+    <section class="fuel-diary" aria-labelledby="fuel-diary-title"><header class="fuel-section-heading"><h2 id="fuel-diary-title">The food journal</h2><small>${confirmedFoods} food${confirmedFoods === 1 ? "" : "s"} logged</small></header><div class="fuel-meals">${MEAL_SLOTS.map(slot => mealSlotCard(slot, day, dateKey, {
       yesterdayHasSlot: Boolean((yesterdayDay?.entries || []).some(entry => entry.slot === slot && entry.status === "confirmed")),
     })).join("")}</div></section>
     <details class="fuel-notes"><summary><span>${icon("info")}About your food data</span>${icon("chevron")}</summary><div class="fuel-notes-content">
       <p>${escapeHtml(NUTRITION_DISCLAIMER)}</p>
       <ul><li>Totals count confirmed entries only — drafts always count zero</li><li>Photo and text estimates are early previews and always require your review</li><li>Targets are yours to set; FitCoach never prescribes a diet</li><li>Photos never leave this device and are never stored — only name and size metadata</li></ul>
       <button class="fuel-preview-button" data-action="nutrition-open-capture" data-value="">${icon("camera")}<span>Try photo draft preview</span></button><small>Photo recognition is not active. This creates an editable example.</small>
-    </div></details>
+    </div></details></div></div>
   </div>`;
 }
 

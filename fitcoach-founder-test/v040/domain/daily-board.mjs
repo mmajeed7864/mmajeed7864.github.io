@@ -3,8 +3,11 @@ import { sessionsThisWeek } from "./decisions.mjs";
 import { dayTotals, draftCount } from "./nutrition.mjs";
 
 function sameLocalDay(value, now) {
-  const date = new Date(value || "");
-  return Number.isFinite(date.getTime()) && localDateKey(date) === localDateKey(now);
+  // Legacy receipts store a local calendar day, not midnight UTC.
+  const date = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/u.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value || "");
+  return Number.isFinite(date.getTime()) && date <= now && localDateKey(date) === localDateKey(now);
 }
 
 export function buildDailyBoard(state, plan, now = new Date()) {

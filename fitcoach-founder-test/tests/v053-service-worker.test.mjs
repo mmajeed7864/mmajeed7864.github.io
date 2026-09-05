@@ -4,8 +4,8 @@ import test from "node:test";
 import vm from "node:vm";
 
 const ORIGIN = "https://fitcoach.test";
-const SHELL_CACHE = "fitcoach-symbio-v0602";
-const MEDIA_CACHE = "fitcoach-exercise-images-v0602";
+const SHELL_CACHE = "fitcoach-symbio-v0700";
+const MEDIA_CACHE = "fitcoach-exercise-images-v0700";
 
 function requestKey(value) {
   if (value instanceof Request) return value.url;
@@ -149,6 +149,18 @@ function createHarness({ fetchImpl } = {}) {
 function posterRequest(index, search = "") {
   return new Request(`${ORIGIN}/fitcoach-founder-test/v040/assets/exercises/generated/poster-${index}.png${search}`);
 }
+
+test("self-hosted editorial fonts and cover images remain usable offline after install", async () => {
+  const harness = createHarness({ fetchImpl: async () => { throw new Error("offline"); } });
+  await harness.dispatchLifecycle("install");
+  for (const asset of ["fonts/BarlowCondensed-Bold.ttf", "fonts/Manrope-Variable.ttf", "brand/club-day-v070-640.webp", "brand/club-day-v070-1200.webp"]) {
+    const request = new Request(`${ORIGIN}/fitcoach-founder-test/v040/assets/${asset}`);
+    const response = await harness.beginFetch(request).complete();
+    assert.ok(response, `${asset} must be routed through the shell cache`);
+    assert.equal(await response.text(), "precache");
+  }
+  assert.equal(harness.fetchCalls.length, 0);
+});
 
 test("runtime poster cache evicts the oldest image and never exceeds twelve entries", async () => {
   const harness = createHarness();

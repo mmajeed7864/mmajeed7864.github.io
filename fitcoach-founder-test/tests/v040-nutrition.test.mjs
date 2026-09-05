@@ -426,7 +426,8 @@ test("nutrition screen renders dashboard, meal cards, drafts, and capture entry 
   addEntryToDay(state.nutrition, todayKey, photoDraft());
   const html = renderNutritionScreen({ state, ui: { nutritionDate: null }, now: new Date() });
   assert.match(html, /NUTRITION DIARY/u, "dashboard header renders");
-  assert.match(html, /calorie-ring/u, "calorie ring renders");
+  assert.match(html, /class="fuel-ledger" role="img" aria-label="280 of 2,200 target calories confirmed"/u, "energy ledger exposes confirmed-only totals");
+  assert.match(html, /class="fuel-ledger-meter" aria-hidden="true"><span style="width:12\.73%"/u, "energy meter reflects the confirmed share of the target");
   assert.match(html, /macro-bar/u, "macro bars render");
   for (const label of ["BREAKFAST", "LUNCH", "DINNER", "SNACKS"]) assert.ok(html.includes(label), `${label} meal card renders`);
   assert.match(html, /nutrition-open-capture/u, "scan entry point renders");
