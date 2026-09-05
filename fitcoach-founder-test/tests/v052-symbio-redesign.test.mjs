@@ -51,8 +51,8 @@ test("coach style and memory sections render as persistent disclosures with all 
     ui: { disclosures: { "coach-style": true }, chatBusy: false, chatDraft: "" },
     coachConnection: { label: "Ready", state: "unverified" },
   });
-  assert.match(html, /<details class="coach-disclosure coach-personality card" data-disclosure="coach-style" open>/u);
-  assert.match(html, /<details class="coach-disclosure trainer-memory card" data-disclosure="coach-memory" >/u);
+  assert.match(html, /<details class="coach-disclosure coach-personality" data-disclosure="coach-style" open>/u);
+  assert.match(html, /<details class="coach-disclosure trainer-memory" data-disclosure="coach-memory" >/u);
   assert.match(html, /aria-label="Trainer tone"/u);
   assert.match(html, /aria-label="Answer length"/u);
   assert.match(html, /aria-label="Trainer voice"/u);
@@ -67,13 +67,13 @@ test("onboarding boundary step keeps the doctor-first medical guidance", () => {
   assert.match(source, /FitCoach is not medical care/u);
 });
 
-test("version and cache generation agree at 0.6.2 / 0602", async () => {
+test("version and cache generation agree at 0.7.0 / 0700", async () => {
   const constants = await import("../v040/core/constants.mjs");
-  assert.equal(constants.BUILD, "0.6.2");
-  assert.equal(constants.CACHE_GENERATION, "0602");
+  assert.equal(constants.BUILD, "0.7.0");
+  assert.equal(constants.CACHE_GENERATION, "0700");
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE = "fitcoach-symbio-v0602";/u);
+  assert.match(sw, /const CACHE = "fitcoach-symbio-v0700";/u);
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>FitCoach v0\.6\.2<\/title>/u);
+  assert.match(html, /<title>FitCoach v0\.7\.0<\/title>/u);
   assert.doesNotMatch(html, /v=0500/u);
 });

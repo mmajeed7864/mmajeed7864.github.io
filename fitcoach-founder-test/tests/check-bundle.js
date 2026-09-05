@@ -5,7 +5,7 @@ const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const GENERATION = "0602";
+const GENERATION = "0700";
 const APP_SCOPE = "https://fitcoach.invalid/fitcoach-founder-test/";
 const corruptionPattern = /[\x00-\x08\x0E-\x1F\uFFFD]/g;
 const failures = [];
@@ -81,7 +81,7 @@ function syntaxCheck(file) {
   if (corrupted.length) bad(`module graph contains corruption bytes: ${corrupted.join(", ")}`);
   else ok("module graph contains no corruption bytes");
 
-  for (const stylesheet of ["v040/styles.css", "v040/premium-redesign.css", "v040/design-system-v060.css", "v040/ui/nutrition-v060.css", "v040/ui/train-v060.css", "v040/ui/progress-v060.css", "v040/ui/coach-v060.css", "v040/ui/profile-v060.css"]) {
+  for (const stylesheet of ["v040/styles.css", "v040/premium-redesign.css", "v040/design-system-v070.css", "v040/ui/nutrition-v070.css", "v040/ui/train-v070.css", "v040/ui/progress-v070.css", "v040/ui/coach-v070.css", "v040/ui/profile-v070.css"]) {
     if (!exists(stylesheet) || read(stylesheet).trim().length < 1_000) bad(`${stylesheet} must exist and be nonempty`);
     else ok(`${stylesheet} exists and is nonempty`);
   }
@@ -120,7 +120,7 @@ function syntaxCheck(file) {
   if (graphMissingFromSw.length) bad(`service worker missing module graph file(s): ${graphMissingFromSw.join(", ")}`);
   else ok("service-worker required graph contains complete module graph");
 
-  for (const stylesheet of ["v040/styles.css", "v040/premium-redesign.css", "v040/design-system-v060.css", "v040/ui/nutrition-v060.css", "v040/ui/train-v060.css", "v040/ui/progress-v060.css", "v040/ui/coach-v060.css", "v040/ui/profile-v060.css"]) {
+  for (const stylesheet of ["v040/styles.css", "v040/premium-redesign.css", "v040/design-system-v070.css", "v040/ui/nutrition-v070.css", "v040/ui/train-v070.css", "v040/ui/progress-v070.css", "v040/ui/coach-v070.css", "v040/ui/profile-v070.css"]) {
     const stylesheetRequest = requestUrl(`./${stylesheet}?v=${GENERATION}`);
     if (!precached.has(stylesheetRequest)) bad(`service worker must precache exact stylesheet request ${stylesheetRequest}`);
     else ok(`service worker precaches ${stylesheet}`);
@@ -133,7 +133,7 @@ function syntaxCheck(file) {
   const maximumRuntimeImageBytes = Math.max(0, ...runtimeImages.map(media => Number(media.bytes) || 0));
   if (posterGuides.length !== 17) bad("media manifest must retain all seventeen premium poster guides");
   if (motionGuides.length !== 59) bad("media manifest must contain the fifty-nine reviewed motion guides while the rejected clip stays quarantined");
-  if (!sw.includes('const MEDIA_CACHE = "fitcoach-exercise-images-v0602";') || !sw.includes("const MAX_MEDIA_ENTRIES = 12;")) {
+  if (!sw.includes('const MEDIA_CACHE = "fitcoach-exercise-images-v0700";') || !sw.includes("const MAX_MEDIA_ENTRIES = 12;")) {
     bad("runtime exercise images must use the separate bounded twelve-entry cache");
   } else if (maximumRuntimeImageBytes > (2.5 * 1024 * 1024) || (maximumRuntimeImageBytes * 12) > (30 * 1024 * 1024)) {
     bad("bounded runtime exercise-image cache exceeds the 30 MiB release budget");
