@@ -80,7 +80,7 @@ test("competitive discovery, evidence, and strength modules are available offlin
   assert.match(sw, /domain\/strength-tools\.mjs/u);
   assert.match(sw, /\.\.\.ANATOMY_ASSETS/u);
   assert.match(sw, /event\.waitUntil\(cacheWrite\)/u);
-  assert.match(sw, /const MEDIA_CACHE = "fitcoach-exercise-images-v0700"/u);
+  assert.match(sw, /const MEDIA_CACHE = "fitcoach-exercise-images-v0701"/u);
   assert.match(sw, /const MAX_MEDIA_ENTRIES = 12/u);
   assert.match(sw, /if \(exerciseImage\)[\s\S]*?cacheName: MEDIA_CACHE,[\s\S]*?maximumEntries: MAX_MEDIA_ENTRIES/u);
   assert.match(sw, /const brandAsset = url\.pathname\.includes\("\/v040\/assets\/brand\/"\)/u);

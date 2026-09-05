@@ -13,7 +13,7 @@
   document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#0b1320" : "#f3f3ef";
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=0700", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=0701", { updateViaCache: "none" })
       .then(registration => registration.update())
       .catch(() => {});
   }

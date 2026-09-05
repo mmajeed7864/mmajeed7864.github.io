@@ -140,6 +140,17 @@ test("onboarding answers use premium tap bubbles instead of native dropdowns", (
   assert.match(renderOnboarding({ step: 11, draft }), /equipment-scan-option/u);
 });
 
+test("onboarding retains its compact conversational hierarchy while the product stays editorial", () => {
+  const css = readFileSync(new URL("../v040/design-system-v070.css", import.meta.url), "utf8");
+  const start = css.indexOf(".onboarding-screen .single-question h1 {");
+  const end = css.indexOf("}", start);
+  const onboardingHeading = css.slice(start, end + 1);
+
+  assert.match(onboardingHeading, /font-size: clamp\(31px,8vw,40px\)/u);
+  assert.doesNotMatch(onboardingHeading, /font-display|text-transform|64px/u);
+  assert.match(css, /\.home-masthead h1 \{ font-family: var\(--font-display\)/u);
+});
+
 test("body-focus onboarding exposes one clear visual state and a stateful action", () => {
   const state = createInitialState("mo", new Date("2026-08-20T14:00:00.000Z"));
   const targetedDraft = {
@@ -290,7 +301,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.7\.0/u);
+  assert.match(html, /FitCoach v0\.7\.1/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -338,8 +349,8 @@ test("the CSP-safe boot script owns service-worker upgrades and modules refresh 
   const boot = readFileSync(new URL("../v040/boot.js", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0700"><\/script>/u);
-  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0700", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0701"><\/script>/u);
+  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0701", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);
