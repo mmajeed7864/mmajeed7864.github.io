@@ -168,6 +168,39 @@
 .training-library .library-pagination button { min-height: 44px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: none; font-size: .73rem; }
 
 /* Technique remains fully available, with the demonstration taking the lead. */
+.train-page.exercise-detail-page { width: 100%; margin: 0; padding: 0; min-height: 0; color: var(--text); background: transparent; }
+.exercise-detail-page .training-detail { display: grid; gap: 18px; min-width: 0; color: var(--text); }
+.exercise-detail-page .training-detail > * { min-width: 0; order: 0; }
+.exercise-detail-page .training-detail > .exercise-detail-nav { order: 0; position: static; inset: auto; z-index: auto; margin: 0; padding: 0; background: transparent; color: var(--text); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.exercise-detail-page .training-detail > .exercise-detail-visual { order: 1; padding: 0; margin: 0; gap: 0; }
+.exercise-detail-page .training-detail > .training-detail-heading { order: 2; }
+.exercise-detail-page .training-detail > .training-detail-action { order: 3; }
+.exercise-detail-page .training-detail > .training-detail-facts { order: 4; }
+.exercise-detail-page .training-detail > .training-key-cue { order: 5; }
+.exercise-detail-page .training-detail > .training-detail-sections { order: 6; }
+.exercise-detail-page .training-detail > .preference-controls { order: 7; }
+.exercise-detail-page .training-detail .exercise-detail-nav .back-button,
+.exercise-detail-page .training-detail .exercise-detail-nav .favorite-large { color: var(--text); background: var(--surface); border-color: var(--border); }
+.exercise-detail-page .training-detail .exercise-detail-nav .favorite-large.active { color: var(--action); background: color-mix(in srgb, var(--action) 9%, var(--surface)); }
+.exercise-detail-page .training-detail .training-detail-heading h1,
+.exercise-detail-page .training-detail .training-section-heading h2,
+.exercise-detail-page .training-detail .training-technique > h2,
+.exercise-detail-page .training-detail .preference-controls b { color: var(--text); }
+.exercise-detail-page .training-detail .training-detail-heading p,
+.exercise-detail-page .training-detail .training-section-heading .eyebrow,
+.exercise-detail-page .training-detail .preference-controls small { color: var(--muted); }
+.exercise-detail-page .training-detail .preference-controls .filter-chip { color: var(--text); background: var(--surface-2); border: 1px solid var(--border); }
+.exercise-detail-page .training-detail .preference-controls .filter-chip.active { color: #fff; background: var(--action); border-color: var(--action); }
+.exercise-detail-page .training-detail .muscle-cloud strong,
+.exercise-detail-page .training-detail .training-key-cue small,
+.exercise-detail-page .training-detail .training-detail-facts > button { color: #2052d6; }
+html[data-theme="dark"] .exercise-detail-page .training-detail .muscle-cloud strong,
+html[data-theme="dark"] .exercise-detail-page .training-detail .training-key-cue small,
+html[data-theme="dark"] .exercise-detail-page .training-detail .training-detail-facts > button { color: #8ab5ff; }
+.exercise-detail-page .training-detail .exercise-detail-visual .guide-stage { padding: 0; }
+.exercise-detail-page .training-detail .exercise-detail-visual .exercise-motion,
+.exercise-detail-page .training-detail .exercise-detail-visual .exercise-poster { margin: 0; min-height: 0; border: 0; border-radius: 0; }
+.exercise-detail-page .training-detail .exercise-detail-visual .exercise-poster img { min-height: 0; object-fit: contain; }
 .training-detail { gap: 18px; }
 .training-detail .exercise-detail-nav { position: static; inset: auto; margin: 0; padding: 0; min-height: 44px; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
 .training-detail .exercise-detail-nav > strong { font-size: .8rem; color: var(--muted); font-weight: 550; }

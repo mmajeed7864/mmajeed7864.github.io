@@ -4,12 +4,12 @@ This directory contains historical prototypes plus the current v0.6 preview runt
 
 ## Active browser runtime
 
-FitCoach v0.6.0 is the active web runtime. Cache generation 0600 introduces a mobile-first visual redesign of Today, Train, Coach, Food, Progress, and Profile, a shared quick-action sheet, private local water logging, keyboard-accessible custom choices, and safer background account initialization. The AI trainer and voice room, workout logging and rest timers, nutrition confirmation and source attribution, progress photos, routines, plan approvals, and existing account/native capability adapters are retained. Every remote capability still fails closed when its reviewed server or store configuration is absent. See `RELEASE-v060.md` for scope, verification, and release boundaries.
+FitCoach v0.6.1 is the active web runtime. Cache generation 0601 introduces a mobile-first visual redesign of Today, Train, Coach, Food, Progress, and Profile, a shared quick-action sheet, private local water logging, keyboard-accessible custom choices, and safer background account initialization. The AI trainer and voice room, workout logging and rest timers, nutrition confirmation and source attribution, progress photos, routines, plan approvals, and existing account/native capability adapters are retained. Every remote capability still fails closed when its reviewed server or store configuration is absent. See `RELEASE-v060.md` for scope, verification, and release boundaries.
 
-- document shell: `index.html?v=0600`
-- stylesheets: legacy base styles plus `v040/design-system-v060.css` and route-scoped `ui/*-v060.css`, all referenced with `?v=0600`
-- ES-module entry: `v040/app.js?v=0600`
-- service worker caches: `fitcoach-symbio-v0600` for the shell/anatomy graph and `fitcoach-exercise-images-v0600` for a bounded runtime image set
+- document shell: `index.html?v=0601`
+- stylesheets: legacy base styles plus `v040/design-system-v060.css` and route-scoped `ui/*-v060.css`, all referenced with `?v=0601`
+- ES-module entry: `v040/app.js?v=0601`
+- service worker caches: `fitcoach-symbio-v0601` for the shell/anatomy graph and `fitcoach-exercise-images-v0601` for a bounded runtime image set
 - install cache: shell, module graph, six active anatomy maps, and two compact original brand images; exercise images cache after first use with a 12-image limit, while motion video streams directly
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 

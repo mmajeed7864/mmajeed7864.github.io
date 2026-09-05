@@ -290,7 +290,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.6\.0/u);
+  assert.match(html, /FitCoach v0\.6\.1/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -338,8 +338,8 @@ test("the CSP-safe boot script owns service-worker upgrades and modules refresh 
   const boot = readFileSync(new URL("../v040/boot.js", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0600"><\/script>/u);
-  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0600", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0601"><\/script>/u);
+  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0601", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);
