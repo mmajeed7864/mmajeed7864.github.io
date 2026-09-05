@@ -258,7 +258,9 @@ html.workout-is-docked .app-main { padding-bottom: calc(190px + var(--safe-botto
 .onboarding-screen.ai-setup-screen > main { padding: 34px 24px 26px; }
 .onboarding-screen.ai-setup-screen > footer { padding: 20px 24px calc(22px + var(--safe-bottom)); background: var(--bg); gap: 16px; }
 .onboarding-screen .single-question { min-height: 0; justify-content: flex-start; gap: 18px; }
-.onboarding-screen .single-question h1 { font-family: var(--font-display); text-transform: uppercase; max-width: 440px; font-size: clamp(42px,11vw,64px); margin: 4px 0; line-height: 1.15; }
+/* Keep onboarding in its earlier, approachable conversation mode. The editorial
+   display hierarchy belongs to the signed-in product—not a first question. */
+.onboarding-screen .single-question h1 { max-width: 440px; font-size: clamp(31px,8vw,40px); margin: 4px 0; line-height: 1.15; }
 .onboarding-screen .single-question > p { font-size: 14px; color: var(--muted); }
 .onboarding-screen .trainer-interview-row { margin: 8px 0; gap: 10px; }
 .onboarding-screen .trainer-bubble { background: var(--surface); color: var(--text); padding: 18px 20px; border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 0 20px 20px 20px; box-shadow: none; }

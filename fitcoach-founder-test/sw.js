@@ -1,34 +1,34 @@
 // FitCoach founder PWA cache. v0.4 owns only the versioned shell/module graph.
-const CACHE = "fitcoach-symbio-v0700";
-const MEDIA_CACHE = "fitcoach-exercise-images-v0700";
+const CACHE = "fitcoach-symbio-v0701";
+const MEDIA_CACHE = "fitcoach-exercise-images-v0701";
 const MAX_MEDIA_ENTRIES = 12;
 const CURRENT_CACHES = new Set([CACHE, MEDIA_CACHE]);
 let mediaWriteQueue = Promise.resolve();
 
 const SHELL_ASSETS = Object.freeze([
   "./",
-  "./index.html?v=0700",
-  "./manifest.webmanifest?v=0700",
-  "./assets/icon-symbio.svg?v=0700",
-  "./v040/boot.js?v=0700",
+  "./index.html?v=0701",
+  "./manifest.webmanifest?v=0701",
+  "./assets/icon-symbio.svg?v=0701",
+  "./v040/boot.js?v=0701",
   "./legal/legal.css",
   "./legal/privacy.html",
   "./legal/terms.html",
   "./legal/delete-account.html",
   "./legal/support.html",
-  "./v040/styles.css?v=0700",
-  "./v040/premium-redesign.css?v=0700",
-  "./v040/design-system-v070.css?v=0700",
-  "./v040/ui/nutrition-v070.css?v=0700",
-  "./v040/ui/train-v070.css?v=0700",
-  "./v040/ui/progress-v070.css?v=0700",
-  "./v040/ui/coach-v070.css?v=0700",
-  "./v040/ui/profile-v070.css?v=0700",
+  "./v040/styles.css?v=0701",
+  "./v040/premium-redesign.css?v=0701",
+  "./v040/design-system-v070.css?v=0701",
+  "./v040/ui/nutrition-v070.css?v=0701",
+  "./v040/ui/train-v070.css?v=0701",
+  "./v040/ui/progress-v070.css?v=0701",
+  "./v040/ui/coach-v070.css?v=0701",
+  "./v040/ui/profile-v070.css?v=0701",
   "./v040/assets/brand/club-day-v070-1200.webp",
   "./v040/assets/brand/club-day-v070-640.webp",
   "./v040/assets/fonts/BarlowCondensed-Bold.ttf",
   "./v040/assets/fonts/Manrope-Variable.ttf",
-  "./v040/app.js?v=0700",
+  "./v040/app.js?v=0701",
 ]);
 
 const MODULE_ASSETS = Object.freeze([
@@ -188,13 +188,13 @@ self.addEventListener("fetch", event => {
           return response;
         })
         .catch(() => caches.open(CACHE).then(cache => (
-          cache.match(navigationCacheKey).then(response => response || cache.match("./index.html?v=0700"))
+          cache.match(navigationCacheKey).then(response => response || cache.match("./index.html?v=0701"))
         )))
     );
     return;
   }
 
-  const versioned = url.searchParams.get("v") === "0700";
+  const versioned = url.searchParams.get("v") === "0701";
   const moduleAsset = url.pathname.includes("/v040/") && url.pathname.endsWith(".mjs");
   const exerciseAsset = url.pathname.includes("/v040/assets/exercises/");
   const anatomyAsset = url.pathname.includes("/v040/assets/anatomy/");
