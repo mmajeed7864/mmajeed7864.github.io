@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createInitialState } from "../v040/core/store.mjs";
 import { buildDailyBoard } from "../v040/domain/daily-board.mjs";
-import { renderTodayScreen } from "../v040/ui/today-screen.mjs";
+import { renderTodayScreen } from "../v040/ui/home-screen.mjs";
 
 const now = new Date("2026-08-26T14:00:00.000Z");
 const plan = {
@@ -89,9 +89,10 @@ test("Today renders one focused daily loop and removes the duplicated control st
   const html = renderTodayScreen({ state, plan, decision: decision(), exerciseById, now });
 
   assert.match(html, /daily-board-page/u);
-  assert.match(html, /Three useful moves/u);
-  assert.match(html, /Know the first three moves/u);
-  assert.match(html, /Voice \+ transcript/u);
+  assert.match(html, /data-action="start-workout"/u);
+  assert.match(html, /class="home-exercise"/u);
+  assert.match(html, /data-action="open-voice-room"/u);
+  assert.match(html, /data-action="nutrition-open-add" data-date="today"/u);
   assert.doesNotMatch(html, /context-controls|nutrition-today|coach-entry/u);
   assert.doesNotMatch(html, /<select/u);
 });

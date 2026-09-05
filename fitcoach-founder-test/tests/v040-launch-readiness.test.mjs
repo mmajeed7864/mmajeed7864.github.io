@@ -20,7 +20,7 @@ import { renderCoachScreen } from "../v040/ui/coach-screen.mjs";
 import { renderModal } from "../v040/ui/modal.mjs";
 import { renderProfileScreen } from "../v040/ui/profile-screen.mjs";
 import { renderProgressScreen } from "../v040/ui/progress-screen.mjs";
-import { renderTodayScreen } from "../v040/ui/today-screen.mjs";
+import { renderTodayScreen } from "../v040/ui/home-screen.mjs";
 import { renderTrainScreen } from "../v040/ui/train-screen.mjs";
 import { EXERCISES } from "../v040/data/exercise-library.mjs";
 
@@ -257,9 +257,9 @@ test("a profile with no training history never gets a zero-of-target score", () 
   };
 
   const html = renderTodayScreen({ state, plan, decision, exerciseById: () => exercise, now });
-  assert.match(html, /Your week starts today/u);
-  assert.match(html, /3-session plan ready .* nothing is late/u);
-  assert.doesNotMatch(html, /0\/3 sessions/u);
+  assert.match(html, /Your week starts here/u);
+  assert.match(html, /3 planned/u);
+  assert.doesNotMatch(html, /0(?:<[^>]*>)*\/3|0 of 3/u);
 });
 
 test("the opening week state stays welcoming even when older history exists", () => {
@@ -277,8 +277,8 @@ test("the opening week state stays welcoming even when older history exists", ()
   const exercise = { id: "air-squat", name: "Air Squat", media: [] };
 
   const html = renderTodayScreen({ state, plan, decision, exerciseById: () => exercise, now });
-  assert.match(html, /Your week starts today/u);
-  assert.doesNotMatch(html, /0\/3 sessions/u);
+  assert.match(html, /Your week starts here/u);
+  assert.doesNotMatch(html, /0(?:<[^>]*>)*\/3|0 of 3/u);
 });
 
 test("active app has no password gate or visible founder picker", () => {
@@ -290,7 +290,7 @@ test("active app has no password gate or visible founder picker", () => {
     assert.doesNotMatch(source, /renderGate|Founder access code|founder-code|enter-gate|choose-founder|type="password"/i);
   }
 
-  assert.match(html, /FitCoach v0\.5\.4/u);
+  assert.match(html, /FitCoach v0\.6\.0/u);
 });
 
 test("premium shell keeps five focused tabs and moves Profile into the header", () => {
@@ -338,8 +338,8 @@ test("the CSP-safe boot script owns service-worker upgrades and modules refresh 
   const boot = readFileSync(new URL("../v040/boot.js", import.meta.url), "utf8");
   const worker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
-  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0504"><\/script>/u);
-  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0504", \{ updateViaCache: "none" \}\)/u);
+  assert.match(html, /<script src="\.\/v040\/boot\.js\?v=0600"><\/script>/u);
+  assert.match(boot, /serviceWorker\.register\("\.\/sw\.js\?v=0600", \{ updateViaCache: "none" \}\)/u);
   assert.doesNotMatch(app, /serviceWorker\.register/u);
   assert.match(worker, /async function networkOrCached/u);
   assert.match(worker, /fetch\(request, \{ cache: "no-store" \}\)/u);

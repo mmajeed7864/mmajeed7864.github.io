@@ -6,8 +6,10 @@ import {
 import { V040_SCHEMA_VERSION, createFitCoachStore } from "./core/store.mjs";
 import { deepClone, escapeHtml, localDateKey, safeNumber, uid } from "./core/utils.mjs";
 import { computeDecision } from "./domain/decisions.mjs";
+import { contextualCoachMessage, localCoachCommand } from "./domain/coach-tools.mjs";
 import { recordExerciseView } from "./domain/exercise-discovery.mjs";
 import { buildWeeklyEvidence } from "./domain/evidence.mjs";
+import { addWater, undoWater } from "./domain/hydration.mjs";
 import {
   hasUnsyncedLocalChanges,
   mergeRemoteStateWithLocalOnlyFields,
@@ -71,7 +73,7 @@ import { renderModal } from "./ui/modal.mjs";
 import { renderNutritionScreen } from "./ui/nutrition-screen.mjs";
 import { renderProfileScreen } from "./ui/profile-screen.mjs";
 import { renderProgressScreen } from "./ui/progress-screen.mjs";
-import { renderTodayScreen } from "./ui/today-screen.mjs";
+import { renderTodayScreen } from "./ui/home-screen.mjs";
 import { renderTrainScreen } from "./ui/train-screen.mjs";
 import {
   createBrowserVoiceAdapters,
@@ -337,7 +339,7 @@ function applyTheme(preference) {
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
   localStorage.setItem("fitcoach-theme", preference);
-  const color = resolved === "dark" ? "#090d16" : "#f4f6fd";
+  const color = resolved === "dark" ? "#090d16" : "#f7f8fc";
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
 }
 
@@ -374,22 +376,22 @@ function coachConnection() {
 
 function renderHeader() {
   const [kicker, title] = routeTitle(ui.route);
-  const connection = coachConnection();
   return `<header class="app-header">
     <button class="brand-button brand-lockup" data-action="route" data-value="today" aria-label="Open FitCoach Today">
-      <span class="brand-mark" aria-hidden="true"><span>F</span></span>
-      <span class="brand-wordmark"><b>FitCoach</b><small>AI personal trainer</small></span>
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M8 23V9h17M8 16h13"/><path d="m18 23 7-7"/></svg></span>
+      <span class="brand-wordmark"><b>fitcoach<span>•</span></b><small>TRAIN · FUEL · EVOLVE</small></span>
     </button>
     <div class="page-identity"><small>${escapeHtml(kicker)}</small><b>${escapeHtml(title)}</b></div>
     <div class="header-actions">
-      <button class="connection-pill" data-action="connection-info" aria-label="Coach connection: ${escapeHtml(connection.label)}"><span class="status-dot ${escapeHtml(connection.state)}"></span><span>${escapeHtml(connection.label)}</span></button>
-      <button class="theme-quick" data-action="cycle-theme" aria-label="Change theme">${state.settings.theme === "dark" ? "☾" : state.settings.theme === "system" ? "◐" : "☀"}</button>
+      <button class="header-quick-add" data-action="open-quick-actions" aria-label="Open quick actions">${icon("plus")}</button>
+      <button class="theme-quick" data-action="cycle-theme" aria-label="Change theme">${icon(state.settings.theme === "dark" ? "moon" : "sun")}</button>
       <button class="header-avatar" data-action="route" data-value="profile" aria-label="Open profile">${icon("profile")}</button>
     </div>
   </header>`;
 }
 
 function renderMiniWorkout() {
+  document.documentElement.classList.toggle("workout-is-docked", ui.mode === "app" && Boolean(state.activeWorkout) && !(ui.route === "train" && ui.showActiveWorkout));
   if (ui.mode !== "app" || !state.activeWorkout || (ui.route === "train" && ui.showActiveWorkout)) {
     dom.mini.hidden = true;
     dom.mini.innerHTML = "";
@@ -400,11 +402,12 @@ function renderMiniWorkout() {
   const all = workout.exercises.flatMap(item => item.sets);
   const done = all.filter(set => set.done).length;
   const rest = restSecondsRemaining(workout);
-  dom.mini.innerHTML = `<button class="mini-player" data-action="resume-workout"><span class="mini-progress" style="--progress:${Math.round((done/Math.max(1,all.length))*100)}%"><i>${icon("play")}</i></span><span><small>${rest ? `REST · ${formatClock(rest)}` : "WORKOUT ACTIVE"}</small><b>${escapeHtml(current?.snapshot?.name || workout.planLabel)}</b><em>${done}/${all.length} sets · tap to resume</em></span><strong>${icon("chevron")}</strong></button>`;
+  dom.mini.innerHTML = `<button class="mini-player" data-action="resume-workout" style="--session-progress:${Math.round((done/Math.max(1,all.length))*100)}%"><span class="mini-progress"><i>${icon("play")}</i></span><span><small>${rest ? `REST · ${formatClock(rest)}` : "WORKOUT ACTIVE"}</small><b>${escapeHtml(current?.snapshot?.name || workout.planLabel)}</b><em>${done}/${all.length} sets · tap to resume</em></span><strong>${icon("chevron")}</strong></button>`;
   dom.mini.hidden = false;
 }
 
 function renderAppScreen() {
+  const choiceFocus = captureChoiceFocus(dom.stage);
   const context = {
     state,
     decision,
@@ -430,7 +433,15 @@ function renderAppScreen() {
   const activeWorkoutFullscreen = ui.route === "train" && state.activeWorkout && ui.showActiveWorkout;
   const exerciseDetailFullscreen = ui.route === "train" && Boolean(ui.exerciseDetailId);
   const focusedSurface = activeWorkoutFullscreen || exerciseDetailFullscreen;
-  dom.stage.innerHTML = `${focusedSurface ? "" : renderHeader()}<main id="main-content" class="app-main">${screen}</main>`;
+  const viewKey = `${ui.route}:${ui.route === "train" ? ui.trainSegment : ""}:${ui.exerciseDetailId || ""}:${activeWorkoutFullscreen}`;
+  const previousViewKey = dom.stage.dataset.viewKey;
+  dom.stage.innerHTML = `${focusedSurface ? "" : renderHeader()}<main id="main-content" class="app-main" tabindex="-1">${screen}</main>`;
+  dom.stage.dataset.viewKey = viewKey;
+  if (previousViewKey && previousViewKey !== viewKey && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    dom.stage.querySelector(".app-main")?.animate?.([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 180, easing: "cubic-bezier(.2,.7,.3,1)" });
+  }
+  syncChoiceTabStops(dom.stage);
+  restoreChoiceFocus(dom.stage, choiceFocus);
   dom.nav.hidden = focusedSurface;
   dom.nav.querySelectorAll("[data-route]").forEach(button => {
     const active = button.dataset.route === ui.route;
@@ -447,7 +458,10 @@ function renderAppScreen() {
 
 function render() {
   if (ui.mode === "onboarding") {
+    const choiceFocus = captureChoiceFocus(dom.stage);
     dom.stage.innerHTML = renderOnboarding({ step: ui.onboardingStep, draft: ui.onboardingDraft });
+    syncChoiceTabStops(dom.stage);
+    restoreChoiceFocus(dom.stage, choiceFocus);
     dom.nav.hidden = true;
     dom.mini.hidden = true;
   } else {
@@ -459,10 +473,14 @@ function render() {
 }
 
 function renderModalRoot() {
+  const choiceFocus = captureChoiceFocus(dom.modal);
   dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl, communityPreviewUrl });
   dom.modal.hidden = !ui.modal;
+  syncChoiceTabStops(dom.modal);
   document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || (voiceController.getState().active && !ui.voiceDocked));
-  if (ui.modal) requestAnimationFrame(() => dom.modal.querySelector("button:not([disabled]),input,select,textarea")?.focus());
+  if (ui.modal) requestAnimationFrame(() => {
+    if (!restoreChoiceFocus(dom.modal, choiceFocus)) dom.modal.querySelector('button:not([disabled]):not([tabindex="-1"]),input,select,textarea')?.focus();
+  });
 }
 
 function maybeOpenTutorial() {
@@ -472,6 +490,7 @@ function maybeOpenTutorial() {
 
 function renderVoiceRoot() {
   const voiceState = voiceController.getState();
+  document.documentElement.classList.toggle("voice-is-docked", Boolean(voiceState.active && ui.voiceDocked));
   const previousVoiceAction = dom.voice.contains(document.activeElement)
     ? document.activeElement?.dataset?.action
     : null;
@@ -623,6 +642,7 @@ function startSavedRoutine(routineId) {
 }
 
 function resumeWorkout() {
+  closeModal();
   ui.route = "train";
   ui.showActiveWorkout = true;
   render();
@@ -848,7 +868,8 @@ async function sendChat(raw = null) {
   const requestController = new AbortController();
   chatRequestController = requestController;
   render();
-  const result = await trainerClient.requestTurn({ state: store.get(), message, approvedAction: decision.type, founder: ui.founder, signal: requestController.signal });
+  const result = localCoachCommand({ state: store.get(), message, exercises: EXERCISES })
+    || await trainerClient.requestTurn({ state: store.get(), message: contextualCoachMessage({ state: store.get(), message, exercises: EXERCISES }), approvedAction: decision.type, founder: ui.founder, signal: requestController.signal });
   // A reset or newer lifecycle event invalidates the request. Never let a late
   // response or its aborted draft write into the fresh profile.
   if (chatRequestController !== requestController || requestController.signal.aborted) return;
@@ -866,20 +887,21 @@ async function sendChat(raw = null) {
     render();
     return;
   }
-  const trainerAction = deriveTrainerAction({ state: store.get(), message, exercises: EXERCISES });
+  const trainerAction = result.action || deriveTrainerAction({ state: store.get(), message, exercises: EXERCISES });
   const at = new Date().toISOString();
   const userMessage = { id: uid("message"), role: "user", text: message, at };
   const coachMessage = { id: uid("message"), role: "coach", text: result.reply, at: new Date().toISOString(), provider: result.provider, model: result.model, speakAllowed: result.speakAllowed, action: trainerAction };
-  userMessage.providerEligible = true;
-  userMessage.contractVersion = "fitcoach-chat-v3";
-  coachMessage.providerEligible = true;
-  coachMessage.contractVersion = "fitcoach-chat-v3";
+  userMessage.providerEligible = !result.localCommand;
+  userMessage.contractVersion = result.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3";
+  coachMessage.providerEligible = !result.localCommand;
+  coachMessage.contractVersion = userMessage.contractVersion;
   state = store.update(draft => {
     draft.chat.push(userMessage,coachMessage);
-    draft.lastApi = { at, provider: result.provider, model: result.model, fallbackUsed: Boolean(result.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
+    if (!result.localCommand) draft.lastApi = { at, provider: result.provider, model: result.model, fallbackUsed: Boolean(result.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
   });
   ui.chatNotice = null;
   render();
+  if (result.localCommand) { executeTrainerAction(trainerAction); toast(trainerAction.label); }
   if (state.settings.speakReplies && result.speakAllowed) speakText(coachMessage.text,{messageId:coachMessage.id});
 }
 
@@ -895,7 +917,8 @@ const voiceController = createVoiceRoomController({
   speech: voiceSpeech,
   classifyInput: transcript => ({ kind: isPrivateTrainerInput(transcript) ? "private" : "normal" }),
   requestTurn: async ({ transcript, signal }) => {
-    const result = await trainerClient.requestTurn({ state: store.get(), message: transcript, approvedAction: decision.type, founder: ui.founder, signal });
+    const result = localCoachCommand({ state: store.get(), message: transcript, exercises: EXERCISES })
+      || await trainerClient.requestTurn({ state: store.get(), message: contextualCoachMessage({ state: store.get(), message: transcript, exercises: EXERCISES }), approvedAction: decision.type, founder: ui.founder, signal });
     voiceLastMetadata = result;
     if (result.status === "private_block") return { text: "", privateIntercepted: true, speak: false };
     if (result.status === "safety") return { text: result.reply, safetyIntercepted: true, speak: false };
@@ -904,13 +927,13 @@ const voiceController = createVoiceRoomController({
   },
   onCommitTurn: turn => {
     const meta = voiceLastMetadata || {};
-    const trainerAction = deriveTrainerAction({ state: store.get(), message: turn.transcript, exercises: EXERCISES });
+    const trainerAction = meta.action || deriveTrainerAction({ state: store.get(), message: turn.transcript, exercises: EXERCISES });
     state = store.update(draft => {
       draft.chat.push(
-        { id: uid("message"), role: "user", text: turn.transcript, at: new Date().toISOString(), source: "voice-transcript", providerEligible: true, contractVersion: "fitcoach-chat-v3" },
-        { id: uid("message"), role: "coach", text: turn.reply, at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", speakAllowed: meta.speakAllowed !== false, providerEligible: true, contractVersion: "fitcoach-chat-v3", action: trainerAction },
+        { id: uid("message"), role: "user", text: turn.transcript, at: new Date().toISOString(), source: "voice-transcript", providerEligible: !meta.localCommand, contractVersion: meta.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3" },
+        { id: uid("message"), role: "coach", text: turn.reply, at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", speakAllowed: meta.speakAllowed !== false, providerEligible: !meta.localCommand, contractVersion: meta.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3", action: trainerAction },
       );
-      draft.lastApi = { at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", fallbackUsed: Boolean(meta.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
+      if (!meta.localCommand) draft.lastApi = { at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", fallbackUsed: Boolean(meta.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
     });
     voiceLastMetadata = null;
     if (trainerAction) queueMicrotask(() => executeTrainerAction(trainerAction, { fromVoice: true }));
@@ -982,14 +1005,14 @@ function executeTrainerAction(trainerAction, { fromVoice = false } = {}) {
   if (fromVoice) ui.voiceDocked = true;
   const { kind, value } = trainerAction;
   if (kind === "open_exercise") openExercise(value);
-  else if (kind === "open_workout") { ui.trainSegment = "schedule"; navigate("train"); }
+  else if (kind === "open_workout") { closeModal(); ui.trainSegment = "workout"; navigate("train"); }
   else if (kind === "propose_minutes") proposePlan("minutes", Number(value));
   else if (kind === "open_progress") navigate("progress");
   else if (kind === "open_voice") {
     if (!voiceController.getState().active) openVoiceRoom();
     else { ui.voiceDocked = false; renderVoiceRoot(); }
   }
-  else if (kind === "open_nutrition") { closeModal(); navigate("nutrition"); }
+  else if (kind === "open_nutrition") { ui.nutritionDate = localDateKey(new Date()); closeModal(); navigate("nutrition"); }
   else if (kind === "nutrition_draft") {
     ui.nutritionDate = null;
     const estimate = estimateTextMeal(value, new Date());
@@ -1182,7 +1205,7 @@ async function replaceNativePlatformListeners(initializationSequence) {
 async function initializePlatform() {
   const initializationSequence = ++platformInitializationSequence;
   ui.account.phase = "checking";
-  render();
+  if (ui.mode === "app" && ui.route === "profile") render();
   await accountClient.hydrateSession();
   if (initializationSequence !== platformInitializationSequence) return;
   ui.account.session = accountClient.session;
@@ -1196,8 +1219,12 @@ async function initializePlatform() {
   ui.account.phase = config.authAvailable ? "ready" : "unavailable";
   ui.native = { ...ui.native, ...native };
   if (ui.account.session) await refreshEntitlements();
+  if (initializationSequence !== platformInitializationSequence) return;
   await replaceNativePlatformListeners(initializationSequence);
-  render();
+  if (initializationSequence !== platformInitializationSequence) return;
+  // Background account discovery must not replace a button under a touch tap,
+  // interrupt food entry, or restart a playing exercise guide.
+  if (ui.mode === "app" && ui.route === "profile") render();
 }
 
 function applyRemoteCloudState(remote) {
@@ -1919,8 +1946,11 @@ function handleClick(event) {
     applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();maybeOpenTutorial();render();return;
   }
   if (action === "route") { closeModal(); navigate(value); return; }
+  if (action === "open-quick-actions") { openModal({type:"quick-actions"});return; }
+  if (action === "water-add") { state=store.update(draft=>{draft.hydration=addWater(draft.hydration,Number(value));});render();toast("250 ml logged");return; }
+  if (action === "water-undo") { state=store.update(draft=>{draft.hydration=undoWater(draft.hydration);});render();toast("Last glass removed");return; }
   if (action === "train-segment") { ui.trainSegment=value;ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
-  if (action === "set-energy") { state=store.update(draft=>{draft.profile.energy=Number(value);draft.profile.energyCheckedAt=new Date().toISOString();draft.decisions=draft.decisions.filter(item=>item.date!==new Date().toLocaleDateString("en-CA"));});ensureDecision();render();toast("Energy check-in saved. Your worth did not change.");return; }
+  if (action === "set-energy") { state=store.update(draft=>{draft.profile.energy=Number(value);draft.profile.energyCheckedAt=new Date().toISOString();draft.decisions=draft.decisions.filter(item=>item.date!==new Date().toLocaleDateString("en-CA"));});ensureDecision();render();toast("Check-in saved");return; }
   if (action === "propose-plan") { proposePlan(target.dataset.field,value);return; }
   if (action === "approve-proposal") { approveProposal(value);return; }
   if (action === "reject-proposal") { rejectProposal(value);return; }
@@ -1998,7 +2028,7 @@ function handleClick(event) {
   if (action === "filter-exercises") { ui.exerciseFilters[target.dataset.field]=value;ui.exerciseFilters.page=1;render();return; }
   if (action === "exercise-page") { ui.exerciseFilters.page=Math.max(1,Number(value)||1);render();requestAnimationFrame(()=>{const results=document.querySelector(".exercise-grid");results?.querySelector(".exercise-card-open")?.focus({preventScroll:true});results?.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});});return; }
   if (action === "ask-about-exercise") { const exercise=getExerciseById(value);ui.chatDraft=`Explain how ${exercise?.name || "this exercise"} fits my current plan without changing it.`;navigate("coach");return; }
-  if (action === "open-library") { ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
+  if (action === "open-library") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;closeModal();ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
   if (action === "set-theme") { state=store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
   if (action === "profile-edit") { ui.profileEditing=ui.profileEditing===value?null:value;render();return; }
   if (action === "profile-field" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.profile[target.dataset.field]=value;});render();toast("Profile saved. Review a proposal before changing today’s plan.");return; }
@@ -2016,7 +2046,7 @@ function handleClick(event) {
   }
   if (action === "restore-chat-draft") { ui.chatDraft=ui.lastFailedChatDraft;ui.chatNotice=null;render();requestAnimationFrame(()=>document.querySelector("#coach-input")?.focus());return; }
   if (action === "speak-message") { const message=state.chat.find(item=>item.id===value);if(!message)return;if(ui.speakingMessageId===value)stopSpeech();else speakText(message.text,{messageId:value});return; }
-  if (action === "open-voice-room") { openVoiceRoom();return; }
+  if (action === "open-voice-room") { closeModal();openVoiceRoom();return; }
   if (action === "voice-consent") { unlockVoicePlayback();state=store.update(draft=>{draft.settings.voiceConsent=true;});voiceController.grantConsent();renderVoiceRoot();return; }
   if (action === "voice-text-mode") { ui.voiceDocked=true;render();return; }
   if (action === "voice-expand") { ui.voiceDocked=false;renderVoiceRoot();return; }
@@ -2064,9 +2094,9 @@ function handleClick(event) {
   if (action === "confirm-reset") { void resetFitCoachAccountAndDevice();return; }
   if (action === "export-data") { exportData();return; }
   if (action === "force-refresh") { void forceRefresh();return; }
-  if (action === "open-nutrition") { closeModal(); navigate("nutrition"); return; }
+  if (action === "open-nutrition") { if(target.dataset.date === "today") ui.nutritionDate=localDateKey(new Date()); closeModal(); navigate("nutrition"); return; }
   if (action === "nutrition-day") { shiftNutritionDay(Number(value) || 0); return; }
-  if (action === "nutrition-open-add") { openModal({ type: "nutrition-add", slot: MEAL_SLOTS.includes(value) ? value : mealSlotForHour(new Date().getHours()), query: "" }); return; }
+  if (action === "nutrition-open-add") { if(target.dataset.date === "today") ui.nutritionDate=localDateKey(new Date()); openModal({ type: "nutrition-add", slot: MEAL_SLOTS.includes(value) ? value : mealSlotForHour(new Date().getHours()), query: "" }); if(target.dataset.focus === "barcode") requestAnimationFrame(()=>document.querySelector("#nutrition-barcode")?.focus()); return; }
   if (action === "nutrition-quick-food") { const kind=target.dataset.kind === "favorite" ? "favorite" : "recent";const source=kind === "favorite" ? state.nutrition.favorites : state.nutrition.recents;const item=source?.[Number(value)];if(!item)return toast("That saved food is no longer available.");openModal({type:"nutrition-add",slot:mealSlotForHour(new Date().getHours()),query:"",selected:{name:item.name,servingLabel:item.servingLabel,per:{...item.per},origin:kind},multiplier:normalizeMultiplier(item.multiplier||1)});return; }
   if (action === "nutrition-open-capture") { openModal({ type: "nutrition-capture", slot: MEAL_SLOTS.includes(value) ? value : mealSlotForHour(new Date().getHours()), context: "" }); return; }
   if (action === "nutrition-capture-slot") { if (ui.modal) { ui.modal.context = document.querySelector("#nutrition-context")?.value ?? ui.modal.context; ui.modal.query = document.querySelector("#nutrition-search")?.value ?? ui.modal.query; ui.modal.slot = value; renderModalRoot(); } return; }
@@ -2138,11 +2168,101 @@ function handleInput(event) {
   if (target.id === "nutrition-context" && ui.modal) ui.modal.context=target.value;
 }
 
+// Custom choice buttons share one Tab stop per group. Native inputs keep their
+// browser keyboard behavior; activation still uses the existing click actions.
+function choiceGroups(root) {
+  return [...root.querySelectorAll('[role="radiogroup"], [role="tablist"]')];
+}
+
+function choiceGroupControls(group) {
+  const role = group.getAttribute("role") === "tablist" ? "tab" : "radio";
+  return [...group.querySelectorAll(`button[role="${role}"]`)].filter(button =>
+    button.closest('[role="radiogroup"], [role="tablist"]') === group);
+}
+
+function availableChoiceControls(group) {
+  return choiceGroupControls(group).filter(button => !button.matches(":disabled") &&
+    button.getAttribute("aria-disabled") !== "true" && !button.closest("[hidden]"));
+}
+
+function syncChoiceTabStops(root) {
+  for (const group of choiceGroups(root)) {
+    const controls = availableChoiceControls(group);
+    const selectedAttribute = group.getAttribute("role") === "tablist" ? "aria-selected" : "aria-checked";
+    const selected = controls.find(button => button.getAttribute(selectedAttribute) === "true") || controls[0];
+    for (const button of choiceGroupControls(group)) {
+      if (!button.hasAttribute("type")) button.setAttribute("type", "button");
+      button.tabIndex = button === selected ? 0 : -1;
+    }
+  }
+}
+
+function captureChoiceFocus(root) {
+  const button = document.activeElement;
+  if (!root.contains(button) || !button?.matches?.('button[role="radio"], button[role="tab"]')) return null;
+  const group = button.closest('[role="radiogroup"], [role="tablist"]');
+  if (!group) return null;
+  const role = group.getAttribute("role");
+  const label = group.getAttribute("aria-label");
+  const labelledBy = group.getAttribute("aria-labelledby");
+  const peers = choiceGroups(root).filter(item => item.getAttribute("role") === role &&
+    item.getAttribute("aria-label") === label && item.getAttribute("aria-labelledby") === labelledBy);
+  return {
+    groupId: group.id, role, label, labelledBy, groupIndex: peers.indexOf(group),
+    buttonId: button.id, action: button.dataset.action, field: button.dataset.field, value: button.dataset.value,
+  };
+}
+
+function restoreChoiceFocus(root, saved) {
+  if (!saved) return false;
+  const groups = choiceGroups(root);
+  const group = saved.groupId
+    ? groups.find(item => item.id === saved.groupId)
+    : groups.filter(item => item.getAttribute("role") === saved.role &&
+      item.getAttribute("aria-label") === saved.label && item.getAttribute("aria-labelledby") === saved.labelledBy)[saved.groupIndex];
+  if (!group || group.closest("[hidden], [inert]")) return false;
+  const button = availableChoiceControls(group).find(item => saved.buttonId ? item.id === saved.buttonId :
+    item.dataset.action === saved.action && item.dataset.field === saved.field && item.dataset.value === saved.value);
+  if (!button) return false;
+  button.focus({ preventScroll: true });
+  return true;
+}
+
+function handleChoiceKeydown(event) {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return false;
+  const button = event.target?.closest?.('button[role="radio"], button[role="tab"]');
+  const group = button?.closest('[role="radiogroup"], [role="tablist"]');
+  if (!group || group.closest("[hidden], [inert]")) return false;
+  const controls = availableChoiceControls(group);
+  const index = controls.indexOf(button);
+  if (index < 0) return false;
+  const tablist = group.getAttribute("role") === "tablist";
+  const vertical = group.getAttribute("aria-orientation") === "vertical";
+  const horizontalKey = event.key === "ArrowLeft" || event.key === "ArrowRight";
+  const verticalKey = event.key === "ArrowUp" || event.key === "ArrowDown";
+  if (tablist && ((vertical && horizontalKey) || (!vertical && verticalKey))) return false;
+  let nextIndex;
+  if (event.key === "Home") nextIndex = 0;
+  else if (event.key === "End") nextIndex = controls.length - 1;
+  else if (horizontalKey || verticalKey) {
+    let direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+    if (horizontalKey && getComputedStyle(group).direction === "rtl") direction *= -1;
+    nextIndex = (index + direction + controls.length) % controls.length;
+  } else return false;
+  event.preventDefault();
+  const next = controls[nextIndex];
+  for (const control of controls) control.tabIndex = control === next ? 0 : -1;
+  next.focus({ preventScroll: true });
+  const selectedAttribute = tablist ? "aria-selected" : "aria-checked";
+  if (next !== button || next.getAttribute(selectedAttribute) !== "true") next.click();
+  return true;
+}
+
 function trapDialogFocus(event) {
   if (event.key !== "Tab") return;
   const root = voiceController.getState().active && !ui.voiceDocked ? dom.voice : ui.modal ? dom.modal : null;
   if (!root) return;
-  const focusable=[...root.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]')].filter(node=>!node.hidden);
+  const focusable=[...root.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],summary,[tabindex="0"]')].filter(node=>node.tabIndex >= 0 && !node.closest('[hidden], [inert]') && node.getClientRects().length > 0);
   if (!focusable.length) return;
   const first=focusable[0],last=focusable.at(-1);
   if (event.shiftKey && document.activeElement===first){event.preventDefault();last.focus();}
@@ -2220,6 +2340,7 @@ function bootstrap() {
     if (figure?.classList.contains("exercise-motion")) setMotionState(figure, "error", "Motion unavailable — use the preview");
   },true);
   document.addEventListener("keydown",event=>{
+    if (handleChoiceKeydown(event)) return;
     if((event.key==="Enter"||event.key===" ")&&event.target?.classList?.contains("voice-room-orb")){event.preventDefault();voiceController.interrupt();}
     if(event.key==="Escape"){if(voiceController.getState().active){voiceController.exit();ui.voiceDocked=false;render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;}else if(ui.modal)closeModal();}
     if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat();}

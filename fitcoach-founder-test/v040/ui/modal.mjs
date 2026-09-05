@@ -124,6 +124,16 @@ function renderCommunityDraft(context) {
 
 export function renderModal(modal, context) {
   if (!modal) return "";
+  if (modal.type === "quick-actions") {
+    const items = [
+      ["food", "Log food", "Search, repeat a favourite, or scan a barcode", "nutrition-open-add", ""],
+      ["train", context.state.activeWorkout ? "Resume workout" : "Your next workout", "Your session, ready when you are", context.state.activeWorkout ? "resume-workout" : "route", "train"],
+      ["search", "Explore exercises", "Find a movement in your 100-exercise library", "open-library", ""],
+      ["mic", "Talk to your coach", "A little guidance for your next move", "open-voice-room", ""],
+      ["progress", "See your progress", "Your sessions, personal bests, and habits", "route", "progress"],
+    ];
+    return shell("What’s your next move?", `<div class="quick-action-list">${items.map(([symbol,title,detail,action,value]) => `<button data-action="${action}" data-value="${value}"${action === "nutrition-open-add" ? ' data-date="today"' : ""}><span>${icon(symbol)}</span><b>${escapeHtml(title)}<small>${escapeHtml(detail)}</small></b>${icon("chevron")}</button>`).join("")}</div>`, "", { eyebrow: "QUICK ACTIONS" });
+  }
   const modalContext = { ...context, modal };
   if (typeof modal.type === "string" && modal.type.startsWith("nutrition-")) {
     const content = renderNutritionModalContent(modal, context);
@@ -133,8 +143,8 @@ export function renderModal(modal, context) {
   if (modal.type === "proposal") {
     const proposal = context.state.pendingPlanProposal;
     if (!proposal) return "";
-    const body = `<p>${escapeHtml(proposal.reason)}</p><div class="proposal-diff"><span><small>CURRENT</small><b>${escapeHtml(context.state.activePlan?.label || "Plan A")}</b><em>${context.state.activePlan?.minutes || 45} min · ${escapeHtml(context.state.activePlan?.location || context.state.profile.location)}</em></span>${icon("chevron")}<span><small>PROPOSED</small><b>${escapeHtml(proposal.candidate.label)}</b><em>${proposal.candidate.minutes} min · ${escapeHtml(proposal.candidate.location)}</em></span></div><ul class="change-list">${proposal.changes.length ? proposal.changes.map(change => `<li>${icon("check")}${escapeHtml(change)}</li>`).join("") : `<li>${icon("check")}No semantic difference detected</li>`}</ul><div class="approval-boundary">${icon("info")}<p>The candidate is inert until you approve it. The language model cannot press this button or activate the plan.</p></div>`;
-    return shell("Review the exact plan change",body,button({label:"Keep current plan",action:"reject-proposal",value:proposal.id,variant:"quiet"})+button({label:"Approve change",action:"approve-proposal",value:proposal.id,variant:"primary"}),{eyebrow:"PLAN VERSION PREVIEW"});
+    const body = `<p>${escapeHtml(proposal.reason)}</p><div class="proposal-diff"><span><small>CURRENT</small><b>${escapeHtml(context.state.activePlan?.label || "Plan A")}</b><em>${context.state.activePlan?.minutes || 45} min · ${escapeHtml(context.state.activePlan?.location || context.state.profile.location)}</em></span>${icon("chevron")}<span><small>PROPOSED</small><b>${escapeHtml(proposal.candidate.label)}</b><em>${proposal.candidate.minutes} min · ${escapeHtml(proposal.candidate.location)}</em></span></div><ul class="change-list">${proposal.changes.length ? proposal.changes.map(change => `<li>${icon("check")}${escapeHtml(change)}</li>`).join("") : `<li>${icon("check")}No semantic difference detected</li>`}</ul><div class="approval-boundary">${icon("info")}<p>Your current plan stays unchanged until you approve. You can keep it exactly as it is.</p></div>`;
+    return shell("Make this change?",body,button({label:"Keep current plan",action:"reject-proposal",value:proposal.id,variant:"quiet"})+button({label:"Approve change",action:"approve-proposal",value:proposal.id,variant:"primary"}),{eyebrow:"PLAN VERSION PREVIEW"});
   }
   if (modal.type === "tutorial") {
     const stepIndex = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, Number(modal.step || 0)));
@@ -154,7 +164,7 @@ export function renderModal(modal, context) {
   if (modal.type === "finish-workout") {
     const workout = context.state.activeWorkout;
     const completed = workout?.exercises.flatMap(item=>item.sets).filter(isValidCompletedSet).length || 0;
-    return shell("Finish and save this workout?",`<p>${completed} valid completed set${completed===1?"":"s"} will become one immutable completion receipt. Unfinished or zero-repetition sets will not be counted.</p><div class="approval-boundary">${icon("info")}<p>Workout history is based only on valid completed sets. You can add a rating after saving.</p></div>`,button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:`Save ${completed} set${completed===1?"":"s"}`,action:"confirm-finish-workout",variant:"primary",disabled:completed===0}),{eyebrow:"WORKOUT RECEIPT"});
+    return shell("Finish and save this workout?",`<p>${completed} completed set${completed===1?"":"s"} will be saved to your history. Unfinished sets and sets without reps are left out.</p><div class="approval-boundary">${icon("info")}<p>Your logged work counts. You can rate the session after saving.</p></div>`,button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:`Save ${completed} set${completed===1?"":"s"}`,action:"confirm-finish-workout",variant:"primary",disabled:completed===0}),{eyebrow:"SESSION SUMMARY"});
   }
   if (modal.type === "completion") {
     const summary = context.state.lastWorkoutSummary;
@@ -172,7 +182,7 @@ export function renderModal(modal, context) {
     return shell("Replace this exercise?",`${exercise ? exercisePoster(exercise,{className:"modal-poster",eager:true}) : ""}<p>${escapeHtml(modal.currentName)} will be replaced with <b>${escapeHtml(exercise?.name || "the selected exercise")}</b>. Completed sets prevent replacement.</p>`,button({label:"Keep current",action:"close-modal",variant:"quiet"})+button({label:"Confirm replacement",action:"apply-active-swap",value:modal.exerciseId,variant:"primary"}),{eyebrow:"ACTIVE WORKOUT CHANGE"});
   }
   if (modal.type === "confirm-exit-workout") {
-    return shell("End this workout without saving?","<p>The active workout and its unsaved set entries will be removed from this device. Completed history is not affected.</p>",button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:"End unsaved workout",action:"confirm-exit-workout",variant:"danger"}),{eyebrow:"EMERGENCY EXIT"});
+    return shell("End this workout without saving?","<p>The active workout and its unsaved set entries will be removed from this device. Completed history is not affected.</p>",button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:"End unsaved workout",action:"confirm-exit-workout",variant:"danger"}),{eyebrow:"END WORKOUT"});
   }
   if (modal.type === "confirm-clear-chat") {
     return shell("Clear the Coach thread?","<p>This removes saved text messages from this local profile. Workout history and exercise preferences remain.</p>",button({label:"Keep thread",action:"close-modal",variant:"quiet"})+button({label:"Clear thread",action:"confirm-clear-chat",variant:"danger"}),{eyebrow:"LOCAL DATA"});

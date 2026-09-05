@@ -40,7 +40,7 @@ function dateLabel(dateKey, now = new Date()) {
 
 export function macroBar(label, value, target, unit = "g") {
   const percent = Math.max(0, Math.min(100, target ? Math.round((value / target) * 100) : 0));
-  return `<div class="macro-bar" data-macro="${escapeHtml(label.toLowerCase())}"><span class="macro-name">${escapeHtml(label)}</span><i class="macro-track"><em style="width:${percent}%"></em></i><small>${Math.round(value)} / ${Math.round(target)} ${escapeHtml(unit)}</small></div>`;
+  return `<div class="macro-bar fuel-macro" data-macro="${escapeHtml(label.toLowerCase())}"><span class="macro-name">${escapeHtml(label)}</span><span class="fuel-macro-value"><b>${Math.round(value)}</b><small> / ${Math.round(target)} ${escapeHtml(unit)}</small></span><i class="macro-track" aria-hidden="true"><em style="width:${percent}%"></em></i></div>`;
 }
 
 function calorieRing(totals, targets) {
@@ -48,10 +48,20 @@ function calorieRing(totals, targets) {
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - percent / 100);
-  return `<div class="calorie-ring" role="img" aria-label="${kcalRound(totals.calories)} of ${kcalRound(targets.calories)} target calories confirmed">
-    <svg viewBox="0 0 120 120"><circle class="ring-track" cx="60" cy="60" r="${radius}"/><circle class="ring-value" cx="60" cy="60" r="${radius}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/></svg>
-    <span><b>${kcalRound(totals.calories)}</b><small>of ${kcalRound(targets.calories)} kcal</small></span>
+  return `<div class="calorie-ring fuel-ring" role="img" aria-label="${kcalRound(totals.calories)} of ${kcalRound(targets.calories)} target calories confirmed">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="ring-track" cx="60" cy="60" r="${radius}"/><circle class="ring-value" cx="60" cy="60" r="${radius}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/></svg>
+    <span aria-hidden="true"><small>LOGGED</small><b>${kcalRound(totals.calories)}</b><small>kcal</small></span>
   </div>`;
+}
+
+function mealIllustration(slot) {
+  const drawings = {
+    breakfast: '<circle cx="32" cy="23" r="10" fill="currentColor" opacity=".2"/><path d="M32 8v4M15 14l3 3M49 14l-3 3M11 27h5M48 27h5"/><path d="M13 33h38c-2 14-8 19-19 19S15 47 13 33Z" fill="currentColor" opacity=".17"/><path d="M13 33h38c-2 14-8 19-19 19S15 47 13 33Zm7 20h24"/>',
+    lunch: '<path d="M14 30h36c-2 15-8 22-18 22S16 45 14 30Z" fill="currentColor" opacity=".16"/><path d="M14 30h36c-2 15-8 22-18 22S16 45 14 30Z"/><path d="M22 30c-7-10-3-19 7-17 2 8 0 13-4 17m6 0c-3-9 1-18 11-17 1 8-3 13-7 17m8-1 8-10"/>',
+    dinner: '<circle cx="32" cy="33" r="21" fill="currentColor" opacity=".13"/><circle cx="32" cy="33" r="14"/><path d="M32 19a14 14 0 0 1 14 14H32Z" fill="currentColor" opacity=".32"/><path d="M5 14v16m5-16v16M5 23h5M7.5 30v23M57 14v39m-3-39v18h3"/>',
+    snacks: '<path d="M32 23c-18-12-24 6-14 25 4 7 10 3 14 3s10 4 14-3c10-19 4-37-14-25Z" fill="currentColor" opacity=".17"/><path d="M32 23c-18-12-24 6-14 25 4 7 10 3 14 3s10 4 14-3c10-19 4-37-14-25Zm0 0c-1-8 1-12 5-15m-3 8c2-6 8-6 12-5-1 6-7 8-12 5"/>',
+  };
+  return `<svg class="fuel-meal-art" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${drawings[slot] || drawings.snacks}</svg>`;
 }
 
 function foodRow(entry, dateKey) {
@@ -69,12 +79,12 @@ function mealSlotCard(slot, day, dateKey, { yesterdayHasSlot }) {
   const entries = (day?.entries || []).filter(entry => entry.slot === slot);
   const totals = slotTotals(day, slot);
   const confirmedCount = entries.filter(entry => entry.status === "confirmed").length;
-  return `<article class="card meal-slot-card" data-slot="${escapeHtml(slot)}">
-    <header class="meal-slot-head"><span class="meal-slot-copy"><small>${escapeHtml(MEAL_SLOT_LABELS[slot].toUpperCase())}</small><b>${confirmedCount ? `${kcalRound(totals.calories)} kcal confirmed` : "Nothing confirmed yet"}</b></span>
-      <span class="meal-slot-actions"><button class="icon-only" data-action="nutrition-open-capture" data-value="${escapeHtml(slot)}" aria-label="Scan food photo for ${escapeHtml(MEAL_SLOT_LABELS[slot])}">${icon("camera")}</button><button class="icon-only" data-action="nutrition-open-add" data-value="${escapeHtml(slot)}" aria-label="Add food to ${escapeHtml(MEAL_SLOT_LABELS[slot])}">${icon("plus")}</button></span>
+  return `<article class="fuel-meal" data-slot="${escapeHtml(slot)}">
+    <header class="fuel-meal-head"><span class="fuel-meal-visual fuel-meal-${escapeHtml(slot)}">${mealIllustration(slot)}</span><span class="fuel-meal-copy"><small class="sr-only">${escapeHtml(MEAL_SLOT_LABELS[slot].toUpperCase())}</small><h3>${escapeHtml(MEAL_SLOT_LABELS[slot])}</h3><small>${confirmedCount ? `${confirmedCount} food${confirmedCount === 1 ? "" : "s"} · ${kcalRound(totals.calories)} kcal` : entries.length ? "A draft is ready to review" : "Ready when you are"}</small></span>
+      <button class="fuel-meal-add" data-action="nutrition-open-add" data-value="${escapeHtml(slot)}" aria-label="Add food to ${escapeHtml(MEAL_SLOT_LABELS[slot])}">${icon("plus")}</button>
     </header>
-    ${entries.length ? `<div class="food-rows">${entries.map(entry => foodRow(entry, dateKey)).join("")}</div>` : `<p class="meal-slot-empty">Only what you confirm is counted.${yesterdayHasSlot ? "" : ""}</p>`}
-    ${!entries.length && yesterdayHasSlot ? `<button class="text-button" data-action="nutrition-copy-yesterday" data-value="${escapeHtml(slot)}">Copy yesterday’s ${escapeHtml(MEAL_SLOT_LABELS[slot].toLowerCase())}</button>` : ""}
+    ${entries.length ? `<div class="food-rows fuel-food-rows">${entries.map(entry => foodRow(entry, dateKey)).join("")}</div>` : ""}
+    ${!entries.length && yesterdayHasSlot ? `<button class="fuel-copy-meal" data-action="nutrition-copy-yesterday" data-value="${escapeHtml(slot)}">${icon("sync")}<span>Repeat yesterday’s ${escapeHtml(MEAL_SLOT_LABELS[slot].toLowerCase())}</span></button>` : ""}
   </article>`;
 }
 
@@ -84,7 +94,7 @@ function quickFoodRail(nutrition) {
   const recents = (nutrition?.recents || []).filter(item => !favoriteNames.has(item.name.toLowerCase())).slice(0, 5).map((item, index) => ({ ...item, kind: "recent", index: (nutrition.recents || []).indexOf(item) }));
   const foods = [...favorites, ...recents];
   if (!foods.length) return "";
-  return `<section class="quick-foods"><header><div><span class="eyebrow">QUICK REPEAT</span><h2>Log familiar food faster</h2></div><small>Review, then add</small></header><div class="quick-food-scroll">${foods.map(item => `<button data-action="nutrition-quick-food" data-kind="${escapeHtml(item.kind)}" data-value="${item.index}"><span>${item.kind === "favorite" ? icon("heart") : icon("clock")}</span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${Math.round(item.per.calories * (item.multiplier || 1))} kcal</small></button>`).join("")}</div></section>`;
+  return `<section class="fuel-repeat" aria-labelledby="fuel-repeat-title"><header class="fuel-section-heading"><h2 id="fuel-repeat-title">Your regulars</h2><small>Review, then add</small></header><div class="fuel-repeat-rail">${foods.map(item => `<button class="fuel-repeat-food" data-action="nutrition-quick-food" data-kind="${escapeHtml(item.kind)}" data-value="${item.index}"><span class="fuel-repeat-symbol">${item.kind === "favorite" ? icon("heart") : icon("clock")}</span><span class="fuel-repeat-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${Math.round(item.per.calories * (item.multiplier || 1))} kcal</small></span><span class="fuel-repeat-plus">${icon("plus")}</span></button>`).join("")}</div></section>`;
 }
 
 export function renderNutritionScreen({ state, ui, now = new Date() }) {
@@ -96,36 +106,34 @@ export function renderNutritionScreen({ state, ui, now = new Date() }) {
   const targets = normalizeTargets(nutrition.targets);
   const remaining = remainingTargets(targets, totals);
   const drafts = draftCount(day);
+  const confirmedFoods = (day?.entries || []).filter(entry => entry.status === "confirmed").length;
   const yesterday = new Date(`${dateKey}T12:00:00`);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayKey = localDateKey(yesterday);
   const yesterdayDay = nutrition.days[yesterdayKey];
   const overTarget = remaining.calories < 0;
-  return `<div class="page nutrition-page">
-    <section class="nutrition-hero teal-panel">
-      <div class="nutrition-day-nav"><button class="icon-only" data-action="nutrition-day" data-value="-1" aria-label="Previous day">${icon("chevron", "flip")}</button><span><small>NUTRITION DIARY</small><b>${escapeHtml(dateLabel(dateKey, now))}</b></span><button class="icon-only" data-action="nutrition-day" data-value="1" aria-label="Next day" ${dateKey >= todayKey ? "disabled" : ""}>${icon("chevron")}</button></div>
-      <div class="nutrition-dash">
+  return `<div class="page nutrition-page fuel-page">
+    <header class="fuel-page-heading"><div><span class="fuel-eyebrow">NUTRITION DIARY</span><h1>Fuel your day.</h1><p>Good food. A little more clarity.</p></div></header>
+    <div class="fuel-date-row"><div class="fuel-date-nav" role="group" aria-label="Diary date"><button data-action="nutrition-day" data-value="-1" aria-label="Previous day">${icon("chevron", "flip")}</button><b>${escapeHtml(dateLabel(dateKey, now))}</b><button data-action="nutrition-day" data-value="1" aria-label="Next day" ${dateKey >= todayKey ? "disabled" : ""}>${icon("chevron")}</button></div><button class="fuel-target-button" data-action="nutrition-open-targets">Edit targets</button></div>
+    <section class="fuel-summary" aria-label="Daily nutrition summary">
+      <div class="fuel-energy">
         ${calorieRing(totals, targets)}
-        <div class="nutrition-remaining">
-          <span class="eyebrow">${overTarget ? "PAST TARGET BY" : "REMAINING TODAY"}</span>
-          <b>${kcalRound(Math.abs(remaining.calories))}</b><small>kcal ${overTarget ? "over — data, not a verdict" : "left in your target"}</small>
-          <div class="macro-bars">${macroBar("Protein", totals.protein, targets.protein)}${macroBar("Carbs", totals.carbs, targets.carbs)}${macroBar("Fat", totals.fat, targets.fat)}</div>
-        </div>
+        <div class="fuel-energy-copy"><span class="fuel-eyebrow">DAILY ENERGY</span><p><b>${kcalRound(Math.abs(remaining.calories))}</b><span>kcal ${overTarget ? "above target" : "remaining"}</span></p><span class="fuel-energy-target">${kcalRound(targets.calories)} kcal ${targets.userSet ? "daily target" : "starting target"}</span>${overTarget ? '<small class="fuel-energy-note">One day is part of a bigger picture.</small>' : ""}</div>
       </div>
-      ${drafts ? `<button class="draft-chip" data-action="nutrition-first-draft"><b>${drafts} draft${drafts === 1 ? "" : "s"} waiting for review</b><small>Drafts count zero until you confirm them</small>${icon("chevron")}</button>` : ""}
-      <div class="nutrition-hero-actions">${button({ label: "Scan food", action: "nutrition-open-capture", value: "", variant: "primary", iconName: "camera" })}${button({ label: "Quick add", action: "nutrition-open-add", value: "", variant: "secondary", iconName: "plus" })}<button class="text-button" data-action="nutrition-open-targets">Edit targets</button></div>
+      <div class="fuel-macros" aria-label="Confirmed macronutrients">${macroBar("Protein", totals.protein, targets.protein)}${macroBar("Carbs", totals.carbs, targets.carbs)}${macroBar("Fat", totals.fat, targets.fat)}</div>
+      <p class="fuel-counting-note">${targets.userSet ? "Confirmed food only" : "Starting targets · yours to edit"}</p>
     </section>
-
+    <div class="fuel-add-actions"><button class="fuel-search-food" data-action="nutrition-open-add" data-value="">${icon("search")}<span>Find & add food</span>${icon("plus")}</button><button class="fuel-barcode" data-action="nutrition-open-add" data-value="" data-focus="barcode" aria-label="Look up a food barcode">${icon("barcode")}<span>Barcode</span></button></div>
+    ${drafts ? `<button class="draft-chip fuel-draft-review" data-action="nutrition-first-draft"><span class="fuel-draft-icon">${icon("info")}</span><span><b>${drafts} draft${drafts === 1 ? "" : "s"} to review</b><small>Not counted until you confirm</small></span>${icon("chevron")}</button>` : ""}
     ${quickFoodRail(nutrition)}
-
-    <div class="meal-slots">${MEAL_SLOTS.map(slot => mealSlotCard(slot, day, dateKey, {
+    <section class="fuel-diary" aria-labelledby="fuel-diary-title"><header class="fuel-section-heading"><h2 id="fuel-diary-title">On the menu</h2><small>${confirmedFoods} food${confirmedFoods === 1 ? "" : "s"} logged</small></header><div class="fuel-meals">${MEAL_SLOTS.map(slot => mealSlotCard(slot, day, dateKey, {
       yesterdayHasSlot: Boolean((yesterdayDay?.entries || []).some(entry => entry.slot === slot && entry.status === "confirmed")),
-    })).join("")}</div>
-
-    <section class="card nutrition-honesty"><header>${icon("info")}<span><small>HOW THESE NUMBERS WORK</small><h2>Estimates, honestly labeled</h2></span></header>
+    })).join("")}</div></section>
+    <details class="fuel-notes"><summary><span>${icon("info")}About your food data</span>${icon("chevron")}</summary><div class="fuel-notes-content">
       <p>${escapeHtml(NUTRITION_DISCLAIMER)}</p>
       <ul><li>Totals count confirmed entries only — drafts always count zero</li><li>Photo and text estimates are early previews and always require your review</li><li>Targets are yours to set; FitCoach never prescribes a diet</li><li>Photos never leave this device and are never stored — only name and size metadata</li></ul>
-    </section>
+      <button class="fuel-preview-button" data-action="nutrition-open-capture" data-value="">${icon("camera")}<span>Try photo draft preview</span></button><small>Photo recognition is not active. This creates an editable example.</small>
+    </div></details>
   </div>`;
 }
 
@@ -163,7 +171,7 @@ function captureSheet(modal) {
     body: `
       <div class="preview-banner">${icon("info")}<p><b>Photo recognition is not active yet.</b> This preview creates an editable example draft; it does not analyze the pixels in your image.</p></div>
       <p class="capture-copy">Take or choose a photo and describe the meal. The image stays on this device, is never uploaded or stored, and the draft counts zero until you confirm it.</p>
-      <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
+      <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}" aria-pressed="${value === slot}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
       <label class="field"><span>Optional context (what is this? portion size?)</span><input id="nutrition-context" maxlength="200" placeholder="e.g. chicken salad, big bowl" value="${escapeHtml(modal.context || "")}"></label>
       <label class="photo-input-button">${icon("camera")}<span>Open camera or photo library</span><input id="nutrition-photo" type="file" accept="image/*" capture="environment" data-action="nutrition-photo" class="sr-only"></label>
     `,
@@ -183,7 +191,7 @@ function addSheet(modal, context) {
       eyebrow: "PORTION",
       title: selected.name,
       body: `
-        <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
+        <div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip ${value === slot ? "active" : ""}" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}" aria-pressed="${value === slot}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>
         <div class="portion-stepper" role="group" aria-label="Portion size"><span>Portion</span><button class="icon-only" data-action="nutrition-add-portion" data-value="-0.25" aria-label="Smaller portion">−</button><b>${fmtMultiplier(multiplier)} ×</b><button class="icon-only" data-action="nutrition-add-portion" data-value="0.25" aria-label="Larger portion">+</button><small>${escapeHtml(selected.servingLabel)}</small></div>
         <p class="counted-preview">Adds <b>${preview.toLocaleString()} kcal</b> · ${Math.round(selected.per.protein * multiplier)} P / ${Math.round(selected.per.carbs * multiplier)} C / ${Math.round(selected.per.fat * multiplier)} F</p>
         ${selected.provenance ? `<div class="receipt-box">${icon(selected.origin === "barcode" ? "barcode" : "search")}<p><b>${escapeHtml(selected.provenance.accuracyLabel || "Provider record")} · ${escapeHtml(selected.confidence || "medium")} match confidence</b><small>${escapeHtml(`${selected.provenance.providerLabel} record ${selected.provenance.recordId}${selected.brand ? ` · ${selected.brand}` : ""}`)}</small><small>${escapeHtml(selected.provenance.warning || "Review the source, serving, and portion before relying on it.")}</small></p></div>` : ""}
@@ -199,26 +207,25 @@ function addSheet(modal, context) {
   return {
     eyebrow: "ADD FOOD",
     title: slot ? `Add to ${MEAL_SLOT_LABELS[slot]}` : "Add food",
-    body: `
-      ${slot ? "" : `<div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>`}
-      <div class="barcode-lookup">
-        <label class="field"><span>Barcode lookup</span><input id="nutrition-barcode" inputmode="numeric" pattern="[0-9]*" maxlength="18" placeholder="Scan or type barcode digits" value="${escapeHtml(modal.barcode || "")}"></label>
-        ${button({ label: modal.lookupBusy ? "Looking up…" : "Search barcode", action: "nutrition-barcode-search", variant: "secondary", iconName: "barcode", disabled: Boolean(modal.lookupBusy) })}
-        <small>Uses provider-backed product records when available. The source and reliability label are shown; verify the package label. You still choose the portion before it counts.</small>
-        ${modal.lookupError ? `<p class="form-error">${escapeHtml(modal.lookupError)}</p>` : ""}
-      </div>
+    body: `<div class="fuel-add-sheet">
+      ${slot ? "" : `<div class="candidate-row" role="group" aria-label="Meal slot"><span>Log to</span>${MEAL_SLOTS.map(value => `<button class="choice-chip" data-action="nutrition-capture-slot" data-value="${escapeHtml(value)}" aria-pressed="false">${escapeHtml(MEAL_SLOT_LABELS[value])}</button>`).join("")}</div>`}
       <div class="provider-search-block" aria-live="polite">
-        <div class="provider-search-controls"><label class="field search-field"><span class="sr-only">Search nutrition providers, saved foods, and starter foods</span>${icon("search")}<input id="nutrition-search" maxlength="80" placeholder="Search food or brand…" value="${escapeHtml(modal.query || "")}"></label>${button({ label: modal.providerSearchBusy ? "Searching…" : "Search providers", action: "nutrition-provider-search", variant: "secondary", disabled: Boolean(modal.providerSearchBusy) || !providerQueryReady })}</div>
-        <small class="provider-search-disclosure">Provider results identify their source and reliability. USDA records are reference data; community records are labeled. Nothing is added until you choose a result, review its portion, and tap Add.</small>
+        <div class="provider-search-controls"><label class="field search-field"><span class="sr-only">Search nutrition providers, saved foods, and starter foods</span>${icon("search")}<input id="nutrition-search" maxlength="80" placeholder="Food, brand, or ingredient" value="${escapeHtml(modal.query || "")}"></label>${button({ label: modal.providerSearchBusy ? "Searching…" : "Search", action: "nutrition-provider-search", variant: "primary", disabled: Boolean(modal.providerSearchBusy) || !providerQueryReady })}</div>
         ${modal.providerSearchError ? `<p class="form-error" role="alert">${escapeHtml(modal.providerSearchError)}</p>` : ""}
         ${providerResults.length ? `<div class="food-results provider-food-results"><span class="result-group-label">PROVIDER RESULTS</span>${providerResults.map((item, index) => `<button class="food-row" data-action="nutrition-pick-provider-food" data-value="${index}" aria-label="Review ${escapeHtml(item.name)} from ${escapeHtml(item.provenance?.providerLabel || "nutrition provider")}"><span class="food-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${escapeHtml(item.provenance?.accuracyLabel || "Provider record")}</small><em>${escapeHtml(item.provenance?.providerLabel || "Nutrition provider")}${item.brand ? ` · ${escapeHtml(item.brand)}` : ""}</em></span><span class="food-kcal"><b>${Math.round(item.per.calories)}</b><small>kcal</small></span></button>`).join("")}</div>` : ""}
+      </div>
+      <div class="barcode-lookup fuel-barcode-lookup">
+        <label class="field"><span>Have the package?</span><input id="nutrition-barcode" inputmode="numeric" pattern="[0-9]*" maxlength="18" placeholder="Enter barcode digits" value="${escapeHtml(modal.barcode || "")}"></label>
+        ${button({ label: modal.lookupBusy ? "Looking up…" : "Barcode", action: "nutrition-barcode-search", variant: "secondary", iconName: "barcode", disabled: Boolean(modal.lookupBusy) })}
+        ${modal.lookupError ? `<p class="form-error" role="alert">${escapeHtml(modal.lookupError)}</p>` : ""}
       </div>
       ${showCustom ? `
       <div class="per-serving-grid custom-food-grid"><label><span>Name</span><input id="custom-name" maxlength="120" placeholder="e.g. Mom’s dal"></label><label><span>Serving label</span><input id="custom-serving" maxlength="80" placeholder="1 bowl"></label><label><span>kcal / serving</span><input id="custom-kcal" type="number" inputmode="numeric" min="0" max="5000"></label><label><span>Protein g</span><input id="custom-protein" type="number" inputmode="decimal" min="0" max="500" value="0"></label><label><span>Carbs g</span><input id="custom-carbs" type="number" inputmode="decimal" min="0" max="800" value="0"></label><label><span>Fat g</span><input id="custom-fat" type="number" inputmode="decimal" min="0" max="500" value="0"></label></div>
       ${button({ label: "Add custom food", action: "nutrition-add-custom", variant: "primary" })}` : `
       <div class="food-results local-food-results"><span class="result-group-label">SAVED + STARTER FOODS</span>${results.length ? results.map((item, index) => `<button class="food-row" data-action="nutrition-pick-food" data-value="${index}"><span class="food-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.servingLabel)} · ${escapeHtml(item.origin === "library" ? "starter food · verify values" : item.origin)}${item.origin !== "library" ? ` · last ${fmtMultiplier(item.multiplier)}×` : ""}</small></span><span class="food-kcal"><b>${Math.round(item.per.calories)}</b><small>kcal</small></span></button>`).join("") : `<p class="meal-slot-empty">No local match. Search providers or create a custom food from the package label.</p>`}</div>
       <button class="text-button" data-action="nutrition-toggle-custom">Create a custom food</button>`}
-    `,
+      <details class="fuel-search-notes"><summary>About search results</summary><p>Uses provider-backed product records when available. The source and reliability label are shown; verify the package label. You still choose the portion before it counts.</p><p class="provider-search-disclosure">Provider results identify their source and reliability. USDA records are reference data; community records are labeled. Nothing is added until you choose a result, review its portion, and tap Add.</p></details>
+    </div>`,
     actions: button({ label: "Close", action: "close-modal", variant: "quiet" }),
   };
 }

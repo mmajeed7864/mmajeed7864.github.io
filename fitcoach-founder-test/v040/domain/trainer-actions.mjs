@@ -13,7 +13,8 @@ export const TRAINER_ACTION_KINDS = Object.freeze([
 
 const INTENT = Object.freeze({
   exercise: /\b(?:show|open|guide|teach|learn|explain|how\s+(?:do|to)|instructions?|setup|form|mistakes?)\b/i,
-  workout: /(?:\b(?:today(?:'s)?\s+workout|my\s+workout|workout\s+today|what\s+should\s+i\s+(?:train|do)(?:\s+today)?)\b|\b(?:open|pull\s+up|show|start)\b[\s\S]{0,36}\b(?:plan|workout|training\s+week|leg\s+day|push\s+day|pull\s+day)\b)/i,
+  currentExercise: /^(?:please\s+)?(?:(?:(?:can|could|would)\s+you\s+)?(?:show(?:\s+me)?|open|explain(?:\s+to\s+me)?|teach(?:\s+me)?)|how\s+(?:do\s+i|to)\s+(?:do|perform))\s+(?:(?:the|my)\s+)?(?:this|current)\s+(?:exercise|move|movement)(?:\s+(?:guide|instructions|setup|form))?(?:\s+please)?[.!?]*$/i,
+  workout: /(?:\b(?:today(?:'s)?\s+workout|my\s+workout|workout\s+today|what\s+should\s+i\s+(?:train|do)(?:\s+today)?)\b|\b(?:resume|continue|return\s+to|back\s+to)\s+(?:(?:my|the|current|active)\s+)?workout\b|\b(?:open|pull\s+up|show|start)\b[\s\S]{0,36}\b(?:plan|workout|training\s+week|leg\s+day|push\s+day|pull\s+day)\b)/i,
   duration: /\b(?:shorter|quick(?:er)?|only\s+have|fit\s+into|make\s+(?:it|today|the\s+workout))\b/i,
   progress: /\b(?:progress|history|personal\s+best|prs?|volume|consistency|completed\s+workouts?)\b/i,
   voice: /\b(?:voice\s+(?:room|mode|coach|trainer)|talk\s+to\s+(?:you|my\s+trainer)|speak\s+(?:with|to)|start\s+voice)\b/i,
@@ -49,20 +50,42 @@ function requestedMinutes(message) {
   return match ? Number(match[1]) : null;
 }
 
+function currentExercise(state, exercises) {
+  const workout = state?.activeWorkout;
+  if (!Array.isArray(workout?.exercises) || !Array.isArray(exercises)) return null;
+  const index = workout.currentExerciseIndex ?? 0;
+  if (!Number.isInteger(index) || index < 0 || index >= workout.exercises.length) return null;
+  const current = workout.exercises[index];
+  const id = current?.exerciseId || current?.snapshot?.id;
+  if (typeof id !== "string" || !id) return null;
+  // Resolve only a known catalogue ID. Never infer a different movement from
+  // stale snapshot names, an invalid index, or the next planned workout.
+  return exercises.find(exercise => exercise.id === id && typeof exercise.name === "string" && exercise.name.trim()) || null;
+}
+
+function exerciseGuideAction(exercise) {
+  return Object.freeze({
+    kind: "open_exercise",
+    value: exercise.id,
+    label: `Open ${exercise.name} guide`,
+    detail: exercise.guideStatus === "visual-guide"
+      ? "Local illustrated setup, movement, and mistake guide"
+      : "Local written setup, movement, and cue guide",
+  });
+}
+
 export function deriveTrainerAction({ state, message, exercises }) {
   const normalized = normalizeTrainerMessage(message);
   if (!normalized) return null;
 
   const exercise = matchedExercise(normalized, exercises);
   if (exercise && (INTENT.exercise.test(normalized) || normalized.trim().toLowerCase() === exercise.name.toLowerCase())) {
-    return Object.freeze({
-      kind: "open_exercise",
-      value: exercise.id,
-      label: `Open ${exercise.name} guide`,
-      detail: exercise.guideStatus === "visual-guide"
-        ? "Local illustrated setup, movement, and mistake guide"
-        : "Local written setup, movement, and cue guide",
-    });
+    return exerciseGuideAction(exercise);
+  }
+
+  if (INTENT.currentExercise.test(normalized)) {
+    const current = currentExercise(state, exercises);
+    return current ? exerciseGuideAction(current) : null;
   }
 
   const minutes = requestedMinutes(normalized);
@@ -92,7 +115,7 @@ export function deriveTrainerAction({ state, message, exercises }) {
       kind: "open_nutrition",
       value: "nutrition",
       label: "Show protein gap",
-      detail: `${projection.proteinGrams} g confirmed today · ${projection.proteinGapGrams} g below your ${projection.proteinTarget} g target`,
+      detail: `${projection.proteinGrams} / ${projection.proteinTarget} g protein confirmed today · ${projection.proteinGapGrams ? `${projection.proteinGapGrams} g below target` : "target reached in the log"}. Drafts don't count.`,
     });
   }
 
@@ -102,7 +125,7 @@ export function deriveTrainerAction({ state, message, exercises }) {
       kind: "open_nutrition",
       value: "nutrition",
       label: "Open today’s nutrition",
-      detail: `${projection.confirmedCalories} kcal confirmed · drafts count zero until you review them`,
+      detail: `${Math.round(projection.confirmedCalories)} / ${projection.targetCalories} kcal · ${projection.proteinGrams} / ${projection.proteinTarget} g protein confirmed today. Drafts don't count.`,
     });
   }
 
