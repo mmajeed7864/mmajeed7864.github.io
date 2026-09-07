@@ -47,4 +47,6 @@ node --test tests/*.test.mjs
 node scripts/release-readiness.mjs
 ```
 
-The non-strict readiness command reports honest blockers and exits successfully. `--strict` exits nonzero until every external release gate is explicitly recorded as complete.
+The non-strict readiness command verifies the source kit and reports release blockers. `--strict` also requires the 30 external flags, per-gate reviewed and hashed evidence for the current app version and source revision, generated native projects, and both compiled app artifacts. `--json` emits a daily reporting record with separate source, compilation, device, and store evidence status. The actual app runtime version is reported separately from the historical kit target; the original checklist remains intact.
+
+See [release evidence](release/RELEASE_EVIDENCE.md) for the manifest format, artifact binding, private evidence storage, and the distinction between evidence validation and independent store approval. No real evidence or completed external gate is supplied by this source kit.
