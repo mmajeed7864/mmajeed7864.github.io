@@ -41,5 +41,10 @@ jobs:
       - name: Audit production native dependencies
         working-directory: fitcoach-founder-test/native
         run: npm audit --omit=dev --audit-level=high
+      - name: Assemble and verify the local native web bundle
+        working-directory: fitcoach-founder-test/native
+        run: |
+          npm run web:build
+          npm run web:verify
       - name: Check diff whitespace
         run: git diff --check

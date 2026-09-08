@@ -25,6 +25,8 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: !release,
   },
   server: {
+    // Preserve the web app's absolute exercise/anatomy paths without rewrites.
+    appStartPath: "/fitcoach-founder-test/index.html",
     androidScheme: "https",
     cleartext: false,
   },
