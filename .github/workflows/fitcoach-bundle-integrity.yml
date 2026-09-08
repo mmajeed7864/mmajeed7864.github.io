@@ -69,7 +69,17 @@ jobs:
           node scripts/prepare-android-project.mjs --web-bundle dist --out "$FITCOACH_TEST_ANDROID_PROJECT"
           node --test tests/integration/android-project.test.mjs
           cd "$FITCOACH_TEST_ANDROID_PROJECT/android"
-          ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug :app:lintDebug
+          if ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug :app:lintDebug; then
+            FITCOACH_GRADLE_RESULT=0
+          else
+            FITCOACH_GRADLE_RESULT=$?
+          fi
+          if test -f app/build/reports/lint-results-debug.txt; then
+            sed -n '1,600p' app/build/reports/lint-results-debug.txt
+          elif test -f app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt; then
+            sed -n '1,600p' app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
+          fi
+          exit "$FITCOACH_GRADLE_RESULT"
       - name: Check the compiled development package without publishing it
         env:
           FITCOACH_ANDROID_APK: ${{ runner.temp }}/fitcoach-android/android/app/build/outputs/apk/debug/app-debug.apk

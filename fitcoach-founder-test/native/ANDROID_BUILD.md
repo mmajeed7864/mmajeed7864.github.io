@@ -38,7 +38,8 @@ not Mohammed's production upload key; it must never be submitted to a store.
 
 - Uses only the existing development identity `com.symbio.fitcoach.dev` and label
   `FitCoach Dev`. It rejects release mode, a production/custom ID, remote launch
-  URLs, cleartext, mixed content and a changed app start path.
+  URLs, cleartext, mixed content, changed web/platform paths, signing options,
+  navigation allowlists, non-local origins and a changed app start path.
 - Refuses existing output, source overlap, web-bundle overlap and symlinked
   parents. Partial/earlier outputs remain evidence, never deletion targets.
 - Verifies pinned installed Capacitor versions against the lockfile and checks

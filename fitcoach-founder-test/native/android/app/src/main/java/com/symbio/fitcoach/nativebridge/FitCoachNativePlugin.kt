@@ -840,7 +840,7 @@ class FitCoachNativePlugin : Plugin(), RecognitionListener, PurchasesUpdatedList
                 return
             }
             @Suppress("DEPRECATION")
-            val preferred = audioManager.getDevices(AudioManager.GET_DEVICES_ALL).firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+            val preferred = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
             if (preferred != null) {
                 @Suppress("DEPRECATION")
                 audioManager.startBluetoothSco()

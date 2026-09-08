@@ -50,6 +50,12 @@ export function replaceOnce(source, pattern, replacement, label) {
 
 export function validateDebugConfig(config) {
   if (
+    config.webDir !== "dist" ||
+    (config.android?.path !== undefined && config.android.path !== "android") ||
+    config.android?.buildOptions !== undefined
+  )
+    throw new Error("Unreviewed web/platform path or signing options");
+  if (
     config.appId !== "com.symbio.fitcoach.dev" ||
     config.appName !== "FitCoach Dev"
   )
@@ -58,6 +64,9 @@ export function validateDebugConfig(config) {
     );
   if (
     config.server?.url ||
+    (config.server?.hostname !== undefined &&
+      config.server.hostname !== "localhost") ||
+    config.server?.allowNavigation !== undefined ||
     config.server?.cleartext !== false ||
     config.android?.allowMixedContent !== false ||
     config.server?.androidScheme !== "https" ||

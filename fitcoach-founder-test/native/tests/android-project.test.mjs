@@ -14,6 +14,7 @@ import {
 const read = (file) =>
   fs.readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const config = {
+  webDir: "dist",
   appId: "com.symbio.fitcoach.dev",
   appName: "FitCoach Dev",
   server: {
@@ -70,6 +71,13 @@ test("unknown or duplicate template markers and toolchain changes require review
 test("development preparer cannot silently build production identity or use a hosted/cleartext app", () => {
   assert.doesNotThrow(() => validateDebugConfig(config));
   for (const patch of [
+    { webDir: "../../private" },
+    { android: { ...config.android, path: "../../existing-project" } },
+    {
+      android: { ...config.android, buildOptions: { signingType: "release" } },
+    },
+    { server: { ...config.server, hostname: "other.invalid" } },
+    { server: { ...config.server, allowNavigation: ["*"] } },
     { appId: "com.symbio.fitcoach" },
     { appName: "FitCoach" },
     { server: { ...config.server, url: "https://remote.invalid" } },
