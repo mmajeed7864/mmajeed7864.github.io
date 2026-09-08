@@ -67,6 +67,8 @@ test("native voice separates speech input from high-quality Bluetooth output", (
   assert.match(android, /AudioManager\.STREAM_VOICE_CALL/u);
   assert.match(android, /setCommunicationDevice\(preferred\)/u);
   assert.match(android, /clearCommunicationDevice\(\)/u);
+  assert.match(android, /getDevices\(AudioManager\.GET_DEVICES_OUTPUTS\)/u);
+  assert.doesNotMatch(android, /getDevices\(AudioManager\.GET_DEVICES_ALL\)/u);
   assert.match(android, /voiceInputSessionActive/u);
   assert.match(android, /routeConfirmed/u);
   assert.doesNotMatch(android, /bluetoothRemoved/u);
@@ -219,7 +221,9 @@ test("release configuration cannot accidentally use the dev ID for a store build
   assert.match(appBuild, /apply plugin: 'org\.jetbrains\.kotlin\.android'/u);
   assert.match(appBuild, /minSdk\s+26/u);
   assert.match(appBuild, /compileSdk\s+36/u);
-  assert.match(appBuild, /jvmTarget = '17'/u);
+  assert.match(appBuild, /jvmTarget = '21'/u);
+  assert.match(appBuild, /sourceCompatibility JavaVersion.VERSION_21/u);
+  assert.match(read("android/app/src/main/AndroidManifest.xml"), /smallestScreenSize\|navigation\|density/u);
 });
 
 test("store icons have exact dimensions and no alpha channel", () => {

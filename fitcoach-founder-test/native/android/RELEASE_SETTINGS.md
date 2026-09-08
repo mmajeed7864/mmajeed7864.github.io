@@ -1,11 +1,11 @@
 # Android release settings
 
-Status: reference checklist only. No Gradle project, Android App Bundle, upload key, or Play Console release was generated on this host.
+Status: [the development project preparer](../ANDROID_BUILD.md) now integrates these source files into a real Capacitor Gradle project in a new directory. A generated project or debug compile is not an Android App Bundle, registered upload key, device test or Play release.
 
 ## Generated project requirements
 
 - Generate the Android project from the pinned Capacitor 8.5.1 dependencies and commit its dependency lockfiles/checksums.
-- Merge `reference-root-build.gradle` into the generated root `build.gradle` and `reference-app-build.gradle` into generated `app/build.gradle`: Capacitor's generated Android template is Groovy and Java-only while the local bridge is Kotlin. Replace, rather than duplicate, the generated AGP classpath line. Keep `google()` in buildscript repositories. The reviewed pairing is AGP 8.13.2, Capacitor's generated Gradle wrapper 8.14.3, Kotlin Gradle Plugin 2.3.20, and JDK 17.
+- The preparer merges `reference-root-build.gradle` into the generated root `build.gradle` and `reference-app-build.gradle` into generated `app/build.gradle`: Capacitor's generated Android template is Groovy and Java-only while the local bridge is Kotlin. Replace, rather than duplicate, the generated AGP classpath line. Keep `google()` in buildscript repositories. The reviewed pairing is AGP 8.13.2, Gradle wrapper 8.14.3, Kotlin Gradle Plugin 2.3.20, and JDK/Java/Kotlin target 21. Java 17 was incompatible with the pinned Capacitor Android library/generated configuration.
 - Update generated `variables.gradle` to `minSdkVersion = 26`, `compileSdkVersion = 36`, and `targetSdkVersion = 36`; do not leave the template minSdk at 24.
 - Keep the provided `MainActivity` launcher and its pre-bridge `registerPlugin(FitCoachNativePlugin::class.java)` call; do not rely on npm plugin discovery for this app-local plugin.
 - Keep `minSdkVersion = 26`, `compileSdkVersion = 36`, and `targetSdkVersion = 36`. Health Connect `connect-client:1.1.0` declares minSdk 26, minCompileSdk 36, and minimum AGP 8.9.1; using Capacitor's lower template minSdk will fail manifest/AAR validation. Google Play requires new apps and updates submitted from August 31, 2026 to target Android 16 / API 36 or higher.

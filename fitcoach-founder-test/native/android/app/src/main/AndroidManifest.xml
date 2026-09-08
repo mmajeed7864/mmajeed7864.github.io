@@ -25,9 +25,20 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
 
+        <!-- Capacitor's explicit camera picker writes into app-owned Pictures. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|uiMode|screenLayout|smallestScreenSize"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|uiMode|screenLayout|smallestScreenSize|navigation|density"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/AppTheme.NoActionBarLaunch">
