@@ -1,4 +1,7 @@
 /* Club profile — a ruled settings index, keeping every service and privacy control. */
+/* Account status and destructive actions must remain readable on tinted surfaces. */
+.cloud-account-card { --muted: #556160; --danger: #b83232; }
+[data-theme="dark"] .cloud-account-card { --muted: #b0babb; --danger: #ff9b9b; }
 .space-page { --space-blue: #2457ff; --space-line: color-mix(in srgb, var(--border) 82%, transparent); display: grid; gap: 24px; min-width: 0; padding-top: 12px; }
 .space-page > * { min-width: 0; }
 .space-eyebrow { display: block; color: var(--space-blue); font-size: 10px; font-weight: 700; letter-spacing: .16em; line-height: 1.4; margin-bottom: 10px; }
@@ -62,6 +65,9 @@
 .space-page .account-unavailable b, .space-page .account-loading b, .space-page .account-sync-status b, .space-page .account-identity b { color: var(--text); font-size: 12px; line-height: 1.4; font-weight: 620; overflow-wrap: anywhere; }
 .space-page .account-unavailable small, .space-page .account-loading small, .space-page .account-sync-status small { color: var(--muted); font-size: 11px; line-height: 1.5; }
 .space-page .account-identity em { margin-left: auto; color: var(--muted); font-size: 10px; font-style: normal; }
+.space-page .account-identity { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 7px 10px; align-items: center; }
+.space-page .account-identity > span { grid-row: 1 / 3; width: 32px; height: 32px; box-shadow: none; }
+.space-page .account-identity em { grid-column: 2; justify-self: start; margin-left: 0; padding: 4px 8px; }
 .space-page .account-auth-copy > b { color: var(--text); font-size: 14px; }
 .space-page .account-input { display: grid; gap: 7px; min-width: 0; }
 .space-page .account-input > span { color: var(--muted); font-size: 11px; font-weight: 600; }
@@ -137,4 +143,3 @@ html[data-theme="dark"] .space-page { --space-blue: #8ab5ff; }
   .space-page .theme-picker > button { min-height: 95px; padding: 16px; }
   .space-page .profile-plan-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-

@@ -11,9 +11,7 @@ import { recordExerciseView } from "./domain/exercise-discovery.mjs";
 import { buildWeeklyEvidence } from "./domain/evidence.mjs";
 import { addWater, undoWater } from "./domain/hydration.mjs";
 import {
-  hasUnsyncedLocalChanges,
   mergeRemoteStateWithLocalOnlyFields,
-  projectStateForEncryptedSync,
 } from "./domain/sync-projection.mjs";
 import {
   MEAL_SLOTS,
@@ -57,6 +55,7 @@ import {
 } from "./data/exercise-library.mjs";
 import { createTrainerClient, isPrivateTrainerInput } from "./services/trainer-client.mjs";
 import { createAccountClient } from "./services/account-client.mjs";
+import { createSyncCoordinator } from "./services/sync-coordinator.mjs";
 import {
   createNativeRoutedAudio,
   isTransientNativePurchaseReconciliationError,
@@ -180,6 +179,11 @@ const trainerClient = createTrainerClient();
 const nutritionClient = createNutritionClient();
 const nativeClient = createNativePlatformClient();
 const accountClient = createAccountClient({ secureStorage: nativeClient.secureSessionStorage });
+const syncCoordinator = createSyncCoordinator({
+  client: accountClient, getStore: () => store, getConsentVersion: () => ui.account.config?.consentVersion || "",
+  deviceId: cloudDeviceId, schemaVersion: V040_SCHEMA_VERSION, applyRemote: applyRemoteCloudState,
+  onState: next => { state = next; },
+});
 const CLOUD_DEVICE_KEY = "fitcoach-cloud-device-id";
 let nativePlatformListeners = [];
 let platformInitializationSequence = 0;
@@ -1116,7 +1120,15 @@ function cloudDeviceId() {
 
 function accountErrorCopy(error) {
   const code = String(error?.message || error || "");
+  if (error?.retryAt > Date.now()) return `Please wait ${Math.ceil((error.retryAt - Date.now()) / 1000)} seconds before trying again. Your changes stay on this device.`;
   return ({
+    RATE_LIMITED: "Please wait a moment before trying again. Your changes stay on this device.",
+    account_timeout: "The service took too long to reply. Your changes are still here. Sync again to check what reached the cloud.",
+    account_network_unavailable: "Connection interrupted. Your changes are still here. Sync again when you are online.",
+    local_changes_during_sync: "You made another change while sync was checking. Everything is still here—tap Sync again when you are ready.",
+    conflict_choice_expired: "The cloud copy changed since your last choice. Sync again to compare the latest copies.",
+    SYNC_REVISION_CONFLICT: "Another device saved a newer copy. Sync again to compare both versions.",
+    ABUSE_PROTECTION_UNAVAILABLE: "Secure sync is temporarily unavailable. Your local changes are safe to retry later.",
     RECENT_AUTH_REQUIRED: "For your protection, sign out and use a fresh email code before exporting or deleting the account.",
     ACCOUNT_SYNC_NOT_CONFIGURED: "Encrypted sync is not active on the server yet. Your device data was not changed.",
     ACCOUNT_EXPORT_NOT_CONFIGURED: "Cloud export is not active on the server yet.",
@@ -1227,7 +1239,7 @@ async function initializePlatform() {
   if (ui.mode === "app" && ui.route === "profile") render();
 }
 
-function applyRemoteCloudState(remote) {
+function applyRemoteCloudState(remote, syncMetadata = {}) {
   const merged = mergeRemoteStateWithLocalOnlyFields(remote?.state, store.get());
   if (!merged) throw new Error("invalid_cloud_state");
   merged.integrations = merged.integrations || {};
@@ -1236,6 +1248,7 @@ function applyRemoteCloudState(remote) {
     revision: Number(remote.revision) || 0,
     consentVersion: ui.account.config?.consentVersion || "",
     lastSyncedAt: remote.updatedAt || new Date().toISOString(),
+    ...syncMetadata,
   };
   state = store.replace(merged);
   ui.account.pendingRemote = null;
@@ -1250,63 +1263,25 @@ function applyRemoteCloudState(remote) {
   return releaseAccessAllowed;
 }
 
-async function ensureSyncConsent() {
-  const version = ui.account.config?.consentVersion || "";
-  if (!version) throw new Error("ACCOUNT_SYNC_NOT_CONFIGURED");
-  if (state.integrations?.cloudSync?.consentVersion === version) return;
-  await accountClient.recordSyncConsent({ policyVersion: version, decision: "accepted" });
-  state = store.update(draft => { draft.integrations.cloudSync.consentVersion = version; });
-}
-
 async function syncAccount(preference = "auto") {
+  if (ui.account.busy) return;
   if (!ui.account.config?.capabilities?.sync) return setAccountBusy(false, "Encrypted sync is not active on the server yet.");
   setAccountBusy(true);
   try {
-    await ensureSyncConsent();
-    const remote = preference === "cloud" && ui.account.pendingRemote
-      ? ui.account.pendingRemote
-      : await accountClient.pullSync();
-    const local = store.get();
-    const localRevision = Number(local.integrations?.cloudSync?.revision) || 0;
-    const remoteRevision = Number(remote?.revision) || 0;
-    const localChanged = hasUnsyncedLocalChanges(local);
-
-    let releaseAccessAllowed = true;
-    if (remote?.state && preference === "cloud") {
-      releaseAccessAllowed = applyRemoteCloudState(remote);
-    } else if (remote?.state && preference === "auto" && remoteRevision !== localRevision && localChanged) {
-      ui.account.pendingRemote = remote;
-      state = store.update(draft => { draft.integrations.cloudSync.status = "conflict"; });
+    const result = await syncCoordinator.sync({ preference, pendingRemote: ui.account.pendingRemote });
+    if (result.status === "conflict") {
+      ui.account.pendingRemote = result.remote;
       setAccountBusy(false);
       return;
-    } else if (remote?.state && preference === "auto" && remoteRevision !== localRevision && !localChanged) {
-      releaseAccessAllowed = applyRemoteCloudState(remote);
-    } else if (remote?.state && preference === "auto" && remoteRevision === localRevision && !localChanged) {
-      state = store.update(draft => {
-        draft.integrations.cloudSync.status = "connected";
-        draft.integrations.cloudSync.lastSyncedAt = remote.updatedAt || new Date().toISOString();
-      });
-    } else {
-      const result = await accountClient.pushSync({
-        baseRevision: remoteRevision,
-        deviceId: cloudDeviceId(),
-        schemaVersion: V040_SCHEMA_VERSION,
-        state: projectStateForEncryptedSync(local),
-      });
-      state = store.update(draft => {
-        draft.integrations.cloudSync.status = "connected";
-        draft.integrations.cloudSync.revision = Number(result.revision) || remoteRevision;
-        draft.integrations.cloudSync.consentVersion = ui.account.config?.consentVersion || "";
-        draft.integrations.cloudSync.lastSyncedAt = result.updatedAt || new Date().toISOString();
-      });
-      ui.account.pendingRemote = null;
     }
+    ui.account.pendingRemote = null;
     setAccountBusy(false);
-    toast(!releaseAccessAllowed
+    toast(result.releaseAccessAllowed === false
       ? "Cloud copy restored. Complete the current age-appropriate setup before entering FitCoach."
-      : preference === "cloud" ? "Cloud copy restored. Local-only Coach and photo drafts stayed here." : "Encrypted sync is up to date.");
+      : result.status === "pending" ? "Earlier changes synced. Your newest edits are still on this device—sync again when ready."
+        : result.restored ? "Cloud copy restored. Local-only Coach and photo drafts stayed here." : "Encrypted sync is up to date.");
   } catch (error) {
-    state = store.update(draft => { draft.integrations.cloudSync.status = "error"; });
+    if (error?.message === "sync_cancelled") return;
     setAccountBusy(false, accountErrorCopy(error));
   }
 }
@@ -1338,17 +1313,21 @@ async function verifyAccountCode() {
 }
 
 async function signOutAccount() {
+  syncCoordinator.cancel();
   setAccountBusy(true);
-  await accountClient.signOut();
-  ui.account.session = null;
-  ui.account.entitlement = null;
-  ui.account.pendingRemote = null;
-  ui.account.confirmDelete = false;
-  state = store.update(draft => { draft.integrations.cloudSync.status = "local_only"; });
-  setAccountBusy(false);
+  try {
+    await accountClient.signOut();
+    ui.account.session = null;
+    ui.account.entitlement = null;
+    ui.account.pendingRemote = null;
+    ui.account.confirmDelete = false;
+    state = store.update(draft => { draft.integrations.cloudSync = { status: "local_only", revision: 0, consentVersion: "", lastSyncedAt: null }; });
+    setAccountBusy(false);
+  } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
 }
 
 async function resetFitCoachAccountAndDevice() {
+  syncCoordinator.cancel();
   try {
     await accountClient.clearSession();
   } catch (error) {
@@ -1391,6 +1370,7 @@ async function deleteCloudAccount() {
     return;
   }
   setAccountBusy(true);
+  syncCoordinator.cancel();
   try {
     await accountClient.deleteAccount();
     await accountClient.signOut();

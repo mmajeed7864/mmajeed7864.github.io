@@ -6,6 +6,22 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const OTP_RE = /^[0-9]{6,8}$/u;
 const DEVICE_RE = /^[a-zA-Z0-9_-]{8,80}$/u;
 
+export class AccountRequestError extends Error {
+  constructor(code, { status = 0, retryAt = 0 } = {}) {
+    super(code);
+    this.name = "AccountRequestError";
+    this.status = status;
+    this.retryAt = retryAt;
+  }
+}
+
+export function accountRetryDelay(value, now, fallback = 5_000) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (/^\d+$/u.test(raw) && Number.isSafeInteger(Number(raw))) return Math.max(1_000, Math.min(Number.MAX_SAFE_INTEGER - now, Number(raw) * 1_000));
+  const date = raw && Date.parse(raw);
+  return Number.isFinite(date) && date > now ? date - now : fallback;
+}
+
 const isRecord = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const clean = (value, max = 240) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const safeJson = async response => {
@@ -148,6 +164,8 @@ export function createAccountClient({
   storage = globalThis.sessionStorage,
   secureStorage = null,
   clock = () => Date.now(),
+  random = Math.random,
+  requestTimeoutMs = 15_000,
 } = {}) {
   let config = null;
   const nativeSecureStorage = secureStorage?.available === true
@@ -158,16 +176,64 @@ export function createAccountClient({
     : null;
   let session = nativeSecureStorage ? null : readAccountSession(storage);
   let hydration = null;
+  let sessionGeneration = 0;
+  let refreshing = null;
+  let storageWork = Promise.resolve();
+  const cooldowns = new Map();
+  const assertSession = generation => { if (generation !== sessionGeneration) throw new Error("authentication_changed"); };
+  const queueStorage = work => {
+    const result = storageWork.then(work);
+    storageWork = result.catch(() => {});
+    return result;
+  };
+
+  async function requestJson(url, options = {}, fallbackCode = "account_request_failed") {
+    const key = `${options.method || "GET"}:${url.split("?")[0]}`;
+    const cooldown = cooldowns.get(key);
+    if (cooldown?.retryAt > clock()) throw new AccountRequestError(cooldown.code, cooldown);
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options.signal?.aborted) abort();
+    options.signal?.addEventListener("abort", abort, { once: true });
+    const timer = setTimeout(abort, requestTimeoutMs);
+    try {
+      const response = await fetchImpl(url, { ...options, signal: controller.signal, redirect: "error" });
+      const payload = await safeJson(response);
+      if (controller.signal.aborted) throw new Error("request_aborted");
+      if (!response.ok) {
+        const code = clean(payload?.error_description || payload?.msg || payload?.error, 160) || `${fallbackCode}_${response.status}`;
+        const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
+        const fallback = Math.min(60_000, (cooldown?.delay || 2_500) * 2);
+        const delay = retryable ? accountRetryDelay(response.headers?.get?.("Retry-After"), clock(), fallback) + Math.floor(Math.max(0, Math.min(1, random())) * 1_000) : 0;
+        const retryAt = delay ? clock() + delay : 0;
+        if (delay) cooldowns.set(key, { code, status: response.status, retryAt, delay: fallback });
+        throw new AccountRequestError(code, { status: response.status, retryAt });
+      }
+      cooldowns.delete(key);
+      return payload;
+    } catch (error) {
+      if (error instanceof AccountRequestError) throw error;
+      const code = controller.signal.aborted ? "account_timeout" : "account_network_unavailable";
+      const delay = Math.min(60_000, (cooldown?.delay || 2_500) * 2);
+      const retryAt = clock() + delay + Math.floor(Math.max(0, Math.min(1, random())) * 1_000);
+      cooldowns.set(key, { code, status: 0, retryAt, delay });
+      throw new AccountRequestError(code, { retryAt });
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
+    }
+  }
 
   async function hydrateSession() {
     if (!nativeSecureStorage) return session;
     if (!hydration) {
+      const generation = sessionGeneration;
       hydration = (async () => {
         try {
           const raw = await nativeSecureStorage.read();
-          session = raw ? accountSessionFromRecord(JSON.parse(raw)) : null;
+          if (generation === sessionGeneration) session = raw ? accountSessionFromRecord(JSON.parse(raw)) : null;
         } catch {
-          session = null;
+          if (generation === sessionGeneration) session = null;
         }
         // A native build must not retain a legacy JS-accessible token copy.
         clearAccountSession(storage);
@@ -177,38 +243,43 @@ export function createAccountClient({
     return hydration;
   }
 
-  async function persistSession(nextSession) {
-    const record = accountSessionRecord(nextSession);
-    if (!record) throw new Error("invalid_auth_session");
-    if (nativeSecureStorage) {
-      const saved = await nativeSecureStorage.write(JSON.stringify(record));
-      if (!saved) throw new Error("secure_session_storage_failed");
-      clearAccountSession(storage);
-      return;
-    }
-    if (!saveAccountSession(nextSession, storage)) throw new Error("session_storage_failed");
+  async function persistSession(nextSession, generation = sessionGeneration) {
+    return queueStorage(async () => {
+      assertSession(generation);
+      const record = accountSessionRecord(nextSession);
+      if (!record) throw new Error("invalid_auth_session");
+      if (nativeSecureStorage) {
+        const saved = await nativeSecureStorage.write(JSON.stringify(record));
+        if (!saved) throw new Error("secure_session_storage_failed");
+        assertSession(generation);
+        clearAccountSession(storage);
+        return;
+      }
+      if (!saveAccountSession(nextSession, storage)) throw new Error("session_storage_failed");
+    });
   }
 
   async function clearPersistedSession() {
-    if (nativeSecureStorage) {
-      let cleared = false;
-      try { cleared = await nativeSecureStorage.clear(); } finally { clearAccountSession(storage); }
-      if (cleared !== true) throw new Error("secure_session_clear_failed");
-      return;
-    }
-    clearAccountSession(storage);
+    return queueStorage(async () => {
+      if (nativeSecureStorage) {
+        let cleared = false;
+        try { cleared = await nativeSecureStorage.clear(); } finally { clearAccountSession(storage); }
+        if (cleared !== true) throw new Error("secure_session_clear_failed");
+        return;
+      }
+      clearAccountSession(storage);
+    });
   }
 
   async function fetchPlatformConfig({ signal } = {}) {
     try {
-      const response = await fetchImpl(`${apiBase}/fitcoach-platform-config-v1`, {
+      const payload = await requestJson(`${apiBase}/fitcoach-platform-config-v1`, {
         method: "GET",
         headers: { Accept: "application/json", "X-FitCoach-Build": BUILD },
         cache: "no-store",
         signal,
       });
-      const payload = await safeJson(response);
-      config = normalizeConfig(response.ok ? payload : { ok: false, reason: payload?.error || "platform_unavailable" });
+      config = normalizeConfig(payload);
     } catch {
       config = normalizeConfig({ ok: false, reason: "platform_unavailable" });
     }
@@ -223,7 +294,7 @@ export function createAccountClient({
 
   async function supabase(path, { method = "POST", body, accessToken } = {}) {
     const current = await requireConfig();
-    const response = await fetchImpl(`${current.supabaseUrl}${path}`, {
+    return requestJson(`${current.supabaseUrl}${path}`, {
       method,
       headers: {
         Accept: "application/json",
@@ -233,10 +304,7 @@ export function createAccountClient({
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
-    });
-    const payload = await safeJson(response);
-    if (!response.ok) throw new Error(clean(payload?.error_description || payload?.msg || payload?.error, 160) || `auth_${response.status}`);
-    return payload;
+    }, "auth");
   }
 
   async function requestEmailCode(email, redirectTo = globalThis.location?.href) {
@@ -259,26 +327,39 @@ export function createAccountClient({
     const normalizedEmail = clean(email, 320).toLowerCase();
     const normalizedToken = clean(token, 12).replace(/\s/gu, "");
     if (!EMAIL_RE.test(normalizedEmail) || !OTP_RE.test(normalizedToken)) throw new Error("invalid_email_code");
+    const generation = ++sessionGeneration;
+    refreshing = null;
     const payload = await supabase("/auth/v1/verify", {
       body: { type: "email", email: normalizedEmail, token: normalizedToken },
     });
     const nextSession = normalizeSession(payload);
+    assertSession(generation);
     if (!nextSession) throw new Error("invalid_auth_session");
-    await persistSession(nextSession);
+    await persistSession(nextSession, generation);
+    assertSession(generation);
     session = nextSession;
     return session;
   }
 
   async function refreshSession() {
+    if (refreshing) return refreshing;
     if (!session?.refreshToken) throw new Error("authentication_required");
-    const payload = await supabase("/auth/v1/token?grant_type=refresh_token", {
-      body: { refresh_token: session.refreshToken },
-    });
-    const nextSession = normalizeSession(payload);
-    if (!nextSession) throw new Error("invalid_auth_session");
-    await persistSession(nextSession);
-    session = nextSession;
-    return session;
+    const generation = sessionGeneration;
+    const refreshToken = session.refreshToken;
+    const task = (async () => {
+      const payload = await supabase("/auth/v1/token?grant_type=refresh_token", {
+        body: { refresh_token: refreshToken },
+      });
+      const nextSession = normalizeSession(payload);
+      assertSession(generation);
+      if (!nextSession) throw new Error("invalid_auth_session");
+      await persistSession(nextSession, generation);
+      assertSession(generation);
+      session = nextSession;
+      return session;
+    })();
+    refreshing = task;
+    try { return await task; } finally { if (refreshing === task) refreshing = null; }
   }
 
   async function activeAccessToken({ recent = false } = {}) {
@@ -292,8 +373,10 @@ export function createAccountClient({
   }
 
   async function accountFetch(path, { method = "GET", body, recent = false } = {}) {
+    const generation = sessionGeneration;
     const token = await activeAccessToken({ recent });
-    const response = await fetchImpl(`${apiBase}${path}`, {
+    assertSession(generation);
+    const payload = await requestJson(`${apiBase}${path}`, {
       method,
       headers: {
         Accept: "application/json",
@@ -303,9 +386,8 @@ export function createAccountClient({
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
-    });
-    const payload = await safeJson(response);
-    if (!response.ok) throw new Error(clean(payload?.error, 160) || `account_${response.status}`);
+    }, "account");
+    assertSession(generation);
     return payload;
   }
 
@@ -324,16 +406,21 @@ export function createAccountClient({
     verifyEmailCode,
     refreshSession,
     async clearSession() {
+      sessionGeneration += 1;
+      refreshing = null;
       session = null;
       await clearPersistedSession();
       return true;
     },
     async signOut() {
-      if (session?.accessToken) {
-        try { await supabase("/auth/v1/logout", { accessToken: session.accessToken, body: {} }); } catch {}
-      }
+      const accessToken = session?.accessToken;
+      sessionGeneration += 1;
+      refreshing = null;
       session = null;
       await clearPersistedSession();
+      if (accessToken) {
+        try { await supabase("/auth/v1/logout", { accessToken, body: {} }); } catch {}
+      }
       return true;
     },
     async pullSync() {

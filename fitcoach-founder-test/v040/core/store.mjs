@@ -330,10 +330,12 @@ function normalizeIntegrations(raw, base) {
       selectedPlan: oneOf(payments.selectedPlan, ["yearly", "monthly"], base.payments.selectedPlan),
     },
     cloudSync: {
-      status: oneOf(cloudSync.status, ["local_only", "connected", "conflict", "error"], base.cloudSync.status),
+      status: oneOf(cloudSync.status, ["local_only", "connected", "pending", "conflict", "error"], base.cloudSync.status),
       revision: safeNumber(cloudSync.revision, base.cloudSync.revision, 0, 1_000_000_000),
       consentVersion: cleanString(cloudSync.consentVersion, "", 40),
       lastSyncedAt: cleanString(cloudSync.lastSyncedAt, "", 40) || null,
+      ...(/^[a-f0-9]{64}$/u.test(cloudSync.lastSyncedDigest || "") ? { lastSyncedDigest: cloudSync.lastSyncedDigest } : {}),
+      ...(/^[a-f0-9]{64}$/u.test(cloudSync.accountScope || "") ? { accountScope: cloudSync.accountScope } : {}),
     },
   };
 }

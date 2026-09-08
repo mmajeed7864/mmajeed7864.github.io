@@ -6,7 +6,7 @@ import { createInitialState } from "../v040/core/store.mjs";
 import { ONBOARDING_STEP_COUNT, renderOnboarding } from "../v040/ui/onboarding.mjs";
 
 const app = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
-const initializationSource = app.slice(app.indexOf("async function initializePlatform() {"), app.indexOf("function applyRemoteCloudState(remote) {"));
+const initializationSource = app.slice(app.indexOf("async function initializePlatform() {"), app.indexOf("function applyRemoteCloudState("));
 
 function deferred() {
   let resolve;
