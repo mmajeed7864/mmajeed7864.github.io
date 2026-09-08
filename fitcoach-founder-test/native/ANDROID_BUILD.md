@@ -86,7 +86,7 @@ Existing runner SDK license grants must cover image installation; otherwise it
 fails. The provisioner uses the runner's installed `sdkmanager` / `avdmanager`
 interfaces, not newly installed command-line tools or a third-party action.
 
-Three AndroidX instrumentation tests install the real development application:
+Four AndroidX instrumentation tests install the real development application:
 
 - Local HTTPS onboarding renders in the actual Capacitor WebView with its native
   plugin, a health-availability response, no horizontal overflow and no microphone
@@ -96,13 +96,27 @@ Three AndroidX instrumentation tests install the real development application:
 - A synthetic-only session round-trips through the production secure-storage
   client and Android bridge, uses ciphertext/IV preferences and an Android Keystore
   key, survives Activity recreation, and is deleted through that same client.
+- A synthetic adult completes every onboarding question and consent through the
+  real UI, searches the exercise library, and opens Barbell Back Squat. The shipped
+  custom motion button must play, pause, resume, loop and pause again while offline.
+  Actual presented frames and advancing/stopped media time are checked, not just
+  the Play/Pause label or the existence of an MP4. No direct media play/pause/seek
+  calls substitute for the app controls. Test-only WebView storage is reset between
+  cases on the fresh development emulator; no user's browser or account is reset.
+
+Test-side dynamic imports resolve absolute URLs from the actual document origin.
+Android `evaluateJavascript` uses an `about:blank` script base, so root-relative
+imports in the injected test code can fail even when the application's own modules
+load correctly. The tests retain the real packaged modules and native bridge.
 
 `android-runtime-smoke.mjs` fails on missing, skipped, duplicated or failing test
 results even if Gradle returns success. Instrumentation sources/dependencies stay
 in `androidTest` and do not ship in the app. Reports are ephemeral CI output, not
 physical-device certification. Activity recreation is **not** proof of process
 death, reinstall, reboot, hardware-backed keys, background/call recovery, purchases,
-or physical Bluetooth behavior. No account tokens, real health records or paid
+or physical Bluetooth behavior. Programmatic WebView clicks are not physical
+touch/autoplay-policy certification, and one video is not a review of all 59 guides.
+No account tokens, real health records or paid
 provider calls are used. Success is claimed only after an actual run passes.
 
 References: [Android instrumented-test runner](https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner),

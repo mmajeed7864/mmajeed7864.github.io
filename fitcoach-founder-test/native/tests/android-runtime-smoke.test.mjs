@@ -52,7 +52,7 @@ test("successful Gradle exit or zero tests cannot substitute for every real runt
     (name) =>
       `<testcase name="${name}" classname="com.symbio.fitcoach.FitCoachRuntimeTest"/>`,
   ).join("");
-  assert.equal(verifyTestReport(`<testsuite>${cases}</testsuite>`).tests, 3);
+  assert.equal(verifyTestReport(`<testsuite>${cases}</testsuite>`).tests, 4);
   for (const xml of [
     "",
     '<testsuite tests="0"/>',
@@ -77,6 +77,12 @@ test("instrumentation stays outside the production source set and uses the actua
   assert.match(source, /activity\.bridge\.webView\.evaluateJavascript/u);
   assert.match(source, /scenario\.recreate\(\)/u);
   assert.match(source, /AndroidKeyStore/u);
+  assert.doesNotMatch(source, /import\(['"]\//u);
+  assert.match(source, /location\.origin\)\.href/u);
+  assert.match(source, /video\.requestVideoFrameCallback/u);
+  assert.match(source, /toggle\.click\(\)/u);
+  assert.match(source, /Math\.abs\(video\.currentTime - pauseTime\)/u);
+  assert.doesNotMatch(source, /video\.(?:play|pause)\(|video\.currentTime\s*=/u);
   assert.doesNotMatch(
     source,
     /grantPermission|purchaseSubscription\(|requestHealthAuthorization\(|startSpeechRecognition\(/u,

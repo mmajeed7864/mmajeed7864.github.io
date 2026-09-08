@@ -10,6 +10,7 @@ export const TESTS = Object.freeze([
   "launchesPackagedOnboardingWithNativeBridge",
   "decodesPackagedExerciseArtwork",
   "secureSessionSurvivesRecreationAndClears",
+  "motionControlsPlayPauseResumeAndLoopOffline",
 ]);
 
 export function validateRuntimeHost(env, platform = process.platform) {
