@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import {
   GRADLE_SHA256,
+  INSTRUMENTATION_FILES,
   SOURCE_FILES,
 } from "../../scripts/prepare-android-project.mjs";
 
@@ -55,6 +56,31 @@ test("actual generated Gradle project contains the local Kotlin bridge and corre
     report.sourceFiles.map((f) => f.file),
     SOURCE_FILES,
   );
+  assert.deepEqual(
+    report.instrumentationFiles.map((f) => f.file),
+    INSTRUMENTATION_FILES,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        android,
+        "app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java",
+      ),
+    ),
+    false,
+  );
+  for (const item of report.instrumentationFiles) {
+    assert.equal(
+      hash(
+        fs.readFileSync(path.join(android, "app/src/androidTest", item.file)),
+      ),
+      item.sha256,
+    );
+    assert.equal(
+      fs.existsSync(path.join(android, "app/src/main", item.file)),
+      false,
+    );
+  }
   for (const item of report.sourceFiles) {
     let bytes = fs.readFileSync(path.join(android, "app/src/main", item.file));
     if (item.file === "res/values/strings.xml")

@@ -75,3 +75,51 @@ Release identity/version-code policy, final developer accounts, signed AAB,
 Gradle dependency locks/verification metadata, R8/shrinking review, store sandbox
 transactions, legal/privacy review and Play submission remain separate work.
 iOS project integration and signed-device evidence are still required too.
+
+## Actual installed-app smoke test
+
+The integrity workflow also prepares a new Android 36 Google APIs x86_64 emulator
+on its standard Linux runner. It refuses any already connected ADB device and
+keeps the new AVD in a fresh runner-temp directory. It never starts an emulator on
+the user's Mac, reuses a personal device, uploads an APK, or accepts new SDK terms.
+Existing runner SDK license grants must cover image installation; otherwise it
+fails. The provisioner uses the runner's installed `sdkmanager` / `avdmanager`
+interfaces, not newly installed command-line tools or a third-party action.
+
+Four AndroidX instrumentation tests install the real development application:
+
+- Local HTTPS onboarding renders in the actual Capacitor WebView with its native
+  plugin, a health-availability response, no horizontal overflow and no microphone
+  grant. Emulator Wi-Fi/mobile data are disabled before application launch.
+- The packaged manifest retains all 100 posters and 59 motion records, and three
+  representative full-resolution WebP posters actually decode in that WebView.
+- A synthetic-only session round-trips through the production secure-storage
+  client and Android bridge, uses ciphertext/IV preferences and an Android Keystore
+  key, survives Activity recreation, and is deleted through that same client.
+- A synthetic adult completes every onboarding question and consent through the
+  real UI, searches the exercise library, and opens Barbell Back Squat. The shipped
+  custom motion button must play, pause, resume, loop and pause again while offline.
+  Actual presented frames and advancing/stopped media time are checked, not just
+  the Play/Pause label or the existence of an MP4. No direct media play/pause/seek
+  calls substitute for the app controls. Test-only WebView storage is reset between
+  cases on the fresh development emulator; no user's browser or account is reset.
+
+Test-side dynamic imports resolve absolute URLs from the actual document origin.
+Android `evaluateJavascript` uses an `about:blank` script base, so root-relative
+imports in the injected test code can fail even when the application's own modules
+load correctly. The tests retain the real packaged modules and native bridge.
+
+`android-runtime-smoke.mjs` fails on missing, skipped, duplicated or failing test
+results even if Gradle returns success. Instrumentation sources/dependencies stay
+in `androidTest` and do not ship in the app. Reports are ephemeral CI output, not
+physical-device certification. Activity recreation is **not** proof of process
+death, reinstall, reboot, hardware-backed keys, background/call recovery, purchases,
+or physical Bluetooth behavior. Programmatic WebView clicks are not physical
+touch/autoplay-policy certification, and one video is not a review of all 59 guides.
+No account tokens, real health records or paid
+provider calls are used. Success is claimed only after an actual run passes.
+
+References: [Android instrumented-test runner](https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner),
+[AndroidX test releases](https://developer.android.com/jetpack/androidx/releases/test),
+[emulator command line](https://developer.android.com/studio/run/emulator-commandline),
+and [standard GitHub runner acceleration](https://github.blog/changelog/2024-04-02-github-actions-hardware-accelerated-android-virtualization-now-available/).

@@ -30,6 +30,9 @@ export const SOURCE_FILES = Object.freeze([
   "res/xml/file_paths.xml",
   "res/xml/network_security_config.xml",
 ]);
+export const INSTRUMENTATION_FILES = Object.freeze([
+  "java/com/symbio/fitcoach/FitCoachRuntimeTest.kt",
+]);
 
 function regular(file) {
   if (!fs.lstatSync(file).isFile() || fs.realpathSync(file) !== file)
@@ -208,6 +211,12 @@ export async function prepareAndroidProject({ destination, webBundle }) {
       regular(path.join(ROOT, "android/app/src/main", file)),
     ),
   }));
+  const instrumentation = INSTRUMENTATION_FILES.map((file) => ({
+    file,
+    bytes: fs.readFileSync(
+      regular(path.join(ROOT, "android/app/src/androidTest", file)),
+    ),
+  }));
   const inventory = verifyLosslessBundle(webBundle);
   const output = reserveProject(destination, webBundle);
   fs.writeFileSync(
@@ -283,10 +292,27 @@ export async function prepareAndroidProject({ destination, webBundle }) {
   )
     throw new Error("Unexpected template launcher");
   fs.unlinkSync(generatedJava); // Only the launcher just generated in this new output.
+  const templateTest = path.join(
+    android,
+    "app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java",
+  );
+  if (
+    hash(fs.readFileSync(regular(templateTest))) !==
+    "ff50b4c110a7434312f9af54171f9e8523b015836f707c9b387b76d4c38a97f8"
+  )
+    throw new Error("Unknown generated example test; preserve it for review");
+  // This newly generated placeholder asserts Capacitor's example package ID.
+  // Our actual installed-app tests replace it; no original reference file is removed.
+  fs.unlinkSync(templateTest);
   for (const { file, bytes } of source) {
     const target = path.join(android, "app/src/main", file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, bytes);
+  }
+  for (const { file, bytes } of instrumentation) {
+    const target = path.join(android, "app/src/androidTest", file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, bytes, { flag: "wx" });
   }
   const strings = path.join(android, "app/src/main/res/values/strings.xml");
   fs.writeFileSync(
@@ -331,6 +357,10 @@ export async function prepareAndroidProject({ destination, webBundle }) {
     gradleDistributionSha256: GRADLE_SHA256,
     webContentSha256: inventory.contentSha256,
     sourceFiles: source.map(({ file, bytes }) => ({
+      file,
+      sha256: hash(bytes),
+    })),
+    instrumentationFiles: instrumentation.map(({ file, bytes }) => ({
       file,
       sha256: hash(bytes),
     })),
