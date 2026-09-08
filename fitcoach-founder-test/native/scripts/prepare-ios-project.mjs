@@ -8,6 +8,7 @@ import { reserveOutput, verifyLosslessBundle } from "./lossless-web-bundle.mjs";
 import {
   IOS_RUNTIME_FILES,
   iosRuntimeScheme,
+  iosAppScheme,
   patchIOSRuntimeProject,
 } from "./ios-runtime-project.mjs";
 
@@ -371,6 +372,9 @@ export async function prepareIOSProject({
       "App.xcodeproj/xcshareddata/xcschemes",
     );
     fs.mkdirSync(schemeDir, { recursive: true });
+    fs.writeFileSync(path.join(schemeDir, "App.xcscheme"), iosAppScheme(), {
+      flag: "wx",
+    });
     fs.writeFileSync(
       path.join(schemeDir, "FitCoachRuntime.xcscheme"),
       iosRuntimeScheme(),

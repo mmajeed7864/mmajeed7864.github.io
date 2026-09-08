@@ -105,9 +105,23 @@ export function patchIOSRuntimeProject(source) {
   return source;
 }
 
+const reference = (target, name, product) =>
+  `<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="${target}" BuildableName="${product}" BlueprintName="${name}" ReferencedContainer="container:App.xcodeproj"/>`;
+
+// A shared test scheme disables reliance on Xcode's automatically generated App
+// scheme. Keep an explicit, app-only build entry for the independent compile gate.
+export function iosAppScheme() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion="2630" version="1.3">
+  <BuildAction parallelizeBuildables="NO" buildImplicitDependencies="YES"><BuildActionEntries>
+    <BuildActionEntry buildForTesting="NO" buildForRunning="YES" buildForProfiling="NO" buildForArchiving="NO" buildForAnalyzing="YES">${reference(APP_TARGET, "App", "App.app")}</BuildActionEntry>
+  </BuildActionEntries></BuildAction>
+  <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="NO"><BuildableProductRunnable runnableDebuggingMode="0">${reference(APP_TARGET, "App", "App.app")}</BuildableProductRunnable></LaunchAction>
+  <AnalyzeAction buildConfiguration="Debug"/>
+</Scheme>\n`;
+}
+
 export function iosRuntimeScheme() {
-  const reference = (target, name, product) =>
-    `<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="${target}" BuildableName="${product}" BlueprintName="${name}" ReferencedContainer="container:App.xcodeproj"/>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2630" version="1.3">
   <BuildAction parallelizeBuildables="NO" buildImplicitDependencies="YES"><BuildActionEntries>

@@ -3,7 +3,11 @@ import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { IOS_RUNTIME_TESTS, iosRuntimeScheme } from "./ios-runtime-project.mjs";
+import {
+  IOS_RUNTIME_TESTS,
+  iosRuntimeScheme,
+  iosAppScheme,
+} from "./ios-runtime-project.mjs";
 
 export const IOS_RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-2";
 export const IOS_DEVICE_TYPE =
@@ -189,7 +193,14 @@ export async function runIOSRuntimeSmoke() {
         "ios/App/App.xcodeproj/xcshareddata/xcschemes/FitCoachRuntime.xcscheme",
       ),
       "utf8",
-    ) !== iosRuntimeScheme()
+    ) !== iosRuntimeScheme() ||
+    fs.readFileSync(
+      path.join(
+        project,
+        "ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme",
+      ),
+      "utf8",
+    ) !== iosAppScheme()
   )
     throw new Error("Generated project or runtime scheme changed");
   for (const item of inputs.runtimeFiles ?? []) {

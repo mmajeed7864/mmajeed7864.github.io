@@ -84,7 +84,9 @@ Unit fixtures test the parser, not app launch or execution on either architectur
 ## Installed-app runtime checks
 
 The optional `--runtime-tests` preparation flag adds a separate hosted XCTest
-target and the `FitCoachRuntime` scheme. Normal preparation still has only the
+target and the `FitCoachRuntime` scheme. It also writes an explicit app-only `App`
+scheme, so the independent compile gate never relies on Xcode auto-generating it
+after a shared test scheme exists. Normal preparation still has only the
 application target. The tests and JavaScript probes belong exclusively to the test
 bundle: they are not injected into production Swift, the web payload or App resources.
 Integration checks parse both targets and verify that separation and input hashes.

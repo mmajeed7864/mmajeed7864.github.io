@@ -14,6 +14,7 @@ import {
   IOS_RUNTIME_FILES,
   IOS_RUNTIME_TARGET,
   iosRuntimeScheme,
+  iosAppScheme,
 } from "../../scripts/ios-runtime-project.mjs";
 
 if (!process.env.FITCOACH_TEST_IOS_PROJECT || process.platform !== "darwin")
@@ -144,6 +145,10 @@ test("optional runtime target is hosted by the actual app and cannot ship its pr
   assert.equal(
     read("App.xcodeproj/xcshareddata/xcschemes/FitCoachRuntime.xcscheme"),
     iosRuntimeScheme(),
+  );
+  assert.equal(
+    read("App.xcodeproj/xcshareddata/xcschemes/App.xcscheme"),
+    iosAppScheme(),
   );
 });
 

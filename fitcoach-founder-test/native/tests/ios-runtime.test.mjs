@@ -9,6 +9,7 @@ import {
   IOS_RUNTIME_TARGET,
   patchIOSRuntimeProject,
   iosRuntimeScheme,
+  iosAppScheme,
 } from "../scripts/ios-runtime-project.mjs";
 import {
   IOS_RUNTIME,
@@ -190,6 +191,20 @@ test("optional runtime target patches the pinned real template without adding pr
   assert.match(scheme, /buildForArchiving="NO"/u);
   assert.match(scheme, /FITCOACH_RUNTIME_TEST/u);
   assert.doesNotMatch(scheme, /skipped="YES"|parallelizable="YES"/u);
+});
+
+test("runtime projects retain an explicit app-only compile scheme", () => {
+  const scheme = iosAppScheme();
+  assert.equal([...scheme.matchAll(/<BuildActionEntry /gu)].length, 1);
+  assert.match(scheme, /BlueprintName="App"/u);
+  assert.match(scheme, /BuildableName="App.app"/u);
+  assert.match(scheme, /buildForRunning="YES"/u);
+  assert.match(scheme, /buildForTesting="NO"/u);
+  assert.match(scheme, /buildForArchiving="NO"/u);
+  assert.doesNotMatch(
+    scheme,
+    /FitCoachRuntimeTests|FITCOACH_RUNTIME_TEST|<TestAction/u,
+  );
 });
 
 test("real iOS test sources use the shipped bridge and controls and keep fixture access bounded", () => {
