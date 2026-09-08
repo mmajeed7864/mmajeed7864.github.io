@@ -7,7 +7,12 @@ import { fileURLToPath } from "node:url";
 export const CAPACITOR_SWIFT_REVISION =
   "6afa7424fd2fcd8ca1e577478e8a00af284b7e82";
 
-export function inspectSimulatorExecutable(bytes) {
+const SIMULATOR_ARCHITECTURES = new Map([
+  [0x01000007, "x86_64"],
+  [0x0100000c, "arm64"],
+]);
+
+function inspectSimulatorSlice(bytes) {
   if (
     bytes.length < 32 ||
     bytes.readUInt32LE(0) !== 0xfeedfacf ||
@@ -16,6 +21,10 @@ export function inspectSimulatorExecutable(bytes) {
     throw new Error(
       "Expected a compiled 64-bit Mach-O executable, not a source/placeholder bundle",
     );
+  const cpuType = bytes.readUInt32LE(4),
+    cpuSubtype = bytes.readUInt32LE(8);
+  if (!SIMULATOR_ARCHITECTURES.has(cpuType))
+    throw new Error("Unsupported simulator executable architecture");
   const count = bytes.readUInt32LE(16),
     end = 32 + bytes.readUInt32LE(20);
   if (!count || count > 10000 || end > bytes.length)
@@ -29,7 +38,12 @@ export function inspectSimulatorExecutable(bytes) {
     if (size < 8 || size % 8 || offset + size > end)
       throw new Error("Invalid Mach-O command size");
     if (command === 0x32) {
-      if (size < 24 || platform) throw new Error("Ambiguous Mach-O platform");
+      if (
+        size < 24 ||
+        platform ||
+        size !== 24 + 8 * bytes.readUInt32LE(offset + 20)
+      )
+        throw new Error("Ambiguous or malformed Mach-O platform");
       platform = {
         platform: bytes.readUInt32LE(offset + 8),
         minimumMajor: bytes.readUInt32LE(offset + 12) >>> 16,
@@ -47,7 +61,70 @@ export function inspectSimulatorExecutable(bytes) {
     throw new Error(
       "Expected iOS Simulator executable built with SDK 26+ and iOS 17 minimum",
     );
-  return platform;
+  return { ...platform, cpuType, cpuSubtype };
+}
+
+export function inspectSimulatorExecutable(bytes) {
+  // Apple fat headers are big-endian, with a separately bounded Mach-O member
+  // for every architecture. Inspect all members, never just the runner's CPU.
+  const magic = bytes.length >= 8 ? bytes.readUInt32BE(0) : 0;
+  const slices = [];
+  if (magic === 0xcafebabe || magic === 0xcafebabf) {
+    const wide = magic === 0xcafebabf,
+      count = bytes.readUInt32BE(4),
+      entrySize = wide ? 32 : 20,
+      headerEnd = 8 + count * entrySize;
+    if (!count || count > 2 || headerEnd > bytes.length)
+      throw new Error("Invalid universal executable architecture table");
+    const ranges = [],
+      types = new Set();
+    for (let index = 0; index < count; index++) {
+      const entry = 8 + index * entrySize,
+        cpuType = bytes.readUInt32BE(entry),
+        cpuSubtype = bytes.readUInt32BE(entry + 4),
+        start = wide
+          ? Number(bytes.readBigUInt64BE(entry + 8))
+          : bytes.readUInt32BE(entry + 8),
+        size = wide
+          ? Number(bytes.readBigUInt64BE(entry + 16))
+          : bytes.readUInt32BE(entry + 12),
+        alignment = bytes.readUInt32BE(entry + (wide ? 24 : 16));
+      if (
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(size) ||
+        start < headerEnd ||
+        size < 56 ||
+        start > bytes.length - size ||
+        alignment > 31 ||
+        start % 2 ** alignment !== 0 ||
+        (wide && bytes.readUInt32BE(entry + 28) !== 0) ||
+        types.has(cpuType) ||
+        ranges.some(([from, to]) => start < to && start + size > from)
+      )
+        throw new Error("Invalid or overlapping universal executable member");
+      const slice = inspectSimulatorSlice(bytes.subarray(start, start + size));
+      if (slice.cpuType !== cpuType || slice.cpuSubtype !== cpuSubtype)
+        throw new Error(
+          "Universal architecture table disagrees with executable",
+        );
+      slices.push(slice);
+      types.add(cpuType);
+      ranges.push([start, start + size]);
+    }
+  } else {
+    slices.push(inspectSimulatorSlice(bytes));
+  }
+  const { platform, minimumMajor, sdkMajor } = slices[0];
+  if (slices.some((slice) => slice.sdkMajor !== sdkMajor))
+    throw new Error("Universal members have inconsistent build SDKs");
+  return {
+    platform,
+    minimumMajor,
+    sdkMajor,
+    architectures: slices.map((slice) =>
+      SIMULATOR_ARCHITECTURES.get(slice.cpuType),
+    ),
+  };
 }
 
 export function verifyIOSApp(appDirectory, projectDirectory) {

@@ -71,7 +71,13 @@ artifact upload or store API is used. After compilation, `verify-ios-app.mjs` ch
 the actual Mach-O executable's simulator platform and SDK, built identity/permissions,
 privacy resource, every web payload and the resolved official Capacitor 8.5.1 commit.
 Compiled inspection fails if source folders or placeholder files are passed as an app.
+Both single-architecture and universal executables are inspected. Every x86_64/arm64
+member must be an iOS Simulator executable with the required deployment minimum and
+SDK; malformed, overlapping, duplicate or contradictory architecture entries fail.
+Unit fixtures test the parser, not app launch or execution on either architecture.
 
 References: [Capacitor iOS requirements](https://capacitorjs.com/docs/ios),
 [Swift Package Manager integration](https://capacitorjs.com/docs/ios/spm), and the
-locked installed Capacitor 8.5.1 template and CLI implementation.
+locked installed Capacitor 8.5.1 template and CLI implementation. Executable parsing
+uses Apple's [universal-container layout](https://github.com/apple-oss-distributions/cctools/blob/main/include/mach-o/fat.h)
+and [Mach-O load-command definitions](https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/loader.h).
