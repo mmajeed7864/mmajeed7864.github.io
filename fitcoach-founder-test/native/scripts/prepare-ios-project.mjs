@@ -5,6 +5,12 @@ import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { reserveOutput, verifyLosslessBundle } from "./lossless-web-bundle.mjs";
+import {
+  IOS_RUNTIME_FILES,
+  iosRuntimeScheme,
+  iosAppScheme,
+  patchIOSRuntimeProject,
+} from "./ios-runtime-project.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const APP = path.resolve(ROOT, "..");
@@ -234,7 +240,13 @@ export function patchIOSProject(source, appVersion) {
   return replaceExpected(source, resourceAnchor, resourceAnchor + resources);
 }
 
-export async function prepareIOSProject({ destination, webBundle }) {
+export async function prepareIOSProject({
+  destination,
+  webBundle,
+  runtimeTests = false,
+}) {
+  if (typeof runtimeTests !== "boolean")
+    throw new Error("Runtime tests must be explicitly enabled or disabled");
   if (process.env.FITCOACH_NATIVE_RELEASE === "1")
     throw new Error("Release mode cannot use the simulator preparer");
   const cwd = process.cwd();
@@ -339,10 +351,37 @@ export async function prepareIOSProject({ destination, webBundle }) {
   const projectFile = regular(
     path.join(project, "App.xcodeproj/project.pbxproj"),
   );
-  fs.writeFileSync(
-    projectFile,
-    patchIOSProject(fs.readFileSync(projectFile, "utf8"), inventory.appVersion),
+  let projectText = patchIOSProject(
+    fs.readFileSync(projectFile, "utf8"),
+    inventory.appVersion,
   );
+  const runtimeFiles = [];
+  if (runtimeTests) {
+    projectText = patchIOSRuntimeProject(projectText);
+    const testDir = path.join(project, "FitCoachRuntimeTests");
+    fs.mkdirSync(testDir);
+    for (const file of IOS_RUNTIME_FILES) {
+      const bytes = fs.readFileSync(
+        regular(path.join(ROOT, "tests/runtime", file)),
+      );
+      fs.writeFileSync(path.join(testDir, file), bytes, { flag: "wx" });
+      runtimeFiles.push({ file, sha256: hash(bytes) });
+    }
+    const schemeDir = path.join(
+      project,
+      "App.xcodeproj/xcshareddata/xcschemes",
+    );
+    fs.mkdirSync(schemeDir, { recursive: true });
+    fs.writeFileSync(path.join(schemeDir, "App.xcscheme"), iosAppScheme(), {
+      flag: "wx",
+    });
+    fs.writeFileSync(
+      path.join(schemeDir, "FitCoachRuntime.xcscheme"),
+      iosRuntimeScheme(),
+      { flag: "wx" },
+    );
+  }
+  fs.writeFileSync(projectFile, projectText);
   const packageText = fs.readFileSync(
     regular(path.join(project, "CapApp-SPM/Package.swift")),
     "utf8",
@@ -385,6 +424,8 @@ export async function prepareIOSProject({ destination, webBundle }) {
     capacitor: "8.5.1",
     minimumIOS: "17.0",
     signingAllowed: false,
+    runtimeTests,
+    runtimeFiles,
     templateSha256: IOS_TEMPLATE_SHA256,
     webContentSha256: inventory.contentSha256,
     projectSha256: hash(fs.readFileSync(projectFile)),
@@ -410,15 +451,18 @@ if (
 ) {
   try {
     const args = process.argv.slice(2);
+    const runtimeTests = args[4] === "--runtime-tests";
+    if (runtimeTests) args.pop();
     if (args.length !== 4 || args[0] !== "--web-bundle" || args[2] !== "--out")
       throw new Error(
-        "Usage: prepare-ios-project.mjs --web-bundle VERIFIED_DIRECTORY --out NEW_DIRECTORY",
+        "Usage: prepare-ios-project.mjs --web-bundle VERIFIED_DIRECTORY --out NEW_DIRECTORY [--runtime-tests]",
       );
     console.log(
       json(
         await prepareIOSProject({
           webBundle: path.resolve(args[1]),
           destination: path.resolve(args[3]),
+          runtimeTests,
         }),
       ),
     );

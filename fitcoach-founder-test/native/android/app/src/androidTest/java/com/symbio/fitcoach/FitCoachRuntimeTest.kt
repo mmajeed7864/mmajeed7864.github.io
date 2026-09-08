@@ -166,7 +166,16 @@ class FitCoachRuntimeTest {
                     if (predicate()) return;
                     await delay(100);
                 }
-                throw new Error('Timed out: ' + label);
+                // Bounded synthetic-screen diagnostics, never account contents.
+                const diagnostic = {route:document.body.dataset.route,
+                    title:document.querySelector('.exercise-detail-nav strong')?.textContent,
+                    heading:document.querySelector('h1')?.textContent,
+                    toast:document.querySelector('#toast')?.textContent?.slice(0,300),
+                    modal:document.querySelector('#modal-root')?.hidden,
+                    busy:[...document.querySelectorAll('[data-action][aria-busy="true"]')].map(node=>node.dataset.action).slice(0,8),
+                    video:!!document.querySelector('video[data-media-video]'),
+                    staticGuide:!!document.querySelector('.static-guide')};
+                throw new Error('Timed out: ' + label + ' ' + JSON.stringify(diagnostic));
             };
             const click = selector => {
                 const button = document.querySelector(selector);

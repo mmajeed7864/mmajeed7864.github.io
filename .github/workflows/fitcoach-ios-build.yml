@@ -48,7 +48,7 @@ jobs:
         env:
           FITCOACH_TEST_IOS_PROJECT: ${{ runner.temp }}/fitcoach-ios
         run: |
-          node scripts/prepare-ios-project.mjs --web-bundle dist --out "$FITCOACH_TEST_IOS_PROJECT"
+          node scripts/prepare-ios-project.mjs --web-bundle dist --out "$FITCOACH_TEST_IOS_PROJECT" --runtime-tests
           node --test tests/integration/ios-project.test.mjs
       - name: Compile the complete app for iOS Simulator without signing
         env:
@@ -64,4 +64,11 @@ jobs:
         run: |
           node scripts/verify-ios-app.mjs --app "$FITCOACH_IOS_DERIVED/Build/Products/Debug-iphonesimulator/App.app" --project "$FITCOACH_TEST_IOS_PROJECT"
           git diff --check
-          # No simulator start, developer account, provisioning, archive or upload.
+      - name: Test the installed iPhone app on a new isolated simulator
+        working-directory: fitcoach-founder-test/native
+        env:
+          FITCOACH_TEST_IOS_PROJECT: ${{ runner.temp }}/fitcoach-ios
+          FITCOACH_IOS_DERIVED: ${{ runner.temp }}/fitcoach-ios-derived
+        run: |
+          node scripts/ios-runtime-smoke.mjs
+          # No physical device, developer account, provisioning, archive or upload.

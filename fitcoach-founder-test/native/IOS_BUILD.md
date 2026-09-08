@@ -71,7 +71,7 @@ release gate in [ios/RELEASE_SETTINGS.md](ios/RELEASE_SETTINGS.md).
 
 The iOS development workflow performs the full build on GitHub's standard public
 `macos-15-intel` runner using its preinstalled Xcode 26.3. It never installs Xcode or
-accepts new terms on Mohammed's Mac. No paid/larger runner, signing, simulator launch,
+accepts new terms on Mohammed's Mac. No paid/larger runner, signing,
 artifact upload or store API is used. After compilation, `verify-ios-app.mjs` checks
 the actual Mach-O executable's simulator platform and SDK, built identity/permissions,
 privacy resource, every web payload and the resolved official Capacitor 8.5.1 commit.
@@ -80,6 +80,54 @@ Both single-architecture and universal executables are inspected. Every x86_64/a
 member must be an iOS Simulator executable with the required deployment minimum and
 SDK; malformed, overlapping, duplicate or contradictory architecture entries fail.
 Unit fixtures test the parser, not app launch or execution on either architecture.
+
+## Installed-app runtime checks
+
+The optional `--runtime-tests` preparation flag adds a separate hosted XCTest
+target and the `FitCoachRuntime` scheme. It also writes an explicit app-only `App`
+scheme, so the independent compile gate never relies on Xcode auto-generating it
+after a shared test scheme exists. Normal preparation still has only the
+application target. The tests and JavaScript probes belong exclusively to the test
+bundle: they are not injected into production Swift, the web payload or App resources.
+Integration checks parse both targets and verify that separation and input hashes.
+
+The CI workflow enables this target and then runs `node scripts/ios-runtime-smoke.mjs`.
+That runner refuses personal/self-hosted machines, linked or non-temporary projects,
+an active existing simulator, missing preinstalled iOS26.2/iPhone16 support, changed
+source or a different Xcode version. It creates exactly one uniquely named simulator,
+verifies its ID/name/type/runtime before use and cleanup, and removes only that
+new disposable device. It never downloads an SDK, accepts terms or touches a phone.
+Build/test concurrency is bounded; original generated outputs and test evidence
+remain in temporary runner storage, with no artifact uploads or persistent caches.
+
+Four actual application-hosted tests cover:
+
+- Local onboarding origin, registered native bridge, initial mobile width/overflow,
+  read-only HealthKit availability and microphone permission remaining ungranted.
+- Three real decoded full-resolution images sampled from the 100-poster inventory,
+  plus the 59-video inventory. This is not a visual/technique review of every asset.
+- A synthetic session through the shipped native client into real simulator Keychain,
+  device-only/unlocked-only and nonsynchronizing attributes, absence from web storage,
+  recovery after an actual WebView reload and verified Keychain deletion. This does
+  not prove process death, reinstall, physical hardware protection or cloud sync.
+- All adult onboarding steps and consent, training navigation/search, then shipped
+  custom video controls: play, pause with a stable timeline, resume, a natural loop
+  and presented-frame callbacks. No direct play/pause/seek call substitutes for the
+  buttons. Assertions cover inline/muted/local source and detail-screen overflow.
+
+The simulator's external network is not disabled; local media is verified through
+its actual scheme/host and playback. No login, health permission, microphone grant,
+store purchase or provider activation is performed. DOM button clicks exercise the
+real app dispatcher but do not substitute for physical touch, accessibility or visual
+review. Simulator results must not be described as AirPods/call/voice-device proof.
+
+A successful Xcode process alone is insufficient: the runner inspects the actual
+`.xcresult` summary and named test tree, requiring all four exact cases once, with
+zero failures, skips, expected failures or retries. Unknown/missing results fail.
+Local structural tests and generated-project checks are not runtime passes; inspect
+the hosted result before making that claim. Apple documents the modern commands in
+[Xcode release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-16_3-release-notes)
+and [test-result handling](https://developer.apple.com/documentation/xcode/running-tests-and-interpreting-results).
 
 The voice bridge uses `AVAudioApplication.requestRecordPermission` (available on
 our existing iOS17 minimum) and the SDK's `allowBluetoothHFP` spelling. Listening
