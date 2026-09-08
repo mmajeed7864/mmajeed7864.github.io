@@ -1106,9 +1106,9 @@ async function executeTrainerAction(trainerAction, { fromVoice = false } = {}) {
 
 async function openExercise(exerciseId) {
   if (!getExerciseById(exerciseId)) return toast("That local exercise record is unavailable.");
-  state = await store.update(draft => {
-    draft.exercisePreferences.recent = recordExerciseView(draft.exercisePreferences.recent, exerciseId);
-  });
+  // Reading a guide is not a data mutation. Check the reset epoch synchronously,
+  // then render within the user's gesture even if another tab is still saving.
+  state = store.get();
   ui.route = "train";
   ui.trainSegment = "exercises";
   ui.showActiveWorkout = false;
@@ -1116,6 +1116,27 @@ async function openExercise(exerciseId) {
   ui.motionPaused = matchMedia("(prefers-reduced-motion: reduce)").matches;
   render();
   window.scrollTo({top:0,behavior:"instant"});
+  void rememberViewedExercise(exerciseId, store);
+}
+
+async function rememberViewedExercise(exerciseId, viewedStore) {
+  try {
+    await viewedStore.update(draft => {
+      draft.exercisePreferences.recent = recordExerciseView(draft.exercisePreferences.recent, exerciseId);
+    });
+    // Never restore an old partition or rerender/restart a playing guide after
+    // persistence completes. Read the latest copy, not a delayed save snapshot.
+    if (store === viewedStore) state = viewedStore.get();
+  } catch (error) {
+    if (store !== viewedStore) return;
+    if (error?.message === "local_reset_detected") {
+      handleLocalSaveError(error);
+      return;
+    }
+    if (ui.route === "train" && ui.exerciseDetailId === exerciseId) {
+      toast("Recently viewed history wasn’t saved. Your guide is still available.");
+    }
+  }
 }
 
 async function applyPlanExercise(exerciseId) {
