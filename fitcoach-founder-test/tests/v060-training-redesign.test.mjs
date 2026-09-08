@@ -144,7 +144,7 @@ test("paused logbook protects edits and retains units, notes, error and rest sta
   workout.exercises[0].sets[0].error = "Enter a valid rep count.";
   const before = JSON.stringify(input.state);
   const html = renderTrainScreen(input);
-  assert.match(html, /data-rest-display>0:45/);
+  assert.match(html, /data-rest-display\b[^>]*>0:45/);
   assert.match(html, /<span>KG<\/span>/);
   assert.match(html, /aria-invalid="true"/);
   assert.match(html, /role="alert">Enter a valid rep count/);

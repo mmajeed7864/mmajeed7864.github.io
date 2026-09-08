@@ -4,7 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const ORIGIN = "https://fitcoach.test";
-const SHELL_CACHE = "fitcoach-symbio-v0706";
+const SHELL_CACHE = "fitcoach-symbio-v0707";
 const MEDIA_CACHE = "fitcoach-exercise-images-v0701";
 
 function requestKey(value) {
