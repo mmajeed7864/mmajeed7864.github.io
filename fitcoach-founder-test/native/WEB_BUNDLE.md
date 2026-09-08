@@ -56,10 +56,16 @@ because the scripts changed; rebuild into a new, explicit directory.
   height, full pixel-buffer SHA-256 and ICC hash must match. Each output must also
   be smaller than its original. Verification re-derives these facts from real
   source/output bytes, not assertions in the generated report.
-- Only the packaged media manifest is derived: poster URLs and integrity fields
+- The packaged media manifest is derived: poster URLs and integrity fields
   refer to the delivered WebP, while exercise IDs, alt text, thumbnails, motion
   metadata and grouping stay intact. PNG provenance remains explicit. The source
   web application and its public PNG URLs are unchanged by this native build.
+- The packaged service worker receives separate shell/media cache names tied to
+  the delivered manifest hash. This prevents the WebP package from indefinitely
+  reusing a PNG manifest. All other worker behavior is preserved, including its
+  existing activation cleanup, bounded media cache and Range handling. This is
+  not proof of an in-place native upgrade: test worker activation, app restart
+  and unsaved-state recovery on both platforms before shipping an update.
 - `fitcoach-lossless-media.json` records source and delivery byte/pixel hashes;
   the normal bundle inventory covers it and every shipped file. No timestamp,
   machine path or account data is stored. Encoder versions can change compressed
@@ -72,9 +78,11 @@ The integration test uses `native/dist/` by default; set
 `FITCOACH_TEST_BUNDLE_DIR` to test an explicit alternative output. It exercises
 real codecs, rejects a different but valid image, and imports the packaged
 library to verify 100 posters/thumbnails, all 59 motion records and unchanged
-exercise metadata. Missing tools/artifacts fail, not skip. Current Mac evidence
+exercise metadata. It also exercises the packaged worker's activation cleanup:
+old FitCoach PNG caches are retired and unrelated caches remain untouched.
+Missing tools/artifacts fail, not skip. Current Mac evidence
 with cwebp 1.6.0 / FFmpeg 8.0.1: 194,272,443 poster bytes became 143,322,124;
-total bundle 277,402,934 became 226,727,133 bytes (48.3 MiB / 18.3% smaller).
+total bundle 277,402,934 became 226,727,193 bytes (48.3 MiB / 18.3% smaller).
 These are unpacked web-asset sizes, not signed-store download measurements.
 
 ## Inputs and evidence

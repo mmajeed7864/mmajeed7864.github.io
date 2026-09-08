@@ -3,8 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import vm from "node:vm";
+import { createHash } from "node:crypto";
 import { EXERCISE_MEDIA_MANIFEST as sourceMedia } from "../../../v040/data/exercise-media-manifest.mjs";
-import { verifyPixels } from "../../scripts/lossless-web-bundle.mjs";
+import {
+  verifyPixels,
+  deliveryServiceWorker,
+} from "../../scripts/lossless-web-bundle.mjs";
 
 const app = fileURLToPath(new URL("../../../", import.meta.url));
 const bundle = path.resolve(
@@ -20,6 +25,57 @@ const localSource = (item) =>
 const localDelivery = (item) => path.join(bundle, item.path.slice(1));
 const source = sourceMedia.find((item) => item.type === "poster");
 const correct = delivered.find((item) => item.id === source.id);
+
+test("packaged worker retires PNG caches on activation and preserves unrelated caches", async () => {
+  const original = fs.readFileSync(path.join(app, "sw.js"), "utf8");
+  const actual = fs.readFileSync(path.join(packaged, "sw.js"));
+  const manifest = fs.readFileSync(
+    path.join(packaged, "v040/data/exercise-media-manifest.mjs"),
+  );
+  const digest = createHash("sha256").update(manifest).digest("hex");
+  assert.deepEqual(actual, deliveryServiceWorker(original, digest));
+  const names = (text) =>
+    [...text.matchAll(/^const (?:CACHE|MEDIA_CACHE) = "([^"]+)";/gmu)].map(
+      (match) => match[1],
+    );
+  const oldNames = names(original);
+  const newNames = names(actual.toString());
+  assert.equal(newNames.length, 2);
+  assert.ok(newNames.every((name) => !oldNames.includes(name)));
+  const stored = new Set([...oldNames, ...newNames, "unrelated-personal-app"]);
+  const handlers = new Map();
+  let claimed = false;
+  vm.runInNewContext(actual.toString(), {
+    URL,
+    Request,
+    Response,
+    Set,
+    Promise,
+    console,
+    self: {
+      location: { origin: "https://fitcoach.test" },
+      addEventListener: (name, callback) => handlers.set(name, callback),
+      clients: {
+        claim: async () => {
+          claimed = true;
+        },
+      },
+    },
+    caches: {
+      keys: async () => [...stored],
+      delete: async (name) => stored.delete(name),
+    },
+  });
+  let done;
+  handlers.get("activate")({
+    waitUntil: (promise) => {
+      done = promise;
+    },
+  });
+  await done;
+  assert.deepEqual([...stored], [...newNames, "unrelated-personal-app"]);
+  assert.equal(claimed, true);
+});
 
 test("real codecs accept identical full-resolution pixels and reject a different valid image", () => {
   assert.doesNotThrow(() =>

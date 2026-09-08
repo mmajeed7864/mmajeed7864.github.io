@@ -10,7 +10,37 @@ import {
   reserveOutput,
   transformedDefinitions,
   colorProfile,
+  deliveryServiceWorker,
 } from "../scripts/lossless-web-bundle.mjs";
+
+test("delivery cache identities are deterministic, manifest-bound and isolated from PNG", () => {
+  const source = fs.readFileSync(
+    new URL("../../sw.js", import.meta.url),
+    "utf8",
+  );
+  const digest = createHash("sha256").update("manifest-a").digest("hex");
+  const worker = deliveryServiceWorker(source, digest);
+  assert.deepEqual(deliveryServiceWorker(source, digest), worker);
+  assert.notDeepEqual(deliveryServiceWorker(source, "b".repeat(64)), worker);
+  const suffix = `-lossless-${digest.slice(0, 20)}`;
+  assert.equal(worker.toString().split(suffix).length, 3);
+  assert.equal(worker.toString().replaceAll(suffix, ""), source);
+  assert.equal(
+    fs.readFileSync(new URL("../../sw.js", import.meta.url), "utf8"),
+    source,
+  );
+  for (const changed of [
+    source.replace('const CACHE = "', 'let CACHE = "'),
+    source.replace("fitcoach-exercise-images-v", "unreviewed-images-v"),
+    `${source}\nconst CACHE = "fitcoach-symbio-v9999";`,
+    source.replace(/^const MEDIA_CACHE = .+;$/mu, ""),
+  ])
+    assert.throws(() => deliveryServiceWorker(changed, digest), /Unreviewed/u);
+  assert.throws(
+    () => deliveryServiceWorker(source, "not-a-digest"),
+    /Invalid/u,
+  );
+});
 
 test("delivery paths cannot escape the approved full-resolution poster directory", () => {
   assert.equal(

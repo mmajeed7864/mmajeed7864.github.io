@@ -19,6 +19,7 @@ import {
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const PREFIX = "fitcoach-founder-test/";
 const DEFINITIONS = `${PREFIX}v040/data/exercise-media-manifest.mjs`;
+const SERVICE_WORKER = `${PREFIX}sw.js`;
 const POSTERS = EXERCISE_MEDIA_MANIFEST.filter(
   (item) => item.type === "poster",
 ).map((item) => ({
@@ -243,6 +244,29 @@ export function transformedDefinitions(definitions, records) {
   });
 }
 
+// The PNG and native WebP builds must never share offline manifests or media
+// caches. Change only the reviewed literal names; retain all worker safeguards.
+export function deliveryServiceWorker(source, manifestHash) {
+  if (!/^[a-f0-9]{64}$/u.test(manifestHash))
+    throw new Error("Invalid delivery manifest hash");
+  const suffix = `-lossless-${manifestHash.slice(0, 20)}`;
+  let worker = source;
+  for (const [name, prefix] of [
+    ["CACHE", "fitcoach-symbio-v"],
+    ["MEDIA_CACHE", "fitcoach-exercise-images-v"],
+  ]) {
+    const declaration = new RegExp(`^const ${name}\\b`, "gmu");
+    const literal = new RegExp(`^const ${name} = "(${prefix}[0-9]+)";$`, "gmu");
+    if (
+      [...source.matchAll(declaration)].length !== 1 ||
+      [...source.matchAll(literal)].length !== 1
+    )
+      throw new Error(`Unreviewed service-worker cache declaration: ${name}`);
+    worker = worker.replace(literal, `const ${name} = "$1${suffix}";`);
+  }
+  return Buffer.from(worker);
+}
+
 function derived(base, records) {
   const posters = new Map(
     transformedDefinitions(POSTERS, records).map((item) => [item.id, item]),
@@ -252,6 +276,10 @@ function derived(base, records) {
   );
   const module = Buffer.from(
     `/** Build-derived lossless delivery. Original artwork remains in the source repository. */\nexport const GENERATED_ILLUSTRATION_POLICY = Object.freeze(${JSON.stringify(GENERATED_ILLUSTRATION_POLICY)});\nexport const GENERATED_MOTION_POLICY = Object.freeze(${JSON.stringify(GENERATED_MOTION_POLICY)});\nexport const EXERCISE_MEDIA_MANIFEST = Object.freeze(${JSON.stringify(definitions, null, 2)}.map(item => Object.freeze({...item, ...(item.thumbnail ? {thumbnail: Object.freeze(item.thumbnail)} : {})})));\nconst grouped = new Map();\nfor (const item of EXERCISE_MEDIA_MANIFEST) { const entries = grouped.get(item.exerciseId) || []; entries.push(item); grouped.set(item.exerciseId, entries); }\nfor (const [id, entries] of grouped) grouped.set(id, Object.freeze(entries));\nconst EMPTY = Object.freeze([]);\nexport function getExerciseMedia(id) { return grouped.get(id) || EMPTY; }\n`,
+  );
+  const worker = deliveryServiceWorker(
+    fs.readFileSync(regular(sourcePath(SERVICE_WORKER)), "utf8"),
+    hash(module),
   );
   const report = {
     schema: 1,
@@ -271,7 +299,9 @@ function derived(base, records) {
       replacements.get(entry.path) ||
       (entry.path === DEFINITIONS
         ? { path: DEFINITIONS, bytes: module.length, sha256: hash(module) }
-        : entry),
+        : entry.path === SERVICE_WORKER
+          ? { path: SERVICE_WORKER, bytes: worker.length, sha256: hash(worker) }
+          : entry),
   );
   files.push({
     path: REPORT,
@@ -288,7 +318,7 @@ function derived(base, records) {
     sourceContentSha256: base.contentSha256,
   };
   inventory.contentSha256 = hash(JSON.stringify(inventory));
-  return { inventory, module, reportBytes };
+  return { inventory, module, worker, reportBytes };
 }
 
 export function verifyLosslessBundle(outDir, codec = tools()) {
@@ -304,11 +334,15 @@ export function verifyLosslessBundle(outDir, codec = tools()) {
   const records = POSTERS.map((definition) =>
     recordFor(definition, output, codec),
   );
-  const { inventory, module, reportBytes } = derived(base, records);
+  const { inventory, module, worker, reportBytes } = derived(base, records);
   if (!fs.readFileSync(regular(path.join(output, DEFINITIONS))).equals(module))
     throw new Error("Delivered poster definitions changed");
   if (!fs.readFileSync(regular(path.join(output, REPORT))).equals(reportBytes))
     throw new Error("Delivery report is stale or altered");
+  if (
+    !fs.readFileSync(regular(path.join(output, SERVICE_WORKER))).equals(worker)
+  )
+    throw new Error("Delivered service-worker cache identity changed");
   verifyInventory(output, inventory);
   return inventory;
 }
@@ -350,7 +384,7 @@ export function buildLosslessBundle(
     records.push(recordFor(definition, output, codec));
     onProgress(records.length);
   }
-  const { inventory, module, reportBytes } = derived(base, records);
+  const { inventory, module, worker, reportBytes } = derived(base, records);
   const encoded = new Set(records.map((record) => record.path));
   for (const entry of inventory.files) {
     if (encoded.has(entry.path)) continue;
@@ -358,11 +392,13 @@ export function buildLosslessBundle(
     const contents =
       entry.path === DEFINITIONS
         ? module
-        : entry.path === REPORT
-          ? reportBytes
-          : entry.path === "index.html"
-            ? Buffer.from(FALLBACK_HTML)
-            : fs.readFileSync(regular(sourcePath(entry.path)));
+        : entry.path === SERVICE_WORKER
+          ? worker
+          : entry.path === REPORT
+            ? reportBytes
+            : entry.path === "index.html"
+              ? Buffer.from(FALLBACK_HTML)
+              : fs.readFileSync(regular(sourcePath(entry.path)));
     // The source assembler owns the root launcher. Derive it from its public
     // implementation instead of duplicating launch/CSP markup here.
     const data = contents;
