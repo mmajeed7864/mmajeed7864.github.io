@@ -40,8 +40,12 @@ function fixture(active = false) {
 }
 
 function productionBlock(start, end) {
-  const first = source.indexOf(start);
-  const last = source.indexOf(end, first + start.length);
+  const boundary = (marker, from = 0) => {
+    const index = source.indexOf(marker, from);
+    return marker.startsWith("function ") && source.slice(index - 6, index) === "async " ? index - 6 : index;
+  };
+  const first = boundary(start);
+  const last = boundary(end, first + start.length);
   assert.ok(first >= 0 && last > first, `Production boundary must exist: ${start}`);
   return source.slice(first, last);
 }
@@ -81,6 +85,7 @@ function appHarness({ active = false, remoteResult, voiceActive = false } = {}) 
     trainerClient: { requestTurn: async args => { calls.provider.push(args); return remoteResult ?? { status: "unavailable" }; } },
     nativeClient: { createRecognitionSession: () => null }, browserVoice: {}, voiceSpeech: {},
     voiceSessionCode: "test", voiceLastMetadata: null,
+    handleLocalSaveError: error => { throw error; },
     createVoiceRoomController: options => { sandbox.voiceOptions = options; return { getState: () => ({ active: voiceActive }) }; },
   };
   const blocks = [
@@ -98,7 +103,7 @@ function appHarness({ active = false, remoteResult, voiceActive = false } = {}) 
   return { sandbox, calls, store, storage, ui };
 }
 
-test("exact navigation and duration commands resolve locally without mutating state", () => {
+test("exact navigation and duration commands resolve locally without mutating state", async () => {
   const state = fixture();
   const before = JSON.stringify(state);
   const commands = [
@@ -122,7 +127,7 @@ test("exact navigation and duration commands resolve locally without mutating st
   assert.equal(JSON.stringify(state), before);
 });
 
-test("negations, private text, medical context, general questions and food claims do not auto-execute", () => {
+test("negations, private text, medical context, general questions and food claims do not auto-execute", async () => {
   const state = fixture();
   const messages = [
     "Don't open my workout", "Do not show me progress", "Never open voice room",
@@ -137,7 +142,7 @@ test("negations, private text, medical context, general questions and food claim
   for (const message of messages) assert.equal(localCoachCommand({ state, message, exercises: EXERCISES }), null, message);
 });
 
-test("only explicit, complete known exercise names and aliases open a local guide", () => {
+test("only explicit, complete known exercise names and aliases open a local guide", async () => {
   const state = fixture();
   const squat = EXERCISES.find(exercise => exercise.name === "Air Squat");
   assert.ok(squat);
@@ -152,7 +157,7 @@ test("only explicit, complete known exercise names and aliases open a local guid
   }
 });
 
-test("current-exercise guides resolve the active catalogue ID, never a guessed planned movement", () => {
+test("current-exercise guides resolve the active catalogue ID, never a guessed planned movement", async () => {
   const state = fixture(true);
   state.activeWorkout.currentExerciseIndex = 1;
   const expected = state.activeWorkout.exercises[1].exerciseId;
@@ -249,34 +254,34 @@ test("a local 20-minute request creates only a pending proposal and retains the 
   assert.match(after.chat.at(-1).text, /unchanged until you approve/);
 });
 
-test("actual nutrition and exercise navigation preserve the session and select today's diary", () => {
+test("actual nutrition and exercise navigation preserve the session and select today's diary", async () => {
   const { sandbox, store, ui } = appHarness({ active: true });
   const before = store.get().activeWorkout;
-  sandbox.executeTrainerAction({ kind: "open_nutrition", value: "nutrition" }, { fromVoice: true });
+  await sandbox.executeTrainerAction({ kind: "open_nutrition", value: "nutrition" }, { fromVoice: true });
   assert.equal(ui.route, "nutrition");
   assert.equal(ui.nutritionDate, TODAY);
   assert.equal(ui.modal, null);
   assert.equal(ui.voiceDocked, true);
   const exerciseId = before.exercises[0].exerciseId;
-  sandbox.executeTrainerAction({ kind: "open_exercise", value: exerciseId }, { fromVoice: true });
+  await sandbox.executeTrainerAction({ kind: "open_exercise", value: exerciseId }, { fromVoice: true });
   assert.equal(ui.trainSegment, "exercises");
   assert.equal(ui.exerciseDetailId, exerciseId);
   assert.equal(ui.showActiveWorkout, false);
   assert.ok(store.get().exercisePreferences.recent.includes(exerciseId));
-  sandbox.executeTrainerAction({ kind: "open_workout", value: "workout" });
+  await sandbox.executeTrainerAction({ kind: "open_workout", value: "workout" });
   assert.equal(ui.trainSegment, "workout");
   assert.equal(ui.showActiveWorkout, true);
   assert.deepEqual(store.get().activeWorkout, before);
 });
 
-test("the real food-draft action opens review without confirming calories or altering the workout", () => {
+test("the real food-draft action opens review without confirming calories or altering the workout", async () => {
   const { sandbox, store, ui } = appHarness({ active: true });
   const before = store.get().activeWorkout;
   const message = "I ate eggs with toast";
   assert.equal(localCoachCommand({ state: store.get(), message, exercises: EXERCISES }), null);
   const action = deriveTrainerAction({ state: store.get(), message, exercises: EXERCISES });
   assert.equal(action.kind, "nutrition_draft");
-  assert.equal(sandbox.executeTrainerAction(action), true);
+  assert.equal(await sandbox.executeTrainerAction(action), true);
   assert.equal(ui.route, "nutrition");
   assert.equal(ui.modal.type, "nutrition-review");
   assert.equal(ui.modal.dateKey, TODAY);
@@ -296,7 +301,7 @@ test("actual voice commands use the local path, dock for navigation, and keep re
   const reply = await sandbox.voiceOptions.requestTurn({ transcript: "open my food diary", signal: new AbortController().signal });
   assert.equal(calls.provider.length, 0);
   assert.equal(reply.speak, true);
-  sandbox.voiceOptions.onCommitTurn({ transcript: "open my food diary", reply: reply.text });
+  await sandbox.voiceOptions.onCommitTurn({ transcript: "open my food diary", reply: reply.text });
   assert.equal(ui.route, "nutrition");
   assert.equal(ui.voiceDocked, true);
   assert.equal(ui.nutritionDate, TODAY);
@@ -304,12 +309,12 @@ test("actual voice commands use the local path, dock for navigation, and keep re
   assert.deepEqual(store.get().activeWorkout, before.activeWorkout);
   assert.ok(store.get().chat.every(item => !item.providerEligible && item.contractVersion === "fitcoach-local-tools-v1"));
   assert.deepEqual(createTrainerPayload({ state: store.get(), message: "hello", now: NOW }).conversation, []);
-  sandbox.executeTrainerAction({ kind: "open_voice", value: "voice" });
+  await sandbox.executeTrainerAction({ kind: "open_voice", value: "voice" });
   assert.equal(ui.voiceDocked, false);
   assert.equal(calls.openedVoice, 0, "active room is reused, not restarted");
 });
 
-test("contextual messages resolve only valid exercise references and leave negative or private requests unchanged", () => {
+test("contextual messages resolve only valid exercise references and leave negative or private requests unchanged", async () => {
   const state = fixture(true);
   const exercise = getExerciseById(state.activeWorkout.exercises[0].exerciseId);
   state.activeWorkout.exercises[0].snapshot.name = "Untrusted snapshot title";
@@ -362,7 +367,7 @@ test("actual voice fallback resolves the current exercise but commits the origin
   const result = await sandbox.voiceOptions.requestTurn({ transcript, signal: new AbortController().signal });
   assert.equal(calls.provider.length, 1);
   assert.equal(calls.provider[0].message, `Explain ${exercise.name}`);
-  sandbox.voiceOptions.onCommitTurn({ transcript, reply: result.text });
+  await sandbox.voiceOptions.onCommitTurn({ transcript, reply: result.text });
   assert.equal(store.get().chat[0].text, transcript);
   assert.equal(store.get().chat[0].providerEligible, true);
   assert.equal(store.get().chat.at(-1).action.value, exercise.id);
@@ -371,7 +376,7 @@ test("actual voice fallback resolves the current exercise but commits the origin
   assert.deepEqual(store.get().activeWorkout, before);
 });
 
-test("precise app-capability questions return truthful local help with an explicit null action", () => {
+test("precise app-capability questions return truthful local help with an explicit null action", async () => {
   const state = fixture(true);
   const before = JSON.stringify(state);
   const questions = [
@@ -400,7 +405,7 @@ test("precise app-capability questions return truthful local help with an explic
   assert.equal(JSON.stringify(state), before);
 });
 
-test("app help does not intercept exercise, health, private, negated, or mixed-intent questions", () => {
+test("app help does not intercept exercise, health, private, negated, or mixed-intent questions", async () => {
   const state = fixture(true);
   const questions = [
     "What can you help me do for knee pain?", "What can you help me do with an Air Squat?",
@@ -448,7 +453,7 @@ test("actual voice capability help speaks without AI, navigation, action chips, 
   const reply = await sandbox.voiceOptions.requestTurn({ transcript, signal: new AbortController().signal });
   assert.equal(calls.provider.length, 0);
   assert.equal(reply.speak, true);
-  sandbox.voiceOptions.onCommitTurn({ transcript, reply: reply.text });
+  await sandbox.voiceOptions.onCommitTurn({ transcript, reply: reply.text });
   assert.equal(calls.urls.length, 0);
   assert.equal(calls.openedVoice, 0);
   assert.equal(ui.route, "coach");

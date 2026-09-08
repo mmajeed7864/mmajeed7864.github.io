@@ -35,6 +35,6 @@ test("Voice Room primes persistent browser audio engines from a user gesture", (
 test("Voice Room can dock while deterministic trainer actions navigate the app", () => {
   assert.match(appSource, /renderVoiceRoom\(voiceState, state, \{ docked: ui\.voiceDocked \}\)/u);
   assert.match(appSource, /if \(fromVoice\) ui\.voiceDocked = true/u);
-  assert.match(appSource, /queueMicrotask\(\(\) => executeTrainerAction\(trainerAction, \{ fromVoice: true \}\)\)/u);
+  assert.match(appSource, /queueMicrotask\(\(\) => \{ void executeTrainerAction\(trainerAction, \{ fromVoice: true \}\)\.catch\(handleLocalSaveError\); \}\)/u);
   assert.match(appSource, /action === "voice-text-mode"\) \{ ui\.voiceDocked=true/u);
 });

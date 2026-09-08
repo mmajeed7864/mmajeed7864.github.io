@@ -52,16 +52,40 @@ export function projectStateForEncryptedSync(state) {
       ...projected.integrations.cloudSync,
       status: "connected",
     };
+    delete projected.integrations.cloudSync.lastSyncedDigest;
+    delete projected.integrations.cloudSync.accountScope;
   }
   return projected;
 }
 
-export function hasUnsyncedLocalChanges(state) {
-  const updatedAt = Date.parse(state?.updatedAt || "");
-  const lastSyncedAt = Date.parse(state?.integrations?.cloudSync?.lastSyncedAt || "");
-  if (!Number.isFinite(updatedAt)) return false;
-  if (!Number.isFinite(lastSyncedAt)) return true;
-  return updatedAt > lastSyncedAt + 1_000;
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
+  return value;
+}
+
+export function syncStateSignature(state) {
+  const projected = projectStateForEncryptedSync(state);
+  if (!projected) throw new Error("invalid_cloud_state");
+  delete projected.updatedAt;
+  if (projected.integrations) delete projected.integrations.cloudSync;
+  return JSON.stringify(canonical(projected));
+}
+
+async function digestText(value) {
+  if (!globalThis.crypto?.subtle) throw new Error("sync_integrity_unavailable");
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export const syncStateDigest = state => digestText(syncStateSignature(state));
+export const syncAccountScope = subject => digestText(`fitcoach-sync-account-v1:${subject}`);
+
+export async function hasUnsyncedLocalChanges(state) {
+  const acknowledged = state?.integrations?.cloudSync?.lastSyncedDigest;
+  // Old clock-only markers cannot prove which content reached the server.
+  if (!/^[a-f0-9]{64}$/u.test(acknowledged || "")) return true;
+  return await syncStateDigest(state) !== acknowledged;
 }
 
 export function mergeRemoteStateWithLocalOnlyFields(remoteState, localState) {

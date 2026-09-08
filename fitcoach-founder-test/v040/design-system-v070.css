@@ -324,3 +324,30 @@ html[data-theme="dark"] .toast { background: #26344c; color: #f2f6ff; border: 1p
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+.local-data-notice {
+  position: relative;
+  max-width: 480px;
+  margin: 16px auto;
+  padding: 16px;
+  border: 1px solid #90aee1;
+  border-radius: 16px;
+  background: #eef4ff;
+  color: #11264a;
+  box-shadow: 0 8px 32px #08183026;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.local-data-notice p { margin: 0 0 12px; }
+.local-data-notice button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #174dd2;
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+}
+.local-data-notice button:focus-visible { outline: 3px solid #174dd2; outline-offset: 4px; }
+.local-data-notice--blocking { position: fixed; z-index: 10000; inset: 20% 16px auto; }
+[data-theme="dark"] .local-data-notice { background: #132442; color: #eef4ff; border-color: #546e9e; }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { createInitialState, normalizeStateForTest } from "../v040/core/store.mjs";
-import { hasUnsyncedLocalChanges, mergeRemoteStateWithLocalOnlyFields, projectStateForEncryptedSync } from "../v040/domain/sync-projection.mjs";
+import { hasUnsyncedLocalChanges, mergeRemoteStateWithLocalOnlyFields, projectStateForEncryptedSync, syncStateDigest } from "../v040/domain/sync-projection.mjs";
 import { canAccessCurrentRelease } from "../v040/policy/youth-safety.mjs";
 
 test("encrypted sync projection excludes chat, coach memory, API metadata, and local photo drafts", () => {
@@ -40,9 +40,14 @@ test("cloud integration state is normalized without account identifiers", () => 
   });
 });
 
-test("unsynced change detection requires a local update after the last sync", () => {
-  assert.equal(hasUnsyncedLocalChanges({ updatedAt: "2026-08-31T12:00:02Z", integrations: { cloudSync: { lastSyncedAt: "2026-08-31T12:00:00Z" } } }), true);
-  assert.equal(hasUnsyncedLocalChanges({ updatedAt: "2026-08-31T12:00:00Z", integrations: { cloudSync: { lastSyncedAt: "2026-08-31T12:00:00Z" } } }), false);
+test("only an exact content acknowledgement proves sync, never timestamps or clock skew", async () => {
+  const state = createInitialState();
+  state.integrations.cloudSync.lastSyncedAt = "2099-01-01T00:00:00Z";
+  assert.equal(await hasUnsyncedLocalChanges(state), true);
+  state.integrations.cloudSync.lastSyncedDigest = await syncStateDigest(state);
+  assert.equal(await hasUnsyncedLocalChanges(state), false);
+  state.profile.energy = 4;
+  assert.equal(await hasUnsyncedLocalChanges(state), true, "an edit at the exact same timestamp still needs sync");
 });
 
 test("cloud pull preserves local-only conversation and photo draft fields", () => {

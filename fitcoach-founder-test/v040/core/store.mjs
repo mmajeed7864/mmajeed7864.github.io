@@ -330,10 +330,12 @@ function normalizeIntegrations(raw, base) {
       selectedPlan: oneOf(payments.selectedPlan, ["yearly", "monthly"], base.payments.selectedPlan),
     },
     cloudSync: {
-      status: oneOf(cloudSync.status, ["local_only", "connected", "conflict", "error"], base.cloudSync.status),
+      status: oneOf(cloudSync.status, ["local_only", "connected", "pending", "conflict", "error"], base.cloudSync.status),
       revision: safeNumber(cloudSync.revision, base.cloudSync.revision, 0, 1_000_000_000),
       consentVersion: cleanString(cloudSync.consentVersion, "", 40),
       lastSyncedAt: cleanString(cloudSync.lastSyncedAt, "", 40) || null,
+      ...(/^[a-f0-9]{64}$/u.test(cloudSync.lastSyncedDigest || "") ? { lastSyncedDigest: cloudSync.lastSyncedDigest } : {}),
+      ...(/^[a-f0-9]{64}$/u.test(cloudSync.accountScope || "") ? { accountScope: cloudSync.accountScope } : {}),
     },
   };
 }
@@ -449,12 +451,12 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-function clearFitCoachStorage(storage) {
+function clearFitCoachStorage(storage, preserveKeys = []) {
   const keys = [];
   const length = Number(storage?.length) || 0;
   for (let index = 0; index < length; index += 1) {
     const key = storage.key?.(index);
-    if (typeof key === "string" && key.startsWith("fitcoach-")) keys.push(key);
+    if (typeof key === "string" && key.startsWith("fitcoach-") && !preserveKeys.includes(key)) keys.push(key);
   }
   for (const key of keys) storage.removeItem?.(key);
   // Adapters without an enumerable Storage interface still get the known
@@ -520,8 +522,8 @@ export function createFitCoachStore({ storage = globalThis.localStorage, founder
       return persist(result === undefined ? draft : result);
     },
     replace: next => persist(next),
-    reset: () => {
-      clearFitCoachStorage(storage);
+    reset: ({ preserveKeys = [] } = {}) => {
+      clearFitCoachStorage(storage, preserveKeys);
       return persist(createInitialState(currentFounder, clock()));
     },
     export: () => JSON.stringify(current || loadFounder(currentFounder), null, 2),
