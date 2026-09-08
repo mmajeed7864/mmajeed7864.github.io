@@ -17,7 +17,7 @@ permissions:
 jobs:
   bundle-integrity:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -42,9 +42,17 @@ jobs:
         working-directory: fitcoach-founder-test/native
         run: npm audit --omit=dev --audit-level=high
       - name: Assemble and verify the local native web bundle
+        # Codec tools are build-only. No new runtime/package dependency or service.
+        # Verification compares every decoded RGBA pixel and embedded ICC profile.
+        if: success()
         working-directory: fitcoach-founder-test/native
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends webp ffmpeg
+          cwebp -version
+          ffmpeg -version
           npm run web:build
           npm run web:verify
+          node --test tests/integration/lossless-codec.test.mjs
       - name: Check diff whitespace
         run: git diff --check

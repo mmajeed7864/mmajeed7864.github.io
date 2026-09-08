@@ -9,7 +9,7 @@ export const START_PATH = `${APP_PREFIX}index.html`;
 export const INVENTORY_NAME = "fitcoach-web-bundle.json";
 const DEFAULT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FONT_LICENSES = ["v040/assets/fonts/BarlowCondensed-OFL.txt", "v040/assets/fonts/Manrope-OFL.txt"];
-const FALLBACK_HTML = `<!doctype html>
+export const FALLBACK_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'none'">
 <title>FitCoach</title></head><body><a href="${START_PATH}">Open FitCoach</a></body></html>
@@ -136,6 +136,10 @@ function walkFiles(root, directory = root) {
 
 export function verifyWebBundle({ appRoot = DEFAULT_ROOT, outDir = path.join(DEFAULT_ROOT, "native/dist"), ...options } = {}) {
   const { inventory } = collectWebBundle({ appRoot, ...options });
+  return verifyInventory(outDir, inventory);
+}
+
+export function verifyInventory(outDir, inventory) {
   const output = fs.realpathSync(outDir);
   if (fs.lstatSync(outDir).isSymbolicLink()) throw new Error("Output cannot be a symlink");
   const actualFiles = sorted(walkFiles(output));
