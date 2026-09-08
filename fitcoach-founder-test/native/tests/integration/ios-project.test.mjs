@@ -10,6 +10,11 @@ import {
   IOS_TEMPLATE_ICONS,
   IOS_TEMPLATE_SHA256,
 } from "../../scripts/prepare-ios-project.mjs";
+import {
+  IOS_RUNTIME_FILES,
+  IOS_RUNTIME_TARGET,
+  iosRuntimeScheme,
+} from "../../scripts/ios-runtime-project.mjs";
 
 if (!process.env.FITCOACH_TEST_IOS_PROJECT || process.platform !== "darwin")
   throw new Error(
@@ -38,8 +43,8 @@ test("actual Xcode project parses and includes both native Swift sources and pri
   const targets = Object.values(objects).filter(
     (o) => o.isa === "PBXNativeTarget",
   );
-  assert.equal(targets.length, 1);
-  const target = targets[0];
+  assert.equal(targets.length, report.runtimeTests ? 2 : 1);
+  const target = targets.find((item) => item.name === "App");
   assert.equal(target.name, "App");
   const phases = target.buildPhases.map((id) => objects[id]);
   const paths = (isa) =>
@@ -79,6 +84,67 @@ test("actual Xcode project parses and includes both native Swift sources and pri
   assert.equal(report.templateSha256, IOS_TEMPLATE_SHA256);
   assert.equal(report.simulatorOnly, true);
   assert.equal(report.signingAllowed, false);
+});
+
+test("optional runtime target is hosted by the actual app and cannot ship its probes as application source", () => {
+  const objects = plist("App.xcodeproj/project.pbxproj").objects;
+  const target = objects[IOS_RUNTIME_TARGET];
+  if (!report.runtimeTests) {
+    assert.equal(target, undefined);
+    assert.equal(
+      fs.existsSync(path.join(project, "FitCoachRuntimeTests")),
+      false,
+    );
+    return;
+  }
+  assert.equal(target.name, "FitCoachRuntimeTests");
+  assert.equal(target.productType, "com.apple.product-type.bundle.unit-test");
+  const appTarget = Object.values(objects).find(
+    (item) => item.isa === "PBXNativeTarget" && item.name === "App",
+  );
+  assert.equal(target.dependencies.length, 1);
+  assert.equal(objects[objects[target.dependencies[0]].target].name, "App");
+  assert.deepEqual(appTarget.dependencies, []);
+  const phases = target.buildPhases.map((key) => objects[key]);
+  const files = (isa) =>
+    phases
+      .filter((item) => item.isa === isa)
+      .flatMap((phase) =>
+        phase.files.map((key) => objects[objects[key].fileRef].path),
+      );
+  assert.deepEqual(files("PBXSourcesBuildPhase"), [
+    "FitCoachRuntimeTests.swift",
+  ]);
+  assert.deepEqual(files("PBXResourcesBuildPhase"), ["ios-probes.js"]);
+  for (const key of objects[target.buildConfigurationList]
+    .buildConfigurations) {
+    const settings = objects[key].buildSettings;
+    assert.equal(settings.TEST_HOST, "$(BUILT_PRODUCTS_DIR)/App.app/App");
+    assert.equal(settings.BUNDLE_LOADER, "$(TEST_HOST)");
+    assert.equal(settings.CODE_SIGNING_ALLOWED, "NO");
+    assert.equal(settings.IPHONEOS_DEPLOYMENT_TARGET, "17.0");
+    assert.equal(settings.SUPPORTED_PLATFORMS, "iphonesimulator");
+    assert.equal(settings.DEVELOPMENT_TEAM, undefined);
+  }
+  assert.deepEqual(
+    report.runtimeFiles.map((item) => item.file),
+    IOS_RUNTIME_FILES,
+  );
+  for (const item of report.runtimeFiles) {
+    assert.equal(hash(read(`FitCoachRuntimeTests/${item.file}`)), item.sha256);
+    assert.equal(
+      hash(
+        fs.readFileSync(new URL(`../runtime/${item.file}`, import.meta.url)),
+      ),
+      item.sha256,
+    );
+    assert.equal(fs.existsSync(path.join(app, item.file)), false);
+    assert.equal(fs.existsSync(path.join(app, "public", item.file)), false);
+  }
+  assert.equal(
+    read("App.xcodeproj/xcshareddata/xcschemes/FitCoachRuntime.xcscheme"),
+    iosRuntimeScheme(),
+  );
 });
 
 test("actual generated iOS launch, privacy, permissions and icons preserve reviewed source", () => {
