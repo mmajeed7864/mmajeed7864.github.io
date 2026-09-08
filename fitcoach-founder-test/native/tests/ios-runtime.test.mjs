@@ -14,6 +14,8 @@ import {
 import {
   IOS_RUNTIME,
   IOS_DEVICE_TYPE,
+  IOS_RUNTIME_SIGNING,
+  verifyRuntimeSigning,
   validateIOSRuntimeHost,
   validateSimulatorInventory,
   ownedSimulator,
@@ -61,6 +63,64 @@ const tree = () => ({
       })),
     },
   ],
+});
+
+test("runtime signing is simulator-only and cannot inherit an account or provisioning profile", () => {
+  assert.deepEqual(IOS_RUNTIME_SIGNING, [
+    "CODE_SIGNING_ALLOWED=YES",
+    "CODE_SIGNING_REQUIRED=YES",
+    "CODE_SIGN_IDENTITY=-",
+    "CODE_SIGN_STYLE=Manual",
+    "DEVELOPMENT_TEAM=",
+    "PROVISIONING_PROFILE_SPECIFIER=",
+    "PROVISIONING_PROFILE=",
+  ]);
+  const details =
+    "Identifier=com.symbio.fitcoach.dev\nSignature=adhoc\nTeamIdentifier=not set\n";
+  const entitlements = {
+    "application-identifier": "com.symbio.fitcoach.dev",
+    "com.apple.developer.healthkit": true,
+  };
+  assert.equal(
+    verifyRuntimeSigning(details, entitlements).developerAccountUsed,
+    false,
+  );
+  assert.doesNotThrow(() =>
+    verifyRuntimeSigning(details, {
+      ...entitlements,
+      "keychain-access-groups": ["com.symbio.fitcoach.dev"],
+    }),
+  );
+  for (const invalid of [
+    "",
+    details.replace("adhoc", "developer"),
+    details.replace("not set", "REALTEAM"),
+    details + "Authority=Apple Development\n",
+    details.replace("com.symbio.fitcoach.dev", "com.other.app"),
+  ]) {
+    assert.throws(() => verifyRuntimeSigning(invalid, entitlements));
+  }
+  for (const patch of [
+    { "application-identifier": undefined },
+    { "application-identifier": "TEAM.com.symbio.fitcoach.dev" },
+    { "com.apple.developer.team-identifier": "TEAM" },
+    { "com.apple.security.application-groups": ["other-app"] },
+    { "keychain-access-groups": ["*"] },
+    { "keychain-access-groups": "com.symbio.fitcoach.dev" },
+  ]) {
+    assert.throws(() =>
+      verifyRuntimeSigning(details, { ...entitlements, ...patch }),
+    );
+  }
+  const runner = fs.readFileSync(
+    new URL("../scripts/ios-runtime-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(runner, /\.\.\.IOS_RUNTIME_SIGNING/u);
+  assert.doesNotMatch(
+    runner,
+    /allowProvisioningUpdates|allowProvisioningDeviceRegistration/u,
+  );
 });
 
 test("iOS execution refuses personal hosts, non-temporary projects and unreviewed Xcode", () => {
@@ -225,6 +285,8 @@ test("real iOS test sources use the shipped bridge and controls and keep fixture
   );
   assert.match(swift, /callAsyncJavaScript/u);
   assert.match(swift, /kSecAttrAccessibleWhenUnlockedThisDeviceOnly/u);
+  assert.match(swift, /FITCOACH_KEYCHAIN_INITIAL_STATUS/u);
+  assert.match(swift, /guard initialStatus == errSecItemNotFound/u);
   assert.match(swift, /web\.reload\(\)/u);
   assert.match(js, /createNativePlatformClient\(\)\.secureSessionStorage/u);
   assert.match(js, /await image\.decode\(\)/u);
