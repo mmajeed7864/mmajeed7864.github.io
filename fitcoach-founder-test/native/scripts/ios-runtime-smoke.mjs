@@ -12,6 +12,11 @@ import {
 export const IOS_RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-2";
 export const IOS_DEVICE_TYPE =
   "com.apple.CoreSimulator.SimDeviceType.iPhone-16";
+export const IOS_BOOT_BUDGET = Object.freeze({
+  cacheMs: 180_000,
+  requestMs: 60_000,
+  readyMs: 480_000,
+});
 // Account-free simulator signing. Never inherit a developer identity or profile.
 // The generated project and independent compile gate remain unsigned by default.
 export const IOS_RUNTIME_SIGNING = Object.freeze([
@@ -41,21 +46,15 @@ export function verifyRuntimeSigning(details, entitlements) {
     !entitlements ||
     typeof entitlements !== "object" ||
     Array.isArray(entitlements) ||
-    entitlements["application-identifier"] !== "com.symbio.fitcoach.dev" ||
-    entitlements["com.apple.developer.team-identifier"] ||
-    entitlements["com.apple.security.application-groups"] !== undefined ||
-    (entitlements["keychain-access-groups"] !== undefined &&
-      (!Array.isArray(entitlements["keychain-access-groups"]) ||
-        entitlements["keychain-access-groups"].some(
-          (group) => group !== "com.symbio.fitcoach.dev",
-        )))
+    Object.keys(entitlements).length !== 0
   )
     throw new Error(
-      "Unexpected simulator app identity or Keychain access groups",
+      "Account-free simulator app must have no embedded signed entitlements",
     );
   return {
     mode: "ad-hoc-simulator-only",
-    applicationIdentifier: entitlements["application-identifier"],
+    applicationIdentifier: "com.symbio.fitcoach.dev",
+    embeddedEntitlements: "none",
     developerAccountUsed: false,
   };
 }
@@ -211,6 +210,73 @@ const readJSON = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const simctl = (args) => command("/usr/bin/xcrun", ["simctl", ...args]);
 const inventory = () => JSON.parse(simctl(["list", "--json"]));
 
+// First boot includes migration and shared-cache generation, not just a Booted
+// inventory label. All effects remain on the reviewed hosted runner/runtime.
+export function bootOwnedSimulator({
+  udid,
+  name,
+  env = process.env,
+  platform = process.platform,
+  readInventory = inventory,
+  execute = command,
+  clock = () => performance.now(),
+  record = (event) => console.log(json(event)),
+}) {
+  validateIOSRuntimeHost(env, platform);
+  const initial = readInventory();
+  validateSimulatorInventory(initial);
+  ownedSimulator(initial, udid, name);
+  function stage(phase, args, timeout) {
+    const started = clock();
+    record({ phase, status: "started", timeoutMs: timeout });
+    try {
+      execute("/usr/bin/xcrun", ["simctl", ...args], {
+        timeout,
+        killSignal: "SIGKILL",
+        stdio: "inherit",
+      });
+      record({
+        phase,
+        status: "passed",
+        elapsedMs: Math.round(clock() - started),
+      });
+    } catch (error) {
+      record({
+        phase,
+        status: "failed",
+        elapsedMs: Math.round(clock() - started),
+        message: error.message.slice(-2_000),
+      });
+      throw new Error(
+        `Simulator ${phase} failed before app testing: ${error.message}`,
+        { cause: error },
+      );
+    }
+  }
+  // Apple's Xcode 26.1 known-issue workaround; scope to our reviewed runtime,
+  // as Chromium's simulator infrastructure does, rather than updating --all.
+  stage(
+    "shared-cache",
+    ["runtime", "dyld_shared_cache", "update", IOS_RUNTIME],
+    IOS_BOOT_BUDGET.cacheMs,
+  );
+  const prepared = readInventory();
+  validateSimulatorInventory(prepared);
+  ownedSimulator(prepared, udid, name);
+  stage("boot-request", ["boot", udid], IOS_BOOT_BUDGET.requestMs);
+  ownedSimulator(readInventory(), udid, name);
+  stage("boot-readiness", ["bootstatus", udid, "-b"], IOS_BOOT_BUDGET.readyMs);
+  if (ownedSimulator(readInventory(), udid, name).state !== "Booted")
+    throw new Error("Owned simulator did not boot after bootstatus completed");
+  record({
+    phase: "boot-verified",
+    status: "passed",
+    runtime: IOS_RUNTIME,
+    simulator: udid,
+    appTestsExecuted: false,
+  });
+}
+
 export async function runIOSRuntimeSmoke() {
   const { temp, project, derived } = validateIOSRuntimeHost(process.env);
   for (const directory of [temp, project, derived])
@@ -282,15 +348,21 @@ export async function runIOSRuntimeSmoke() {
     json({ udid, name, runtime: IOS_RUNTIME, deviceType: IOS_DEVICE_TYPE }),
     { flag: "wx" },
   );
+  let runtimeFailure;
   try {
-    ownedSimulator(inventory(), udid, name);
-    simctl(["boot", udid]);
-    command("/usr/bin/xcrun", ["simctl", "bootstatus", udid, "-b"], {
-      timeout: 240_000,
-      stdio: "inherit",
-    });
-    if (ownedSimulator(inventory(), udid, name).state !== "Booted")
-      throw new Error("Owned simulator did not boot");
+    const bootLog = fs.openSync(path.join(evidence, "boot-events.jsonl"), "wx");
+    try {
+      bootOwnedSimulator({
+        udid,
+        name,
+        record: (event) => {
+          fs.writeSync(bootLog, `${JSON.stringify(event)}\n`);
+          console.log(json(event));
+        },
+      });
+    } finally {
+      fs.closeSync(bootLog);
+    }
     const resultBundle = path.join(evidence, "FitCoach.xcresult");
     const log = fs.openSync(path.join(evidence, "xcode-test.log"), "wx");
     let result;
@@ -439,25 +511,36 @@ export async function runIOSRuntimeSmoke() {
     });
     console.log(json(proof));
     return proof;
+  } catch (error) {
+    runtimeFailure = error;
+    throw error;
   } finally {
     // Exact ownership check again. No personal simulator, erase-all, keychain
     // reset, installed SDK or pre-existing device is ever removed.
-    const device = ownedSimulator(inventory(), udid, name);
-    if (device.state === "Booted") simctl(["shutdown", udid]);
-    const deadline = Date.now() + 30_000;
-    while (
-      ownedSimulator(inventory(), udid, name).state !== "Shutdown" &&
-      Date.now() < deadline
-    )
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    if (ownedSimulator(inventory(), udid, name).state !== "Shutdown")
-      throw new Error(
-        "Owned simulator shutdown incomplete; preserved for runner cleanup",
+    try {
+      const device = ownedSimulator(inventory(), udid, name);
+      if (device.state === "Booted") simctl(["shutdown", udid]);
+      const deadline = Date.now() + 30_000;
+      while (
+        ownedSimulator(inventory(), udid, name).state !== "Shutdown" &&
+        Date.now() < deadline
+      )
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      if (ownedSimulator(inventory(), udid, name).state !== "Shutdown")
+        throw new Error(
+          "Owned simulator shutdown incomplete; preserved for runner cleanup",
+        );
+      simctl(["delete", udid]);
+      console.log(
+        "Removed only the newly created disposable test simulator; evidence remains in runner temp.",
       );
-    simctl(["delete", udid]);
-    console.log(
-      "Removed only the newly created disposable test simulator; evidence remains in runner temp.",
-    );
+    } catch (cleanupError) {
+      // Keep the actual boot/test failure visible if cleanup also fails.
+      if (!runtimeFailure) throw cleanupError;
+      console.error(
+        `Additional owned-simulator cleanup failure: ${cleanupError.message}`,
+      );
+    }
   }
 }
 

@@ -18,7 +18,9 @@ jobs:
   ios-simulator-compile:
     # Standard public-repository runner, not a paid/larger runner. No uploads.
     runs-on: macos-15-intel
-    timeout-minutes: 30
+    # Setup/compile + bounded cache/first boot + 15-minute XCTest + cleanup.
+    # This remains the standard runner; no larger/paid machine or test retries.
+    timeout-minutes: 45
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       HOMEBREW_NO_AUTO_UPDATE: "1"
