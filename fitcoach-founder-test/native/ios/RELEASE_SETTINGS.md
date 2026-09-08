@@ -1,6 +1,9 @@
 # iOS release settings
 
-Status: reference checklist only. No Xcode project, archive, provisioning profile, TestFlight build, or App Store submission was generated on this host.
+Status: a reproducible unsigned simulator project is now prepared and structurally
+checked through [IOS_BUILD.md](../IOS_BUILD.md). This does not prove Swift compilation
+or launch. No archive, provisioning profile, TestFlight build or App Store submission
+has been created by this preparation step. All release requirements below remain.
 
 ## Generated project requirements
 

@@ -1,0 +1,142 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import {
+  IOS_SOURCE_FILES,
+  patchIOSProject,
+  replaceExpected,
+  reserveIOSProject,
+  validateIOSDebugConfig,
+} from "../scripts/prepare-ios-project.mjs";
+
+const config = {
+  appId: "com.symbio.fitcoach.dev",
+  appName: "FitCoach Dev",
+  webDir: "dist",
+  ios: { scheme: "FitCoachDev" },
+  server: {
+    cleartext: false,
+    appStartPath: "/fitcoach-founder-test/index.html",
+  },
+};
+const fixture = () =>
+  [
+    "IPHONEOS_DEPLOYMENT_TARGET = 15.0;\n".repeat(4),
+    "MARKETING_VERSION = 1.0;\n".repeat(2),
+    "PRODUCT_BUNDLE_IDENTIFIER = com.symbio.fitcoach.dev;\n".repeat(2),
+    'CODE_SIGN_IDENTITY = "iPhone Developer";\n'.repeat(2),
+    "CODE_SIGN_STYLE = Automatic;\n".repeat(2),
+    "SDKROOT = iphoneos;\n".repeat(2),
+    "/* End PBXBuildFile section */\n/* End PBXFileReference section */\n",
+    "\t\t\t\t9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,\n",
+    "\t\t\t\t9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,\n",
+    "\t\t\t\t2FAD9763203C412B000D30F8 /* config.xml in Resources */,\n",
+  ].join("");
+
+test("iOS project integrates actual bridge/privacy sources with an unsigned simulator-only identity", () => {
+  const result = patchIOSProject(fixture(), "0.7.3");
+  assert.equal(
+    (result.match(/IPHONEOS_DEPLOYMENT_TARGET = 17\.0/g) || []).length,
+    4,
+  );
+  assert.equal((result.match(/MARKETING_VERSION = 0\.7\.3/g) || []).length, 2);
+  assert.equal((result.match(/CODE_SIGNING_ALLOWED = NO/g) || []).length, 4);
+  assert.equal(
+    (result.match(/SUPPORTED_PLATFORMS = iphonesimulator/g) || []).length,
+    2,
+  );
+  for (const name of [
+    "FitCoachNativePlugin.swift",
+    "FitCoachBridgeViewController.swift",
+  ])
+    assert.ok(result.includes(`${name} in Sources`));
+  assert.ok(result.includes("PrivacyInfo.xcprivacy in Resources"));
+  assert.ok(result.includes("CODE_SIGN_ENTITLEMENTS = App/App.entitlements"));
+  assert.doesNotMatch(
+    result,
+    /DEVELOPMENT_TEAM|CODE_SIGN_STYLE = Automatic|SDKROOT = iphoneos;/u,
+  );
+});
+
+test("changed iOS templates, repeated integration and unsafe versions fail rather than silently patching", () => {
+  for (const source of [
+    fixture().replace("15.0", "18.0"),
+    fixture().repeat(2),
+    fixture() + "DEVELOPMENT_TEAM = unknown;",
+    fixture() + "PBXShellScriptBuildPhase",
+    patchIOSProject(fixture(), "0.7.3"),
+  ])
+    assert.throws(() => patchIOSProject(source, "0.7.3"));
+  assert.throws(() => patchIOSProject(fixture(), "1; command"));
+  assert.throws(() => replaceExpected("missing", "a", "b"));
+  assert.throws(() => replaceExpected("a a", "a", "b"));
+});
+
+test("iOS configuration cannot silently use production signing, external navigation or alternate project paths", () => {
+  assert.doesNotThrow(() => validateIOSDebugConfig(config));
+  for (const patch of [
+    { appId: "com.symbio.fitcoach" },
+    { appName: "FitCoach" },
+    { webDir: "private" },
+    { ios: { ...config.ios, path: "../existing" } },
+    { ios: { ...config.ios, scheme: "FitCoach" } },
+    { ios: { ...config.ios, buildOptions: { signingStyle: "automatic" } } },
+    ...[
+      { url: "https://remote.invalid" },
+      { hostname: "other.invalid" },
+      { allowNavigation: ["*"] },
+      { cleartext: true },
+      { appStartPath: "/" },
+      { iosScheme: "https" },
+    ].map((server) => ({ server: { ...config.server, ...server } })),
+    { experimental: {} },
+    { cordova: {} },
+  ])
+    assert.throws(() => validateIOSDebugConfig({ ...config, ...patch }));
+});
+
+test("iOS destination reservation preserves source, existing projects, bundles and symlink targets", (t) => {
+  const temp = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "fitcoach-ios-test-")),
+  );
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const bundle = path.join(temp, "bundle"),
+    output = path.join(temp, "output");
+  fs.mkdirSync(bundle);
+  fs.writeFileSync(path.join(bundle, "keep"), "retained");
+  assert.equal(reserveIOSProject(output, bundle), output);
+  fs.writeFileSync(path.join(output, "keep"), "retained");
+  for (const bad of [output, bundle, path.join(bundle, "nested"), temp])
+    assert.throws(() => reserveIOSProject(bad, bundle));
+  const link = path.join(temp, "link");
+  fs.symlinkSync(output, link, "dir");
+  assert.throws(() => reserveIOSProject(path.join(link, "child"), bundle));
+  assert.equal(fs.readFileSync(path.join(output, "keep"), "utf8"), "retained");
+  assert.equal(fs.readFileSync(path.join(bundle, "keep"), "utf8"), "retained");
+});
+
+test("iOS integration inventory retains launch, native features, privacy and existing scope", () => {
+  assert.equal(IOS_SOURCE_FILES.length, 9);
+  for (const file of IOS_SOURCE_FILES)
+    assert.ok(
+      fs.statSync(new URL(`../ios/App/App/${file}`, import.meta.url)).isFile(),
+    );
+  const plugin = fs.readFileSync(
+    new URL("../ios/App/App/FitCoachNativePlugin.swift", import.meta.url),
+    "utf8",
+  );
+  assert.match(plugin, /import HealthKit/u);
+  assert.match(plugin, /import StoreKit/u);
+  assert.match(plugin, /import Security/u);
+  const prep = fs.readFileSync(
+    new URL("../scripts/prepare-ios-project.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    prep,
+    /allowProvisioningUpdates|accept.*license|--force|fs\.rmSync|fs\.unlinkSync/u,
+  );
+  assert.ok(prep.includes('exact: "8.5.1"'));
+});
