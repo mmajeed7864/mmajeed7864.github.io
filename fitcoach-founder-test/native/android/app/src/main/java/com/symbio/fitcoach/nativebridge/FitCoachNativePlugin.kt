@@ -872,7 +872,8 @@ class FitCoachNativePlugin : Plugin(), RecognitionListener, PurchasesUpdatedList
     }
 
     private fun isBluetoothCommunicationDevice(device: AudioDeviceInfo): Boolean =
-        device.type == AudioDeviceInfo.TYPE_BLE_HEADSET || device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+        device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && device.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
 
     private fun routePayload(): JSObject {
         val activeDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && voiceInputSessionActive) {

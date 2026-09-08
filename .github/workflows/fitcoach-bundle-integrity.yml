@@ -17,7 +17,7 @@ permissions:
 jobs:
   bundle-integrity:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
           node scripts/prepare-android-project.mjs --web-bundle dist --out "$FITCOACH_TEST_ANDROID_PROJECT"
           node --test tests/integration/android-project.test.mjs
           cd "$FITCOACH_TEST_ANDROID_PROJECT/android"
-          if ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug :app:lintDebug; then
+          if ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug; then
             FITCOACH_GRADLE_RESULT=0
           else
             FITCOACH_GRADLE_RESULT=$?
@@ -95,5 +95,15 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest target-sdk "$FITCOACH_ANDROID_APK"
           "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest permissions "$FITCOACH_ANDROID_APK"
           # No artifact upload, credentials, release signing, Play API, or deployment.
+      - name: Install and test the actual app on an isolated Android emulator
+        working-directory: fitcoach-founder-test/native
+        env:
+          FITCOACH_TEST_ANDROID_PROJECT: ${{ runner.temp }}/fitcoach-android
+        run: |
+          test -c /dev/kvm
+          sudo chown "$(id -u):$(id -g)" /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          node scripts/android-runtime-smoke.mjs
       - name: Check diff whitespace
         run: git diff --check

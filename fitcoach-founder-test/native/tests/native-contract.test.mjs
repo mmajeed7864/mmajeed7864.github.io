@@ -69,6 +69,7 @@ test("native voice separates speech input from high-quality Bluetooth output", (
   assert.match(android, /clearCommunicationDevice\(\)/u);
   assert.match(android, /getDevices\(AudioManager\.GET_DEVICES_OUTPUTS\)/u);
   assert.doesNotMatch(android, /getDevices\(AudioManager\.GET_DEVICES_ALL\)/u);
+  assert.match(android, /private fun isBluetoothCommunicationDevice[\s\S]*Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.S && device\.type == AudioDeviceInfo\.TYPE_BLE_HEADSET/u);
   assert.match(android, /voiceInputSessionActive/u);
   assert.match(android, /routeConfirmed/u);
   assert.doesNotMatch(android, /bluetoothRemoved/u);
