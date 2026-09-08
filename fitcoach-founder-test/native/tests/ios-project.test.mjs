@@ -140,3 +140,29 @@ test("iOS integration inventory retains launch, native features, privacy and exi
   );
   assert.ok(prep.includes('exact: "8.5.1"'));
 });
+
+test("iOS workflow evaluates runner paths only inside runner-time steps", () => {
+  const workflow = fs.readFileSync(
+    new URL(
+      "../../../.github/workflows/fitcoach-ios-build.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const [jobConfig, steps] = workflow.split("    steps:\n");
+  assert.ok(steps, "Expected the iOS job's steps");
+  // GitHub rejects runner context in jobs.<id>.env before assigning a runner.
+  assert.doesNotMatch(jobConfig, /\$\{\{\s*runner\./u);
+  for (const step of steps.split(/\n      - /u)) {
+    for (const name of ["FITCOACH_TEST_IOS_PROJECT", "FITCOACH_IOS_DERIVED"]) {
+      if (!step.includes(`$${name}`)) continue;
+      assert.match(step, /\n        env:\n/u);
+      assert.ok(
+        step.includes(
+          `          ${name}: ` + "${{ runner.temp }}/fitcoach-ios",
+        ),
+        `${name} must be supplied by that step's environment`,
+      );
+    }
+  }
+});

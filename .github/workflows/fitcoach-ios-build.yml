@@ -22,8 +22,6 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       HOMEBREW_NO_AUTO_UPDATE: "1"
-      FITCOACH_TEST_IOS_PROJECT: ${{ runner.temp }}/fitcoach-ios
-      FITCOACH_IOS_DERIVED: ${{ runner.temp }}/fitcoach-ios-derived
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,14 +45,22 @@ jobs:
           npm run web:verify
       - name: Generate and inspect the actual Xcode project
         working-directory: fitcoach-founder-test/native
+        env:
+          FITCOACH_TEST_IOS_PROJECT: ${{ runner.temp }}/fitcoach-ios
         run: |
           node scripts/prepare-ios-project.mjs --web-bundle dist --out "$FITCOACH_TEST_IOS_PROJECT"
           node --test tests/integration/ios-project.test.mjs
       - name: Compile the complete app for iOS Simulator without signing
+        env:
+          FITCOACH_TEST_IOS_PROJECT: ${{ runner.temp }}/fitcoach-ios
+          FITCOACH_IOS_DERIVED: ${{ runner.temp }}/fitcoach-ios-derived
         run: |
           xcodebuild -project "$FITCOACH_TEST_IOS_PROJECT/ios/App/App.xcodeproj" -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$FITCOACH_IOS_DERIVED" -jobs 2 CODE_SIGNING_ALLOWED=NO build
       - name: Inspect compiled identity, platform, privacy and every media payload
         working-directory: fitcoach-founder-test/native
+        env:
+          FITCOACH_TEST_IOS_PROJECT: ${{ runner.temp }}/fitcoach-ios
+          FITCOACH_IOS_DERIVED: ${{ runner.temp }}/fitcoach-ios-derived
         run: |
           node scripts/verify-ios-app.mjs --app "$FITCOACH_IOS_DERIVED/Build/Products/Debug-iphonesimulator/App.app" --project "$FITCOACH_TEST_IOS_PROJECT"
           git diff --check
