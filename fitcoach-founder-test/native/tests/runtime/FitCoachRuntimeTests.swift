@@ -101,6 +101,15 @@ final class FitCoachRuntimeTests: XCTestCase {
         let web = try await prepare()
         // Cleanup is limited to this exact synthetic key in the new simulator.
         defer { SecItemDelete(keychainQuery() as CFDictionary) }
+        var initialQuery = keychainQuery()
+        initialQuery[kSecReturnAttributes as String] = true
+        let initialStatus = SecItemCopyMatching(initialQuery as CFDictionary, nil)
+        // No session value or other Keychain data is printed. A clean isolated
+        // simulator must distinguish an absent item from denied Keychain access.
+        print("FITCOACH_KEYCHAIN_INITIAL_STATUS \(initialStatus)")
+        guard initialStatus == errSecItemNotFound else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(initialStatus), userInfo: [NSLocalizedDescriptionKey: "Fresh simulator Keychain access did not report an absent session"])
+        }
         let stored = try await probe(web, "session-write")
         for field in ["available", "saved", "matches", "webStorageClean"] { XCTAssertEqual(stored[field] as? Bool, true, field) }
         var query = keychainQuery()

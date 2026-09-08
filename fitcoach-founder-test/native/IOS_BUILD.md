@@ -71,7 +71,7 @@ release gate in [ios/RELEASE_SETTINGS.md](ios/RELEASE_SETTINGS.md).
 
 The iOS development workflow performs the full build on GitHub's standard public
 `macos-15-intel` runner using its preinstalled Xcode 26.3. It never installs Xcode or
-accepts new terms on Mohammed's Mac. No paid/larger runner, signing,
+accepts new terms on Mohammed's Mac. No paid/larger runner, developer-account signing,
 artifact upload or store API is used. After compilation, `verify-ios-app.mjs` checks
 the actual Mach-O executable's simulator platform and SDK, built identity/permissions,
 privacy resource, every web payload and the resolved official Capacitor 8.5.1 commit.
@@ -99,6 +99,35 @@ verifies its ID/name/type/runtime before use and cleanup, and removes only that
 new disposable device. It never downloads an SDK, accepts terms or touches a phone.
 Build/test concurrency is bounded; original generated outputs and test evidence
 remain in temporary runner storage, with no artifact uploads or persistent caches.
+
+### Keychain requires a runtime identity, not just a successful compile
+
+The default generated project and separate compilation gate still disable signing.
+The isolated **runtime** command overrides that default with Xcode's account-free
+ad-hoc signing (Sign to Run Locally): identity `-`, no development team and empty
+provisioning-profile settings. It never enables provisioning updates, creates an
+Apple certificate, signs for a physical device or uses an Apple account. This is
+not Ad Hoc device distribution and cannot establish release-signing readiness.
+
+Earlier unsigned simulator runs compiled and passed launch, artwork and motion
+checks, but native Keychain read/clear failed. The runtime test now logs only the
+initial numeric Keychain status for the exact synthetic test item and requires
+`errSecItemNotFound` before writing. Protected OS storage, device-only/unlocked-only
+and nonsynchronizing attributes, web-storage exclusion, reload recovery and
+deletion assertions remain unchanged. No mock or plaintext fallback is used.
+
+The runner also verifies the actual compiled app signature and prints its relevant
+identity/entitlements even if the runtime test fails. It requires ad-hoc signing,
+the exact development application identifier, no developer team or provisioning
+profile, and no foreign Keychain/application groups. Test success still requires
+all four exact runtime tests and the result-bundle assertions below; a signature
+check by itself is not a storage pass. Hosted execution is required to confirm
+this correction, not the local configuration fixtures.
+
+Apple explains modern simulator [account-free local signing](https://developer.apple.com/forums/thread/826882)
+and how the [signed application identifier establishes its private Keychain group](https://developer.apple.com/documentation/security/sharing-access-to-keychain-items-among-a-collection-of-apps).
+The older TN2415 statement that Simulator builds are not signed does not describe
+the current runtime signing workflow.
 
 Four actual application-hosted tests cover:
 

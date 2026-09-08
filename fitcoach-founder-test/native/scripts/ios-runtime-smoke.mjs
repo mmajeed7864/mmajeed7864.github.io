@@ -12,9 +12,53 @@ import {
 export const IOS_RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-2";
 export const IOS_DEVICE_TYPE =
   "com.apple.CoreSimulator.SimDeviceType.iPhone-16";
+// Account-free simulator signing. Never inherit a developer identity or profile.
+// The generated project and independent compile gate remain unsigned by default.
+export const IOS_RUNTIME_SIGNING = Object.freeze([
+  "CODE_SIGNING_ALLOWED=YES",
+  "CODE_SIGNING_REQUIRED=YES",
+  "CODE_SIGN_IDENTITY=-",
+  "CODE_SIGN_STYLE=Manual",
+  "DEVELOPMENT_TEAM=",
+  "PROVISIONING_PROFILE_SPECIFIER=",
+  "PROVISIONING_PROFILE=",
+]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const json = (object) => `${JSON.stringify(object, null, 2)}\n`;
+
+export function verifyRuntimeSigning(details, entitlements) {
+  if (
+    !/^Signature=adhoc$/mu.test(details) ||
+    !/^Identifier=com\.symbio\.fitcoach\.dev$/mu.test(details) ||
+    !/^TeamIdentifier=not set$/mu.test(details) ||
+    /^Authority=/mu.test(details)
+  )
+    throw new Error(
+      "Runtime host must use account-free ad-hoc simulator signing",
+    );
+  if (
+    !entitlements ||
+    typeof entitlements !== "object" ||
+    Array.isArray(entitlements) ||
+    entitlements["application-identifier"] !== "com.symbio.fitcoach.dev" ||
+    entitlements["com.apple.developer.team-identifier"] ||
+    entitlements["com.apple.security.application-groups"] !== undefined ||
+    (entitlements["keychain-access-groups"] !== undefined &&
+      (!Array.isArray(entitlements["keychain-access-groups"]) ||
+        entitlements["keychain-access-groups"].some(
+          (group) => group !== "com.symbio.fitcoach.dev",
+        )))
+  )
+    throw new Error(
+      "Unexpected simulator app identity or Keychain access groups",
+    );
+  return {
+    mode: "ad-hoc-simulator-only",
+    applicationIdentifier: entitlements["application-identifier"],
+    developerAccountUsed: false,
+  };
+}
 
 export function validateIOSRuntimeHost(env, platform = process.platform) {
   if (
@@ -283,7 +327,7 @@ export async function runIOSRuntimeSmoke() {
           "240",
           "-jobs",
           "2",
-          "CODE_SIGNING_ALLOWED=NO",
+          ...IOS_RUNTIME_SIGNING,
         ],
         {
           timeout: 900_000,
@@ -302,6 +346,49 @@ export async function runIOSRuntimeSmoke() {
       "utf8",
     );
     console.log(output.slice(-160_000));
+    // Inspect what Xcode actually produced even when a test fails, so Keychain
+    // errors can be distinguished from absent/incorrect simulator entitlements.
+    const app = path.join(
+      derived,
+      "Build/Products/Debug-iphonesimulator/App.app",
+    );
+    command("/usr/bin/codesign", ["--verify", "--strict", app]);
+    const display = spawnSync(
+      "/usr/bin/codesign",
+      ["--display", "--verbose=4", app],
+      { encoding: "utf8", timeout: 30_000 },
+    );
+    if (display.error || display.status !== 0)
+      throw new Error("Cannot inspect simulator signature");
+    const entitlementXML = command("/usr/bin/codesign", [
+      "--display",
+      "--entitlements",
+      "-",
+      "--xml",
+      app,
+    ]);
+    const entitlements = JSON.parse(
+      command("/usr/bin/plutil", ["-convert", "json", "-o", "-", "-"], {
+        input: entitlementXML,
+      }),
+    );
+    if (fs.existsSync(path.join(app, "embedded.mobileprovision")))
+      throw new Error("Simulator must not use a provisioning profile");
+    console.log(
+      json({
+        simulatorSignatureDetails: `${display.stdout}\n${display.stderr}`
+          .split("\n")
+          .filter((line) =>
+            /^(Identifier|Signature|TeamIdentifier|Authority)=/u.test(line),
+          ),
+        entitlements,
+      }),
+    );
+    const signing = verifyRuntimeSigning(
+      `${display.stdout}\n${display.stderr}`,
+      entitlements,
+    );
+    console.log(json({ simulatorSigning: signing, entitlements }));
     if (result.error || result.status !== 0)
       throw new Error(
         `Actual iOS tests failed: ${result.error?.message || result.status}`,
@@ -339,6 +426,7 @@ export async function runIOSRuntimeSmoke() {
       simulator: udid,
       runtime: IOS_RUNTIME,
       webContentSha256: inputs.webContentSha256,
+      signing,
       physicalDeviceTested: false,
       processDeathTested: false,
       microphoneGranted: false,
