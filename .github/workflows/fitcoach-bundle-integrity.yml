@@ -17,7 +17,7 @@ permissions:
 jobs:
   bundle-integrity:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -54,5 +54,36 @@ jobs:
           npm run web:build
           npm run web:verify
           node --test tests/integration/lossless-codec.test.mjs
+      - name: Use the Java version required by Capacitor Android
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Prepare and compile the actual Android development application
+        working-directory: fitcoach-founder-test/native
+        env:
+          FITCOACH_TEST_ANDROID_PROJECT: ${{ runner.temp }}/fitcoach-android
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+          node scripts/prepare-android-project.mjs --web-bundle dist --out "$FITCOACH_TEST_ANDROID_PROJECT"
+          node --test tests/integration/android-project.test.mjs
+          cd "$FITCOACH_TEST_ANDROID_PROJECT/android"
+          ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug :app:lintDebug
+      - name: Check the compiled development package without publishing it
+        env:
+          FITCOACH_ANDROID_APK: ${{ runner.temp }}/fitcoach-android/android/app/build/outputs/apk/debug/app-debug.apk
+        run: |
+          test -s "$FITCOACH_ANDROID_APK"
+          sha256sum "$FITCOACH_ANDROID_APK"
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$FITCOACH_ANDROID_APK")" = "com.symbio.fitcoach.dev"
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest min-sdk "$FITCOACH_ANDROID_APK")" = "26"
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest target-sdk "$FITCOACH_ANDROID_APK")" = "36"
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest debuggable "$FITCOACH_ANDROID_APK")" = "true"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$FITCOACH_ANDROID_APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest min-sdk "$FITCOACH_ANDROID_APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest target-sdk "$FITCOACH_ANDROID_APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest permissions "$FITCOACH_ANDROID_APK"
+          # No artifact upload, credentials, release signing, Play API, or deployment.
       - name: Check diff whitespace
         run: git diff --check

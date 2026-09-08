@@ -219,7 +219,9 @@ test("release configuration cannot accidentally use the dev ID for a store build
   assert.match(appBuild, /apply plugin: 'org\.jetbrains\.kotlin\.android'/u);
   assert.match(appBuild, /minSdk\s+26/u);
   assert.match(appBuild, /compileSdk\s+36/u);
-  assert.match(appBuild, /jvmTarget = '17'/u);
+  assert.match(appBuild, /jvmTarget = '21'/u);
+  assert.match(appBuild, /sourceCompatibility JavaVersion.VERSION_21/u);
+  assert.match(read("android/app/src/main/AndroidManifest.xml"), /smallestScreenSize\|navigation\|density/u);
 });
 
 test("store icons have exact dimensions and no alpha channel", () => {
