@@ -179,7 +179,8 @@ export function renderModal(modal, context) {
   }
   if (modal.type === "active-swap") {
     const exercise = context.exerciseById(modal.exerciseId);
-    return shell("Replace this exercise?",`${exercise ? exercisePoster(exercise,{className:"modal-poster",eager:true}) : ""}<p>${escapeHtml(modal.currentName)} will be replaced with <b>${escapeHtml(exercise?.name || "the selected exercise")}</b>. Completed sets prevent replacement.</p>`,button({label:"Keep current",action:"close-modal",variant:"quiet"})+button({label:"Confirm replacement",action:"apply-active-swap",value:modal.exerciseId,variant:"primary"}),{eyebrow:"ACTIVE WORKOUT CHANGE"});
+    const error = modal.error ? `<p class="set-error" role="alert">${escapeHtml(modal.error)}</p>` : "";
+    return shell("Replace this exercise?",`${exercise ? exercisePoster(exercise,{className:"modal-poster",eager:true}) : ""}<p>${escapeHtml(modal.currentName)} will be replaced with <b>${escapeHtml(exercise?.name || "the selected exercise")}</b>. Completed sets prevent replacement.</p>${error}`,button({label:"Keep current",action:"close-modal",variant:"quiet"})+button({label:"Confirm replacement",action:"apply-active-swap",value:modal.exerciseId,variant:"primary"}),{eyebrow:"ACTIVE WORKOUT CHANGE"});
   }
   if (modal.type === "confirm-exit-workout") {
     return shell("End this workout without saving?","<p>The active workout and its unsaved set entries will be removed from this device. Completed history is not affected.</p>",button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:"End unsaved workout",action:"confirm-exit-workout",variant:"danger"}),{eyebrow:"END WORKOUT"});

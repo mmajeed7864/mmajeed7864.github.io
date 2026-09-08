@@ -149,7 +149,7 @@ test("paused logbook protects edits and retains units, notes, error and rest sta
   assert.match(html, /aria-invalid="true"/);
   assert.match(html, /role="alert">Enter a valid rep count/);
   assert.match(html, /&lt;strong&gt;my notes&lt;\/strong&gt;/);
-  assert.match(html, /data-action="add-set" disabled/);
+  assert.match(html, /data-action="add-set"[^>]* disabled/);
   assert.match(html, /data-action="toggle-set"[^>]+disabled/);
   for (const action of ["toggle-workout-pause", "finish-workout", "previous-exercise", "next-exercise", "view-current-instructions"]) {
     assert.ok(html.includes(`data-action="${action}"`));

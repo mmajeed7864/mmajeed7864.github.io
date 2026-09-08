@@ -474,16 +474,16 @@ export function rejectPlanProposal(state, proposalId, now = new Date()) {
 
 // DOM indices describe an old render, not the latest saved workout. Resolve an
 // editing intent inside the coordinated mutation using stable rendered IDs.
-export function resolveWorkoutSet(workout, identity) {
+export function resolveWorkoutSet(workout, identity, { allowPaused = false } = {}) {
   if (!identity || ["workoutId", "exerciseId", "setId"].some(key => typeof identity[key] !== "string" || !identity[key].trim()) || workout?.id !== identity.workoutId) {
     throw new Error("local_workout_changed");
   }
   if (!Array.isArray(workout.exercises)) throw new Error("local_workout_changed");
-  const matches = workout.exercises.flatMap(exercise => exercise?.exerciseId === identity.exerciseId && Array.isArray(exercise.sets)
-    ? exercise.sets.filter(set => set?.id === identity.setId).map(set => ({ exercise, set })) : []);
+  const matches = workout.exercises.flatMap((exercise, index) => exercise?.exerciseId === identity.exerciseId && Array.isArray(exercise.sets)
+    ? exercise.sets.filter(set => set?.id === identity.setId).map(set => ({ exercise, set, index })) : []);
   if (matches.length !== 1) throw new Error("local_workout_changed");
-  if (workout.status === "paused") throw new Error("local_workout_paused");
-  if (workout.status !== "active") throw new Error("local_workout_changed");
+  if (workout.status === "paused" && !allowPaused) throw new Error("local_workout_paused");
+  if (workout.status !== "active" && !(allowPaused && workout.status === "paused")) throw new Error("local_workout_changed");
   return matches[0];
 }
 

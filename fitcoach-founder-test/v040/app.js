@@ -101,6 +101,7 @@ const ui = {
   exerciseFilters: { query: "", muscle: "", equipment: "", favorites: false, page: 1 },
   motionPaused: false,
   replacementIndex: null,
+  replacementTarget: null,
   replacementMode: null,
   addMode: false,
   showActiveWorkout: true,
@@ -570,6 +571,16 @@ function showLocalDataNotice(message, { blocking = false } = {}) {
 }
 
 function handleLocalSaveError(error) {
+  if (error?.message === "local_exercise_logged") {
+    const message = "This exercise now has completed sets. It wasn’t replaced. Reload to review the saved workout.";
+    showLocalDataNotice(message);
+    toast(message);
+    return;
+  }
+  if (error?.message === "local_set_limit") {
+    toast("This exercise already has 20 sets. No extra set was added.");
+    return;
+  }
   if (error?.message === "local_workout_paused") {
     const message = "Your change wasn’t saved. This workout was paused in another tab. Reload or resume it before changing sets.";
     showLocalDataNotice(message);
@@ -773,6 +784,94 @@ async function toggleSet(element) {
     if (set.done && draft.settings.autoRestTimer) {
       startRestTimer(draft.activeWorkout, exercise.target.restSeconds || 90);
     }
+  });
+  render();
+}
+
+async function addActiveWorkoutSet(target) {
+  const identity = { ...target.dataset };
+  state = await store.update(draft => {
+    const { exercise, index } = resolveWorkoutSet(draft.activeWorkout, identity);
+    if (exercise.sets.length >= 20) throw new Error("local_set_limit");
+    exercise.sets.push({
+      id: uid("set"), index: exercise.sets.length + 1, kind: "work", weight: 0,
+      reps: exercise.target.reps || 8, rpe: null,
+      unit: draft.activeWorkout.units || draft.settings.units,
+      done: false, completedAt: null, error: "",
+    });
+    draft.activeWorkout.currentExerciseIndex = index;
+  });
+  render();
+}
+
+async function beginActiveWorkoutSwap(target) {
+  const identity = { ...target.dataset };
+  state = await store.refresh();
+  const { exercise, index } = resolveWorkoutSet(state.activeWorkout, identity);
+  if (exercise.sets.some(set => set.done)) throw new Error("local_exercise_logged");
+  // A set ID anchors the exercise instance, including repeated library moves.
+  // Replacements generate new set IDs, invalidating old selection dialogs.
+  ui.replacementTarget = { ...identity, currentName: exercise.snapshot.name };
+  ui.replacementMode = "active";
+  ui.replacementIndex = index;
+  ui.trainSegment = "exercises";
+  ui.exerciseDetailId = null;
+  ui.showActiveWorkout = false;
+  render();
+}
+
+async function applyActiveWorkoutSwap(target) {
+  const modal = ui.modal;
+  const replacement = getExerciseById(target.dataset.value);
+  if (modal?.type !== "active-swap" || !replacement || modal.exerciseId !== replacement.id || !modal.target) {
+    throw new Error("local_workout_changed");
+  }
+  const identity = { ...modal.target };
+  try {
+    state = await store.update(draft => {
+      const { exercise, index } = resolveWorkoutSet(draft.activeWorkout, identity);
+      if (exercise.sets.some(set => set.done)) throw new Error("local_exercise_logged");
+      swapWorkoutExercise(draft.activeWorkout, index, replacement);
+      draft.activeWorkout.currentExerciseIndex = index;
+    });
+  } catch (error) {
+    if (ui.modal === modal) {
+      modal.error = error?.message === "local_exercise_logged"
+        ? "Not replaced: this exercise now has completed sets. Keep the current exercise or review your saved sets."
+        : error?.message === "local_workout_paused"
+          ? "Not replaced: the workout is paused. Resume it before trying again."
+          : error?.message === "local_workout_changed"
+            ? "Not replaced: the workout changed. Close this dialog and reload your saved workout."
+            : "The replacement wasn’t saved. Keep this dialog open and try again.";
+      renderModalRoot();
+    }
+    throw error;
+  }
+  if (ui.modal === modal) {
+    ui.replacementIndex = null;
+    ui.replacementTarget = null;
+    ui.replacementMode = null;
+    closeModal();
+    ui.showActiveWorkout = true;
+    render();
+  }
+  toast("Exercise replaced in the active workout.");
+}
+
+async function reorderActiveWorkoutExercise(target) {
+  const identity = { ...target.dataset };
+  const direction = Number(identity.direction);
+  if (![1, -1].includes(direction) || !identity.neighborSetId) throw new Error("local_workout_changed");
+  state = await store.update(draft => {
+    const workout = draft.activeWorkout;
+    const { index } = resolveWorkoutSet(workout, identity, { allowPaused: true });
+    const next = index + direction;
+    // Move across the neighbor that was displayed. A stale repeated click must
+    // not jump across a different exercise after another tab reorders the list.
+    if (workout.exercises[next]?.sets?.[0]?.id !== identity.neighborSetId) throw new Error("local_workout_changed");
+    const [item] = workout.exercises.splice(index, 1);
+    workout.exercises.splice(next, 0, item);
+    workout.currentExerciseIndex = next;
   });
   render();
 }
@@ -1067,6 +1166,7 @@ function resetRuntimeEffects() {
   ui.trainSegment = "workout";
   ui.exerciseFilters = { query: "", muscle: "", equipment: "", favorites: false, page: 1 };
   ui.replacementIndex = null;
+  ui.replacementTarget = null;
   ui.replacementMode = null;
   ui.addMode = false;
   ui.showActiveWorkout = true;
@@ -1167,6 +1267,7 @@ async function applyPlanExercise(exerciseId) {
   }
   ui.exerciseDetailId = null;
   ui.replacementIndex = null;
+  ui.replacementTarget = null;
   ui.replacementMode = null;
   ui.addMode = false;
 }
@@ -2050,7 +2151,7 @@ async function handleClick(event) {
   if (action === "resume-workout") { resumeWorkout();return; }
   if (action === "minimize-workout") { ui.showActiveWorkout=false;ui.route="today";render();return; }
   if (action === "toggle-set") { await toggleSet(target);return; }
-  if (action === "add-set") { if(state.activeWorkout?.status==="paused")return toast("Resume the workout before adding sets.");state=await store.update(draft=>{const exercise=draft.activeWorkout?.exercises?.[draft.activeWorkout.currentExerciseIndex];if(exercise&&exercise.sets.length<20)exercise.sets.push({id:uid("set"),index:exercise.sets.length+1,kind:"work",weight:0,reps:exercise.target.reps||8,rpe:null,unit:draft.activeWorkout.units||draft.settings.units,done:false,completedAt:null,error:""});});render();return; }
+  if (action === "add-set") { await addActiveWorkoutSet(target);return; }
   if (action === "adjust-rest") { state=await store.update(draft=>{if(draft.activeWorkout)adjustRestTimer(draft.activeWorkout,Number(value));});render();return; }
   if (action === "stop-rest") { state=await store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.restTimer={endsAt:null,durationSeconds:draft.activeWorkout.restTimer.durationSeconds,running:false,paused:false};});render();return; }
   if (action === "toggle-workout-pause") { state=await store.update(draft=>{const workout=draft.activeWorkout;if(!workout)return;if(workout.status==="paused"){workout.accumulatedPausedMs+=(Date.now()-new Date(workout.pausedAt).getTime());workout.pausedAt=null;workout.status="active";if(workout.restTimer?.paused&&workout.restTimer.durationSeconds>0)startRestTimer(workout,workout.restTimer.durationSeconds);}else{workout.pausedAt=new Date().toISOString();workout.status="paused";const remaining=restSecondsRemaining(workout);if(workout.restTimer?.running&&remaining>0)workout.restTimer={...workout.restTimer,durationSeconds:remaining,endsAt:null,running:false,paused:true};}});render();return; }
@@ -2065,11 +2166,11 @@ async function handleClick(event) {
   if (action === "close-completion") { closeModal();await navigate(value);return; }
   if (action === "reorder-exercise") { await planMutation("reorder",Number(value));return; }
   if (action === "remove-plan-exercise") { await planMutation("remove",Number(value));return; }
-  if (action === "swap-plan-exercise") { ui.replacementIndex=Number(value);ui.replacementMode="plan";ui.trainSegment="exercises";ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();toast("Choose a replacement from the library.");return; }
-  if (action === "add-exercise") { ui.addMode=true;ui.replacementMode="add";ui.replacementIndex=null;ui.trainSegment="exercises";render();return; }
+  if (action === "swap-plan-exercise") { ui.replacementIndex=Number(value);ui.replacementMode="plan";ui.replacementTarget=null;ui.trainSegment="exercises";ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();toast("Choose a replacement from the library.");return; }
+  if (action === "add-exercise") { ui.addMode=true;ui.replacementMode="add";ui.replacementIndex=null;ui.replacementTarget=null;ui.trainSegment="exercises";render();return; }
   if (action === "save-routine") { state=await store.update(draft=>{draft.workoutDrafts=[...(draft.workoutDrafts||[]),{id:uid("routine"),label:draft.activePlan.label,plan:deepClone(draft.activePlan),savedAt:new Date().toISOString()}].slice(-12);});toast("Routine snapshot saved locally.");return; }
   if (action === "open-exercise") { await openExercise(value);return; }
-  if (action === "close-exercise") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;render();return; }
+  if (action === "close-exercise") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementTarget=null;ui.replacementMode=null;ui.addMode=false;render();return; }
   if (action === "toggle-exercise-motion") {
     const figure=target.closest(".exercise-motion");
     const video=figure?.querySelector("[data-media-video]");
@@ -2103,19 +2204,23 @@ async function handleClick(event) {
   if (action === "toggle-favorite") { await toggleFavorite(value);return; }
   if (action === "set-exercise-preference") { await setExercisePreference(target.dataset.field,value);return; }
   if (action === "add-exercise-to-plan" || action === "confirm-exercise-replacement") {
-    if (ui.replacementMode === "active") { ui.modal={type:"active-swap",exerciseId:value};renderModalRoot(); }
+    if (ui.replacementMode === "active") {
+      if (!ui.replacementTarget || !getExerciseById(value)) throw new Error("local_workout_changed");
+      ui.modal={type:"active-swap",exerciseId:value,target:{...ui.replacementTarget},currentName:ui.replacementTarget.currentName};
+      renderModalRoot();
+    }
     else await applyPlanExercise(value);
     return;
   }
-  if (action === "swap-active-exercise") { const current=state.activeWorkout?.exercises?.[Number(value)];if(current?.sets.some(set=>set.done))return toast("Finish or undo completed sets before swapping this exercise.");ui.replacementMode="active";ui.replacementIndex=Number(value);ui.trainSegment="exercises";ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
-  if (action === "apply-active-swap") { state=await store.update(draft=>{if(draft.activeWorkout)swapWorkoutExercise(draft.activeWorkout,ui.replacementIndex,getExerciseById(value));});ui.replacementIndex=null;ui.replacementMode=null;closeModal();ui.showActiveWorkout=true;render();toast("Exercise replaced in the active workout.");return; }
-  if (action === "reorder-active-exercise") { state=await store.update(draft=>{const workout=draft.activeWorkout;const index=Number(value);const direction=Number(target.dataset.direction)||1;const next=index+direction;if(!workout||next<0||next>=workout.exercises.length)return;const [item]=workout.exercises.splice(index,1);workout.exercises.splice(next,0,item);workout.currentExerciseIndex=next;});render();return; }
+  if (action === "swap-active-exercise") { await beginActiveWorkoutSwap(target);return; }
+  if (action === "apply-active-swap") { await applyActiveWorkoutSwap(target);return; }
+  if (action === "reorder-active-exercise") { await reorderActiveWorkoutExercise(target);return; }
   if (action === "clear-exercise-search") { ui.exerciseFilters.query="";ui.exerciseFilters.page=1;render();return; }
   if (action === "clear-exercise-filters") { ui.exerciseFilters={query:"",muscle:"",equipment:"",favorites:false,page:1};render();return; }
   if (action === "filter-exercises") { ui.exerciseFilters[target.dataset.field]=value;ui.exerciseFilters.page=1;render();return; }
   if (action === "exercise-page") { ui.exerciseFilters.page=Math.max(1,Number(value)||1);render();requestAnimationFrame(()=>{const results=document.querySelector(".exercise-grid");results?.querySelector(".exercise-card-open")?.focus({preventScroll:true});results?.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});});return; }
   if (action === "ask-about-exercise") { const exercise=getExerciseById(value);ui.chatDraft=`Explain how ${exercise?.name || "this exercise"} fits my current plan without changing it.`;await navigate("coach");return; }
-  if (action === "open-library") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;closeModal();ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
+  if (action === "open-library") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementTarget=null;ui.replacementMode=null;ui.addMode=false;closeModal();ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
   if (action === "set-theme") { state=await store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
   if (action === "profile-edit") { ui.profileEditing=ui.profileEditing===value?null:value;render();return; }
   if (action === "profile-field" && target.tagName === "BUTTON") { state=await store.update(draft=>{draft.profile[target.dataset.field]=value;});render();toast("Profile saved. Review a proposal before changing today’s plan.");return; }
