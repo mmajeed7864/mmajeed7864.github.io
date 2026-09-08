@@ -44,6 +44,7 @@ import {
   createPlanProposal,
   isValidCompletedSet,
   rejectPlanProposal,
+  resolveWorkoutSet,
   restSecondsRemaining,
   startRestTimer,
   startWorkoutFromPlan,
@@ -569,6 +570,12 @@ function showLocalDataNotice(message, { blocking = false } = {}) {
 }
 
 function handleLocalSaveError(error) {
+  if (error?.message === "local_workout_paused") {
+    const message = "Your change wasn’t saved. This workout was paused in another tab. Reload or resume it before changing sets.";
+    showLocalDataNotice(message);
+    toast(message);
+    return;
+  }
   if (error?.message === "local_reset_detected") {
     if (localResetDetected) return;
     localResetDetected = true;
@@ -727,15 +734,13 @@ function resumeWorkout() {
 }
 
 async function updateSetField(element) {
-  if (state.activeWorkout?.status === "paused") return;
-  const exerciseIndex = Number(element.dataset.exerciseIndex);
-  const setIndex = Number(element.dataset.setIndex);
+  const identity = { ...element.dataset };
   const field = element.dataset.field;
   const bounds = field === "weight" ? [0,5_000] : field === "reps" ? [0,1_000] : [1,10];
   const value = element.value === "" && field === "rpe" ? null : safeNumber(element.value,0,...bounds);
   state = await store.update(draft => {
-    const set = draft.activeWorkout?.exercises?.[exerciseIndex]?.sets?.[setIndex];
-    if (set && ["weight","reps","rpe"].includes(field)) {
+    const { set } = resolveWorkoutSet(draft.activeWorkout, identity);
+    if (["weight","reps","rpe"].includes(field)) {
       set[field] = value;
       set.error = "";
       if (field === "weight") set.unit = draft.activeWorkout.units || draft.settings.units;
@@ -744,13 +749,16 @@ async function updateSetField(element) {
 }
 
 async function toggleSet(element) {
-  if (state.activeWorkout?.status === "paused") return toast("Resume the workout before changing sets.");
-  const exerciseIndex = Number(element.dataset.exerciseIndex);
-  const setIndex = Number(element.dataset.setIndex);
+  const identity = { ...element.dataset };
+  const pressed = element.getAttribute("aria-pressed");
+  if (pressed !== "true" && pressed !== "false") throw new Error("local_workout_changed");
+  const done = pressed === "false";
   state = await store.update(draft => {
-    const set = draft.activeWorkout?.exercises?.[exerciseIndex]?.sets?.[setIndex];
-    if (!set) return;
-    if (!set.done) {
+    const { exercise, set } = resolveWorkoutSet(draft.activeWorkout, identity);
+    // The button means complete/undo what was shown, never toggle somebody
+    // else's later save. Repeated completion preserves its receipt and rest.
+    if (set.done === done) return;
+    if (done) {
       set.unit = draft.activeWorkout.units || draft.settings.units;
       if (!isValidCompletedSet({ ...set, done: true })) {
         set.done = false;
@@ -760,10 +768,10 @@ async function toggleSet(element) {
       }
     }
     set.error = "";
-    set.done = !set.done;
+    set.done = done;
     set.completedAt = set.done ? new Date().toISOString() : null;
     if (set.done && draft.settings.autoRestTimer) {
-      startRestTimer(draft.activeWorkout, draft.activeWorkout.exercises[exerciseIndex].target.restSeconds || 90);
+      startRestTimer(draft.activeWorkout, exercise.target.restSeconds || 90);
     }
   });
   render();
