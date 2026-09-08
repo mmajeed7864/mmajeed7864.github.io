@@ -15,6 +15,12 @@ const inside = (parent, child) =>
   child === parent || child.startsWith(`${parent}${path.sep}`);
 export const IOS_TEMPLATE_SHA256 =
   "24187638fe233b82991b568d4d8b842824faf1048b122e69e379863a1b2836f1";
+export const IOS_TEMPLATE_ICONS = Object.freeze({
+  "AppIcon-512@2x.png":
+    "29e4777e319de3ee5a52c3a8004ec19d0568414004257e36d7c94a077d71c93b",
+  "Contents.json":
+    "5c09bec6eede599b14fa9e4c44b03e7febebc930615a0cd70f02981c09dfe48a",
+});
 export const IOS_SOURCE_FILES = Object.freeze([
   "AppDelegate.swift",
   "SceneDelegate.swift",
@@ -75,6 +81,60 @@ export function reserveIOSProject(destination, bundle) {
   if (inside(APP, output) || inside(input, output) || inside(output, input))
     throw new Error("iOS output overlaps source or the web bundle");
   return reserveOutput(output, APP);
+}
+
+export function installIOSIcons(output, icons) {
+  const root = path.resolve(output);
+  if (fs.realpathSync(root) !== root || inside(APP, root))
+    throw new Error(
+      "Icons require an unlinked generated output outside source",
+    );
+  const names = icons.map((item) => item.file);
+  if (new Set(names).size !== names.length || !names.includes("Contents.json"))
+    throw new Error("Incomplete or duplicate reviewed icon inventory");
+  for (const { file, bytes } of icons)
+    if (
+      !/^[a-zA-Z0-9@._-]+\.png$|^Contents\.json$/u.test(file) ||
+      !Buffer.isBuffer(bytes)
+    )
+      throw new Error("Unsafe reviewed icon input");
+  const manifest = JSON.parse(
+    icons.find((item) => item.file === "Contents.json").bytes,
+  );
+  const expected = [
+    ...new Set(manifest.images.map((image) => image.filename)),
+    "Contents.json",
+  ].sort();
+  if (JSON.stringify([...names].sort()) !== JSON.stringify(expected))
+    throw new Error("Reviewed icon files do not match their manifest");
+  const iconDir = path.join(
+    root,
+    "ios/App/App/Assets.xcassets/AppIcon.appiconset",
+  );
+  const originals = Object.entries(IOS_TEMPLATE_ICONS);
+  if (
+    JSON.stringify(fs.readdirSync(iconDir).sort()) !==
+    JSON.stringify(originals.map(([file]) => file).sort())
+  )
+    throw new Error("Generated icon set differs from the pinned template");
+  for (const [file, expectedHash] of originals)
+    if (
+      hash(fs.readFileSync(regular(path.join(iconDir, file)))) !== expectedHash
+    )
+      throw new Error("Generated icon bytes differ from the pinned template");
+  // Only reached for a freshly generated, checksum-verified template. Preserve
+  // the entire original set outside the app instead of deleting or shipping it.
+  const archive = path.join(root, "fitcoach-template-reference");
+  fs.mkdirSync(archive);
+  fs.renameSync(iconDir, path.join(archive, "AppIcon.appiconset"));
+  fs.mkdirSync(iconDir);
+  for (const { file, bytes } of icons)
+    fs.writeFileSync(path.join(iconDir, file), bytes, { flag: "wx" });
+  return originals.map(([file, sha256]) => ({
+    file,
+    sha256,
+    archivePath: `fitcoach-template-reference/AppIcon.appiconset/${file}`,
+  }));
 }
 
 export function patchIOSProject(source, appVersion) {
@@ -310,11 +370,7 @@ export async function prepareIOSProject({ destination, webBundle }) {
       "<key>CFBundleDisplayName</key>\n  <string>FitCoach Dev</string>",
     ),
   );
-  for (const { file, bytes } of icons)
-    fs.writeFileSync(
-      path.join(app, "Assets.xcassets/AppIcon.appiconset", file),
-      bytes,
-    );
+  const templateIconFiles = installIOSIcons(output, icons);
   for (const item of inventory.files) {
     const bytes = fs.readFileSync(regular(path.join(app, "public", item.path)));
     if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
@@ -338,6 +394,7 @@ export async function prepareIOSProject({ destination, webBundle }) {
       sha256: hash(bytes),
     })),
     iconFiles: icons.map(({ file, bytes }) => ({ file, sha256: hash(bytes) })),
+    templateIconFiles,
   };
   fs.writeFileSync(
     path.join(output, "fitcoach-ios-inputs.json"),

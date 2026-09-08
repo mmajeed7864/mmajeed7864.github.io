@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   IOS_SOURCE_FILES,
+  installIOSIcons,
   patchIOSProject,
   replaceExpected,
   reserveIOSProject,
@@ -57,6 +60,104 @@ test("iOS project integrates actual bridge/privacy sources with an unsigned simu
   assert.doesNotMatch(
     result,
     /DEVELOPMENT_TEAM|CODE_SIGN_STYLE = Automatic|SDKROOT = iphoneos;/u,
+  );
+});
+
+test("new generated icon sets contain only approved icons and preserve the pinned template outside the app", (t) => {
+  const output = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "fitcoach-ios-icons-")),
+  );
+  t.after(() => fs.rmSync(output, { recursive: true, force: true }));
+  const iconDir = path.join(
+    output,
+    "ios/App/App/Assets.xcassets/AppIcon.appiconset",
+  );
+  fs.mkdirSync(iconDir, { recursive: true });
+  const template = new URL(
+    "../node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz",
+    import.meta.url,
+  );
+  for (const file of ["AppIcon-512@2x.png", "Contents.json"])
+    fs.writeFileSync(
+      path.join(iconDir, file),
+      execFileSync("tar", [
+        "-xzOf",
+        fileURLToPath(template),
+        `App/App/Assets.xcassets/AppIcon.appiconset/${file}`,
+      ]),
+    );
+  const source = new URL("../assets/ios/AppIcon.appiconset/", import.meta.url);
+  const icons = fs
+    .readdirSync(source)
+    .map((file) => ({ file, bytes: fs.readFileSync(new URL(file, source)) }));
+  for (const bad of [
+    [],
+    [...icons, icons[0]],
+    [...icons, { file: "../escape.png", bytes: Buffer.from("x") }],
+    icons.filter((item) => item.file !== "Contents.json"),
+  ])
+    assert.throws(() => installIOSIcons(output, bad));
+  fs.writeFileSync(path.join(iconDir, "unexpected.png"), "preserve");
+  assert.throws(() => installIOSIcons(output, icons));
+  fs.renameSync(
+    path.join(iconDir, "unexpected.png"),
+    path.join(output, "preserved-unexpected.png"),
+  );
+  const original = fs.readFileSync(path.join(iconDir, "AppIcon-512@2x.png"));
+  fs.writeFileSync(path.join(iconDir, "AppIcon-512@2x.png"), "changed");
+  assert.throws(() => installIOSIcons(output, icons));
+  fs.writeFileSync(path.join(iconDir, "AppIcon-512@2x.png"), original);
+  const archive = path.join(output, "fitcoach-template-reference");
+  fs.mkdirSync(archive);
+  fs.writeFileSync(path.join(archive, "keep"), "existing archive");
+  assert.throws(() => installIOSIcons(output, icons));
+  fs.renameSync(archive, path.join(output, "preserved-existing-archive"));
+  const report = installIOSIcons(output, icons);
+  assert.equal(report.length, 2);
+  assert.deepEqual(
+    fs.readdirSync(iconDir).sort(),
+    icons.map((item) => item.file).sort(),
+  );
+  assert.deepEqual(
+    fs.readFileSync(path.join(output, report[0].archivePath)),
+    original,
+  );
+  for (const { file, bytes } of icons)
+    assert.deepEqual(fs.readFileSync(path.join(iconDir, file)), bytes);
+  assert.throws(() => installIOSIcons(output, icons));
+  assert.equal(
+    fs.readFileSync(path.join(output, "preserved-unexpected.png"), "utf8"),
+    "preserve",
+  );
+  assert.equal(
+    fs.readFileSync(
+      path.join(output, "preserved-existing-archive/keep"),
+      "utf8",
+    ),
+    "existing archive",
+  );
+});
+
+test("iOS voice uses current SDK symbols without raising the supported OS baseline or changing audio categories", () => {
+  const plugin = fs.readFileSync(
+    new URL("../ios/App/App/FitCoachNativePlugin.swift", import.meta.url),
+    "utf8",
+  );
+  assert.match(plugin, /AVAudioApplication\.requestRecordPermission/u);
+  assert.doesNotMatch(
+    plugin,
+    /audioSession\.requestRecordPermission|\.allowBluetooth\b/u,
+  );
+  assert.equal((plugin.match(/\.allowBluetoothHFP/g) || []).length, 2);
+  assert.match(plugin, /\[\.defaultToSpeaker, \.allowBluetoothHFP\]/u);
+  assert.match(
+    plugin,
+    /\[\.allowBluetoothA2DP, \.defaultToSpeaker, \.allowBluetoothHFP\]/u,
+  );
+  assert.match(plugin, /setCategory\(\.playback, mode: \.spokenAudio\)/u);
+  assert.match(
+    patchIOSProject(fixture(), "0.7.3"),
+    /IPHONEOS_DEPLOYMENT_TARGET = 17\.0;/u,
   );
 });
 

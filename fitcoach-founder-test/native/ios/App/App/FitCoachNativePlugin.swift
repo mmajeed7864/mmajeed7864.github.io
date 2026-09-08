@@ -155,7 +155,7 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
                     call.reject("SPEECH_PERMISSION_DENIED")
                     return
                 }
-                self.audioSession.requestRecordPermission { microphoneGranted in
+                AVAudioApplication.requestRecordPermission { microphoneGranted in
                     DispatchQueue.main.async {
                         guard microphoneGranted else {
                             self.phase = "unavailable"
@@ -485,9 +485,7 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         do {
-            var options: AVAudioSession.CategoryOptions = [.defaultToSpeaker]
-            if #available(iOS 26.0, *) { options.insert(.allowBluetoothHFP) }
-            else { options.insert(.allowBluetooth) }
+            let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
             try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: options)
             try audioSession.setActive(true)
             let request = SFSpeechAudioBufferRecognitionRequest()
@@ -551,9 +549,7 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func configureVoiceRoomAudioSession() throws {
-        var options: AVAudioSession.CategoryOptions = [.allowBluetoothA2DP, .defaultToSpeaker]
-        if #available(iOS 26.0, *) { options.insert(.allowBluetoothHFP) }
-        else { options.insert(.allowBluetooth) }
+        let options: AVAudioSession.CategoryOptions = [.allowBluetoothA2DP, .defaultToSpeaker, .allowBluetoothHFP]
         try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: options)
         try audioSession.setActive(true)
     }

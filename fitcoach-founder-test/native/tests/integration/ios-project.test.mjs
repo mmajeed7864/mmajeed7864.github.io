@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import {
   IOS_SOURCE_FILES,
+  IOS_TEMPLATE_ICONS,
   IOS_TEMPLATE_SHA256,
 } from "../../scripts/prepare-ios-project.mjs";
 
@@ -86,6 +87,15 @@ test("actual generated iOS launch, privacy, permissions and icons preserve revie
     IOS_SOURCE_FILES,
   );
   for (const item of report.sourceFiles) {
+    assert.equal(
+      item.sha256,
+      hash(
+        fs.readFileSync(
+          new URL(`../../ios/App/App/${item.file}`, import.meta.url),
+        ),
+      ),
+      `Generated project uses the current source: ${item.file}`,
+    );
     let bytes = fs.readFileSync(path.join(app, item.file));
     if (item.file === "Info.plist")
       bytes = Buffer.from(
@@ -129,6 +139,22 @@ test("actual generated iOS launch, privacy, permissions and icons preserve revie
       ),
       item.sha256,
     );
+  assert.deepEqual(
+    fs.readdirSync(path.join(app, "Assets.xcassets/AppIcon.appiconset")).sort(),
+    report.iconFiles.map((item) => item.file).sort(),
+  );
+  assert.equal(report.templateIconFiles.length, 2);
+  for (const item of report.templateIconFiles) {
+    assert.equal(item.sha256, IOS_TEMPLATE_ICONS[item.file]);
+    assert.equal(
+      item.archivePath,
+      `fitcoach-template-reference/AppIcon.appiconset/${item.file}`,
+    );
+    assert.equal(
+      hash(fs.readFileSync(path.join(root, item.archivePath))),
+      item.sha256,
+    );
+  }
   assert.equal(
     hash(read("CapApp-SPM/Package.swift")),
     report.swiftPackageSha256,

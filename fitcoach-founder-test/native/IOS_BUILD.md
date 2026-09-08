@@ -44,6 +44,11 @@ app/media byte; they do not compile Swift or prove simulator launch.
 - Copies the approved existing icons, all 100 posters, all 59 active videos, fonts
   and license files. Every verified web payload must survive byte-for-byte. The
   single dependency-directory link is build-only and is not packaged in the app.
+- The fresh template's two original icon files are checksum-verified and moved
+  to `fitcoach-template-reference/AppIcon.appiconset` outside the app target.
+  Only the reviewed icon manifest and its exact 18 images enter the new asset set.
+  Unknown template files, changed bytes or an existing archive stop preparation;
+  original source art and earlier generated projects are never removed.
 - Refuses existing/overlapping output or linked source paths; no original files or
   earlier projects are deleted. Input hashes and generated project/package hashes
   are recorded in `fitcoach-ios-inputs.json`. This is traceability, not approval.
@@ -75,6 +80,15 @@ Both single-architecture and universal executables are inspected. Every x86_64/a
 member must be an iOS Simulator executable with the required deployment minimum and
 SDK; malformed, overlapping, duplicate or contradictory architecture entries fail.
 Unit fixtures test the parser, not app launch or execution on either architecture.
+
+The voice bridge uses `AVAudioApplication.requestRecordPermission` (available on
+our existing iOS17 minimum) and the SDK's `allowBluetoothHFP` spelling. Listening
+still uses HFP/voice chat, separate spoken output still uses playback/A2DP, and
+microphone use remains permission-gated. This API migration does not establish
+physical AirPods, call interruption or permission-prompt behavior; test those on
+the supported device matrix. See Apple's
+[recording permission API](https://developer.apple.com/documentation/avfaudio/avaudioapplication/requestrecordpermission(completionhandler:))
+and [HFP option](https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions-swift.struct/allowbluetoothhfp).
 
 References: [Capacitor iOS requirements](https://capacitorjs.com/docs/ios),
 [Swift Package Manager integration](https://capacitorjs.com/docs/ios/spm), and the
