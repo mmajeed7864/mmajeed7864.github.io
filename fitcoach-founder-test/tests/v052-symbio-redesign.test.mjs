@@ -67,13 +67,13 @@ test("onboarding boundary step keeps the doctor-first medical guidance", () => {
   assert.match(source, /FitCoach is not medical care/u);
 });
 
-test("version and cache generation agree at 0.7.3 / 0703", async () => {
+test("version and cache generation agree at 0.7.4 / 0704", async () => {
   const constants = await import("../v040/core/constants.mjs");
-  assert.equal(constants.BUILD, "0.7.3");
-  assert.equal(constants.CACHE_GENERATION, "0703");
+  assert.equal(constants.BUILD, "0.7.4");
+  assert.equal(constants.CACHE_GENERATION, "0704");
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE = "fitcoach-symbio-v0703";/u);
+  assert.match(sw, /const CACHE = "fitcoach-symbio-v0704";/u);
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>FitCoach v0\.7\.3<\/title>/u);
+  assert.match(html, /<title>FitCoach v0\.7\.4<\/title>/u);
   assert.doesNotMatch(html, /v=0500/u);
 });
