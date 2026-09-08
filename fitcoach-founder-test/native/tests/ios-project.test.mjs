@@ -267,3 +267,25 @@ test("iOS workflow evaluates runner paths only inside runner-time steps", () => 
     }
   }
 });
+
+test("bundle CI installs the locked Capacitor template before running native tests", () => {
+  const workflow = fs.readFileSync(
+    new URL(
+      "../../../.github/workflows/fitcoach-bundle-integrity.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const check = workflow.slice(
+    workflow.indexOf("- name: Verify native bridge"),
+    workflow.indexOf("- name: Audit production native dependencies"),
+  );
+  const install = check.indexOf("npm ci --ignore-scripts --no-audit --no-fund");
+  assert.ok(
+    install >= 0 && check.indexOf("node --test tests/*.test.mjs") > install,
+  );
+  assert.match(check, /working-directory: fitcoach-founder-test\/native/u);
+  assert.match(check, /node scripts\/release-readiness\.mjs/u);
+  assert.equal((workflow.match(/npm ci /gu) || []).length, 1);
+  assert.match(workflow, /npm audit --omit=dev --audit-level=high/u);
+});
