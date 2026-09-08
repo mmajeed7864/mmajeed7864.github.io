@@ -3,7 +3,8 @@ import {
   DEFAULT_VOICE_BY_TONE,
   ROUTES,
 } from "./core/constants.mjs";
-import { V040_SCHEMA_VERSION, createFitCoachStore } from "./core/store.mjs";
+import { V040_SCHEMA_VERSION } from "./core/store.mjs";
+import { createCoordinatedFitCoachStore, LOCAL_RESET_KEY } from "./core/coordinated-store.mjs";
 import { deepClone, escapeHtml, localDateKey, safeNumber, uid } from "./core/utils.mjs";
 import { computeDecision } from "./domain/decisions.mjs";
 import { contextualCoachMessage, localCoachCommand } from "./domain/coach-tools.mjs";
@@ -289,18 +290,19 @@ function unlockVoicePlayback() {
   }
 }
 
-function createStore(founder) {
-  store = createFitCoachStore({ founder });
-  state = store.load();
-  migrateLegacyVoiceDefault();
-  ensurePlan();
-  ensureDecision();
+async function createStore(founder) {
+  store = createCoordinatedFitCoachStore({ founder });
+  state = await store.load();
+  await migrateLegacyVoiceDefault();
+  await ensurePlan();
+  await ensureDecision();
   applyTheme(state.settings.theme);
 }
 
-function migrateLegacyVoiceDefault() {
+async function migrateLegacyVoiceDefault() {
   if (state.settings.voiceProfileMigrated0402) return;
-  state = store.update(draft => {
+  state = await store.update(draft => {
+    if (draft.settings.voiceProfileMigrated0402) return;
     const recommended = DEFAULT_VOICE_BY_TONE[draft.profile.tone];
     if (recommended && (draft.settings.voicePersona === "nova" || draft.settings.voicePersona === "atlas")) {
       draft.settings.voicePersona = recommended;
@@ -309,26 +311,30 @@ function migrateLegacyVoiceDefault() {
   });
 }
 
-function ensurePlan() {
+async function ensurePlan() {
   if (state.activePlan?.exercises?.length) return;
-  state = store.update(draft => {
+  state = await store.update(draft => {
+    if (draft.activePlan?.exercises?.length) return;
     draft.activePlan = buildPlan(draft, EXERCISES, { planId: "A", minutes: draft.profile.duration });
   });
 }
 
-function ensureDecision() {
+async function ensureDecision() {
   const next = computeDecision(state);
   const exists = state.decisions.some(item => item.id === next.id);
   if (!exists) {
-    state = store.update(draft => { draft.decisions.push(next); });
+    state = await store.update(draft => {
+      const latest = computeDecision(draft);
+      if (!draft.decisions.some(item => item.id === latest.id)) draft.decisions.push(latest);
+    });
   }
   decision = state.decisions.find(item => item.id === next.id) || next;
 }
 
-function refreshState() {
+async function refreshState() {
   state = store.get();
-  ensurePlan();
-  ensureDecision();
+  await ensurePlan();
+  await ensureDecision();
   render();
 }
 
@@ -538,10 +544,77 @@ function toast(message) {
   toast.timer = setTimeout(() => dom.toast.classList.remove("show"), 2800);
 }
 
-function navigate(route) {
+let localResetDetected = false;
+function showLocalDataNotice(message, { blocking = false } = {}) {
+  let notice = document.querySelector("#local-data-notice");
+  if (!notice) {
+    notice = document.createElement("section");
+    notice.id = "local-data-notice";
+    notice.className = "local-data-notice";
+    notice.setAttribute("aria-label", "Device data update");
+    notice.innerHTML = '<p role="status"></p><button type="button">Reload saved data</button>';
+    notice.querySelector("button").addEventListener("click", () => location.reload());
+    (document.querySelector("#app-frame") || document.body).prepend(notice);
+  }
+  notice.querySelector("p").textContent = message;
+  notice.classList.toggle("local-data-notice--blocking", blocking);
+  if (blocking) {
+    document.body.append(notice);
+    for (const element of [document.querySelector("#app-frame"), dom.modal, dom.voice]) {
+      element?.setAttribute("inert", "");
+      if (element) element.hidden = true;
+    }
+    notice.querySelector("button").focus();
+  }
+}
+
+function handleLocalSaveError(error) {
+  if (error?.message === "local_reset_detected") {
+    if (localResetDetected) return;
+    localResetDetected = true;
+    syncCoordinator.cancel();
+    clearInterval(restTicker);
+    resetRuntimeEffects();
+    void accountClient.clearSession().catch(() => {});
+    showLocalDataNotice("FitCoach data was reset in another tab. Reload to continue with the new copy.", { blocking: true });
+    return;
+  }
+  if (error?.message === "local_workout_changed" || error?.message === "local_changes_during_sync") {
+    showLocalDataNotice("Your saved data changed in another tab. This action wasn’t applied. Reload before trying again.");
+    return;
+  }
+  toast(error?.message === "local_save_busy"
+    ? "Another tab is finishing a save. Your change wasn’t saved—try again in a moment."
+    : "This change couldn’t be saved. Keep this tab open and try again.");
+}
+
+function observeLocalDataChange(event) {
+  if (event.storageArea !== localStorage || (event.key !== null && event.key !== store.key() && event.key !== LOCAL_RESET_KEY)) return;
+  try {
+    store.checkForReset();
+    if (event.key === store.key()) showLocalDataNotice("Saved changes are available from another tab. Reload when you’re ready.");
+  } catch (error) { handleLocalSaveError(error); }
+}
+
+const pendingClickActions = new Set();
+async function dispatchClick(event) {
+  const target = event.target.closest?.("[data-action]");
+  if (!target) return;
+  const key = JSON.stringify({ ...target.dataset });
+  if (pendingClickActions.has(key)) return;
+  pendingClickActions.add(key);
+  target.setAttribute("aria-busy", "true");
+  try {
+    // Invoke before the first await to retain the audio/microphone user gesture.
+    await handleClick(event);
+  } catch (error) { handleLocalSaveError(error); }
+  finally { pendingClickActions.delete(key); target.removeAttribute("aria-busy"); }
+}
+
+async function navigate(route) {
   if (!ROUTES.includes(route)) return;
   if (state.activeWorkout && ui.route === "train" && ui.showActiveWorkout) {
-    state = store.update(draft => { if (draft.activeWorkout) draft.activeWorkout.scrollTop = window.scrollY; });
+    state = await store.update(draft => { if (draft.activeWorkout) draft.activeWorkout.scrollTop = window.scrollY; });
   }
   ui.route = route;
   ui.exerciseDetailId = null;
@@ -565,15 +638,15 @@ function applyOnboardingTone(tone) {
   ui.onboardingDraft.settings.voicePersona = DEFAULT_VOICE_BY_TONE[tone] || ui.onboardingDraft.settings.voicePersona;
 }
 
-function stageProposal(proposal) {
-  state = store.update(draft => { draft.pendingPlanProposal = proposal; });
+async function stageProposal(proposal) {
+  state = await store.update(draft => { draft.pendingPlanProposal = proposal; });
   openModal({ type: "proposal" });
   renderAppScreen();
   renderModalRoot();
 }
 
-function stageCandidate(candidate, reason, changes) {
-  stageProposal({
+async function stageCandidate(candidate, reason, changes) {
+  await stageProposal({
     id: uid("proposal"),
     status: "pending",
     baseVersionId: state.activePlan.versionId,
@@ -584,32 +657,32 @@ function stageCandidate(candidate, reason, changes) {
   });
 }
 
-function proposePlan(field, value) {
+async function proposePlan(field, value) {
   const parsed = field === "minutes" ? Number(value) : value;
   const proposal = createPlanProposal(state, EXERCISES, { [field]: parsed, reason: `Today’s ${field} changed. FitCoach rebuilt only the affected part of your plan.` });
-  stageProposal(proposal);
+  await stageProposal(proposal);
 }
 
-function approveProposal(id) {
-  state = store.update(draft => approvePlanProposal(draft, id));
+async function approveProposal(id) {
+  state = await store.update(draft => approvePlanProposal(draft, id));
   closeModal();
   toast("Plan version approved and activated.");
   render();
 }
 
-function rejectProposal(id) {
-  state = store.update(draft => rejectPlanProposal(draft, id));
+async function rejectProposal(id) {
+  state = await store.update(draft => rejectPlanProposal(draft, id));
   closeModal();
   toast("Current plan kept.");
   render();
 }
 
-function startWorkout(planId) {
+async function startWorkout(planId) {
   if (state.activeWorkout) return resumeWorkout();
   const plan = planId === state.activePlan.id
     ? state.activePlan
     : buildPlan(state, EXERCISES, { planId, minutes: planId === "MIN" ? 12 : planId === "B" ? Math.min(30,state.activePlan.minutes) : state.activePlan.minutes });
-  state = store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
+  state = await store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
   ui.route = "train";
   ui.trainSegment = "workout";
   ui.showActiveWorkout = true;
@@ -618,11 +691,11 @@ function startWorkout(planId) {
   toast(`${plan.label} started. Every change is saved locally.`);
 }
 
-function startScheduledWorkout(slotId) {
+async function startScheduledWorkout(slotId) {
   if (state.activeWorkout) return resumeWorkout();
   const slot = buildWorkoutSchedule(state, EXERCISES).find(item => item.id === slotId);
   if (!slot) return toast("That scheduled workout is no longer available.");
-  state = store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(slot.plan); });
+  state = await store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(slot.plan); });
   ui.route = "train";
   ui.trainSegment = "workout";
   ui.showActiveWorkout = true;
@@ -631,12 +704,12 @@ function startScheduledWorkout(slotId) {
   toast(`${slot.label} started. This session stays linked to ${slot.dayLabel}.`);
 }
 
-function startSavedRoutine(routineId) {
+async function startSavedRoutine(routineId) {
   if (state.activeWorkout) return resumeWorkout();
   const routine = (state.workoutDrafts || []).find(item => item.id === routineId && item.plan?.exercises?.length);
   if (!routine) return toast("That saved routine is no longer available.");
   const plan = { ...deepClone(routine.plan), id: routine.plan.id || "saved-routine", label: routine.label || routine.plan.label || "Saved workout" };
-  state = store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
+  state = await store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
   ui.route = "train";
   ui.trainSegment = "workout";
   ui.showActiveWorkout = true;
@@ -653,14 +726,14 @@ function resumeWorkout() {
   requestAnimationFrame(() => window.scrollTo({ top: state.activeWorkout?.scrollTop || 0, behavior: "instant" }));
 }
 
-function updateSetField(element) {
+async function updateSetField(element) {
   if (state.activeWorkout?.status === "paused") return;
   const exerciseIndex = Number(element.dataset.exerciseIndex);
   const setIndex = Number(element.dataset.setIndex);
   const field = element.dataset.field;
   const bounds = field === "weight" ? [0,5_000] : field === "reps" ? [0,1_000] : [1,10];
   const value = element.value === "" && field === "rpe" ? null : safeNumber(element.value,0,...bounds);
-  state = store.update(draft => {
+  state = await store.update(draft => {
     const set = draft.activeWorkout?.exercises?.[exerciseIndex]?.sets?.[setIndex];
     if (set && ["weight","reps","rpe"].includes(field)) {
       set[field] = value;
@@ -670,11 +743,11 @@ function updateSetField(element) {
   });
 }
 
-function toggleSet(element) {
+async function toggleSet(element) {
   if (state.activeWorkout?.status === "paused") return toast("Resume the workout before changing sets.");
   const exerciseIndex = Number(element.dataset.exerciseIndex);
   const setIndex = Number(element.dataset.setIndex);
-  state = store.update(draft => {
+  state = await store.update(draft => {
     const set = draft.activeWorkout?.exercises?.[exerciseIndex]?.sets?.[setIndex];
     if (!set) return;
     if (!set.done) {
@@ -700,14 +773,14 @@ function formatClock(seconds) {
   return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}`;
 }
 
-function updateRestDisplays() {
+async function updateRestDisplays() {
   if (!state?.activeWorkout) return;
   const seconds = restSecondsRemaining(state.activeWorkout);
   document.querySelectorAll("[data-rest-display]").forEach(node => { node.textContent = formatClock(seconds); });
   const mini = document.querySelector(".mini-player small");
   if (mini && seconds) mini.textContent = `REST · ${formatClock(seconds)}`;
   if (!seconds && state.activeWorkout.restTimer.running) {
-    state = store.update(draft => { if (draft.activeWorkout) draft.activeWorkout.restTimer.running = false; });
+    state = await store.update(draft => { if (draft.activeWorkout) draft.activeWorkout.restTimer.running = false; });
     if (state.settings.workoutCues) toast("Rest complete. Your next set is ready.");
     render();
   }
@@ -715,35 +788,38 @@ function updateRestDisplays() {
 
 function beginRestTicker() {
   clearInterval(restTicker);
-  restTicker = setInterval(updateRestDisplays, 1_000);
+  restTicker = setInterval(() => { void updateRestDisplays().catch(handleLocalSaveError); }, 1_000);
 }
 
-function completeActiveWorkout() {
-  const result = completeWorkout(state);
+async function completeActiveWorkout() {
+  let result;
+  state = await store.update(draft => {
+    result = completeWorkout(draft);
+    return result.error ? draft : result.state;
+  });
   if (result.error) return toast(result.error === "NO_COMPLETED_SETS" ? "Complete at least one valid set before finishing." : "This workout could not be saved twice.");
-  state = store.replace(result.state);
   closeModal();
   ui.showActiveWorkout = false;
   ui.modal = { type: "completion" };
   render();
 }
 
-function planMutation(type, index) {
+async function planMutation(type, index) {
   const candidate = deepClone(state.activePlan);
   if (type === "remove") {
     if (candidate.exercises.length <= 2) return toast("Keep at least two exercises in this plan version.");
     const [removed] = candidate.exercises.splice(index,1);
-    stageCandidate(candidate, "You asked to remove one exercise.", [`Remove ${removed.snapshot.name}`, `${candidate.exercises.length} exercises remain`]);
+    await stageCandidate(candidate, "You asked to remove one exercise.", [`Remove ${removed.snapshot.name}`, `${candidate.exercises.length} exercises remain`]);
   } else if (type === "reorder") {
     const next = (index + 1) % candidate.exercises.length;
     const [item] = candidate.exercises.splice(index,1);
     candidate.exercises.splice(next,0,item);
-    stageCandidate(candidate, "You asked to reorder one exercise.", [`Move ${item.snapshot.name} to position ${next+1}`]);
+    await stageCandidate(candidate, "You asked to reorder one exercise.", [`Move ${item.snapshot.name} to position ${next+1}`]);
   }
 }
 
-function setExercisePreference(kind, exerciseId) {
-  state = store.update(draft => {
+async function setExercisePreference(kind, exerciseId) {
+  state = await store.update(draft => {
     const groups = ["preferred","reduced","excluded"];
     groups.forEach(group => { draft.exercisePreferences[group] = draft.exercisePreferences[group].filter(id => id !== exerciseId); });
     if (kind && groups.includes(kind)) draft.exercisePreferences[kind].push(exerciseId);
@@ -751,8 +827,8 @@ function setExercisePreference(kind, exerciseId) {
   render();
 }
 
-function toggleFavorite(exerciseId) {
-  state = store.update(draft => {
+async function toggleFavorite(exerciseId) {
+  state = await store.update(draft => {
     const list = draft.exercisePreferences.favorites;
     draft.exercisePreferences.favorites = list.includes(exerciseId) ? list.filter(id => id !== exerciseId) : [...list,exerciseId];
   });
@@ -899,13 +975,13 @@ async function sendChat(raw = null) {
   userMessage.contractVersion = result.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3";
   coachMessage.providerEligible = !result.localCommand;
   coachMessage.contractVersion = userMessage.contractVersion;
-  state = store.update(draft => {
+  state = await store.update(draft => {
     draft.chat.push(userMessage,coachMessage);
     if (!result.localCommand) draft.lastApi = { at, provider: result.provider, model: result.model, fallbackUsed: Boolean(result.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
   });
   ui.chatNotice = null;
   render();
-  if (result.localCommand && trainerAction) { executeTrainerAction(trainerAction); toast(trainerAction.label); }
+  if (result.localCommand && trainerAction) { await executeTrainerAction(trainerAction); toast(trainerAction.label); }
   if (state.settings.speakReplies && result.speakAllowed) speakText(coachMessage.text,{messageId:coachMessage.id});
 }
 
@@ -929,10 +1005,11 @@ const voiceController = createVoiceRoomController({
     if (result.status !== "ready") throw Object.assign(new Error("Trainer reply unavailable"), { code: result.reason || "trainer_unavailable", userMessage: "Live trainer unavailable. Your transcript is retained locally for an explicit retry." });
     return { text: result.reply, speak: result.speakAllowed !== false };
   },
-  onCommitTurn: turn => {
+  onCommitTurn: async turn => {
+    try {
     const meta = voiceLastMetadata || {};
     const trainerAction = meta.localCommand ? meta.action ?? null : meta.action || deriveTrainerAction({ state: store.get(), message: turn.transcript, exercises: EXERCISES });
-    state = store.update(draft => {
+    state = await store.update(draft => {
       draft.chat.push(
         { id: uid("message"), role: "user", text: turn.transcript, at: new Date().toISOString(), source: "voice-transcript", providerEligible: !meta.localCommand, contractVersion: meta.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3" },
         { id: uid("message"), role: "coach", text: turn.reply, at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", speakAllowed: meta.speakAllowed !== false, providerEligible: !meta.localCommand, contractVersion: meta.localCommand ? "fitcoach-local-tools-v1" : "fitcoach-chat-v3", action: trainerAction },
@@ -940,7 +1017,8 @@ const voiceController = createVoiceRoomController({
       if (!meta.localCommand) draft.lastApi = { at: new Date().toISOString(), provider: meta.provider || "unknown", model: meta.model || "unknown", fallbackUsed: Boolean(meta.fallbackUsed), approvedAction: decision.type, route: "fitcoach-chat-v3-contract" };
     });
     voiceLastMetadata = null;
-    if (trainerAction) queueMicrotask(() => executeTrainerAction(trainerAction, { fromVoice: true }));
+    if (trainerAction) queueMicrotask(() => { void executeTrainerAction(trainerAction, { fromVoice: true }).catch(handleLocalSaveError); });
+    } catch (error) { handleLocalSaveError(error); }
   },
   onStateChange: () => renderVoiceRoot(),
   onSafety: () => { ui.chatNotice = { kind: "safety", title: "Voice stopped for safety", message: "Follow the safety guidance shown in Voice Room. The intercepted transcript was not added to chat." }; },
@@ -1004,31 +1082,31 @@ function openVoiceRoom() {
   renderVoiceRoot();
 }
 
-function executeTrainerAction(trainerAction, { fromVoice = false } = {}) {
+async function executeTrainerAction(trainerAction, { fromVoice = false } = {}) {
   if (!trainerAction) return false;
   if (fromVoice) ui.voiceDocked = true;
   const { kind, value } = trainerAction;
-  if (kind === "open_exercise") openExercise(value);
-  else if (kind === "open_workout") { closeModal(); ui.trainSegment = "workout"; navigate("train"); }
-  else if (kind === "propose_minutes") proposePlan("minutes", Number(value));
-  else if (kind === "open_progress") navigate("progress");
+  if (kind === "open_exercise") await openExercise(value);
+  else if (kind === "open_workout") { closeModal(); ui.trainSegment = "workout"; await navigate("train"); }
+  else if (kind === "propose_minutes") await proposePlan("minutes", Number(value));
+  else if (kind === "open_progress") await navigate("progress");
   else if (kind === "open_voice") {
     if (!voiceController.getState().active) openVoiceRoom();
     else { ui.voiceDocked = false; renderVoiceRoot(); }
   }
-  else if (kind === "open_nutrition") { ui.nutritionDate = localDateKey(new Date()); closeModal(); navigate("nutrition"); }
+  else if (kind === "open_nutrition") { ui.nutritionDate = localDateKey(new Date()); closeModal(); await navigate("nutrition"); }
   else if (kind === "nutrition_draft") {
     ui.nutritionDate = null;
     const estimate = estimateTextMeal(value, new Date());
-    createDraftFromEstimate(estimate, estimate.suggestedSlot);
+    await createDraftFromEstimate(estimate, estimate.suggestedSlot);
   } else return false;
   renderVoiceRoot();
   return true;
 }
 
-function openExercise(exerciseId) {
+async function openExercise(exerciseId) {
   if (!getExerciseById(exerciseId)) return toast("That local exercise record is unavailable.");
-  state = store.update(draft => {
+  state = await store.update(draft => {
     draft.exercisePreferences.recent = recordExerciseView(draft.exercisePreferences.recent, exerciseId);
   });
   ui.route = "train";
@@ -1040,7 +1118,7 @@ function openExercise(exerciseId) {
   window.scrollTo({top:0,behavior:"instant"});
 }
 
-function applyPlanExercise(exerciseId) {
+async function applyPlanExercise(exerciseId) {
   const exercise = getExerciseById(exerciseId);
   if (!exercise) return;
   const candidate = deepClone(state.activePlan);
@@ -1052,11 +1130,11 @@ function applyPlanExercise(exerciseId) {
   if (ui.replacementMode === "plan" && ui.replacementIndex != null) {
     const previous = candidate.exercises[ui.replacementIndex];
     candidate.exercises[ui.replacementIndex] = item;
-    stageCandidate(candidate,"You selected a replacement exercise.",[`Replace ${previous.snapshot.name} with ${exercise.name}`]);
+    await stageCandidate(candidate,"You selected a replacement exercise.",[`Replace ${previous.snapshot.name} with ${exercise.name}`]);
   } else {
     if (candidate.exercises.some(entry=>entry.exerciseId===exerciseId)) return toast("That exercise is already in the plan.");
     candidate.exercises.push(item);
-    stageCandidate(candidate,"You selected an exercise to add.",[`Add ${exercise.name}`,`${candidate.exercises.length} exercises total`]);
+    await stageCandidate(candidate,"You selected an exercise to add.",[`Add ${exercise.name}`,`${candidate.exercises.length} exercises total`]);
   }
   ui.exerciseDetailId = null;
   ui.replacementIndex = null;
@@ -1064,17 +1142,17 @@ function applyPlanExercise(exerciseId) {
   ui.addMode = false;
 }
 
-function handleDecision(kind) {
+async function handleDecision(kind) {
   const action = kind === "secondary" ? decision.secondary : decision.primary;
   if (!action) return;
-  state = store.update(draft => {
+  state = await store.update(draft => {
     const item = draft.decisions.find(entry=>entry.id===decision.id);
     if (item) { item.outcome=kind; item.outcomeAt=new Date().toISOString(); }
     draft.interventionOutcomes.push({decisionId:decision.id,type:decision.type,outcome:kind,at:new Date().toISOString()});
   });
-  if (action.kind === "route") navigate(action.value);
-  else if (action.kind === "start_plan") startWorkout(action.value);
-  else if (action.kind === "proposal") proposePlan(action.value === "light" ? "intensity" : "minutes", action.value === "light" ? "light" : Math.min(30,state.activePlan.minutes));
+  if (action.kind === "route") await navigate(action.value);
+  else if (action.kind === "start_plan") await startWorkout(action.value);
+  else if (action.kind === "proposal") await proposePlan(action.value === "light" ? "intensity" : "minutes", action.value === "light" ? "light" : Math.min(30,state.activePlan.minutes));
   else toast("Choice acknowledged. No plan was changed.");
 }
 
@@ -1090,8 +1168,8 @@ async function forceRefresh() {
   location.replace(url);
 }
 
-function exportData() {
-  const blob = new Blob([store.export()],{type:"application/json"});
+async function exportData() {
+  const blob = new Blob([await store.export()],{type:"application/json"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = `fitcoach-v040-${ui.founder}-${new Date().toLocaleDateString("en-CA")}.json`;
@@ -1239,8 +1317,8 @@ async function initializePlatform() {
   if (ui.mode === "app" && ui.route === "profile") render();
 }
 
-function applyRemoteCloudState(remote, syncMetadata = {}) {
-  const merged = mergeRemoteStateWithLocalOnlyFields(remote?.state, store.get());
+async function applyRemoteCloudState(remote, syncMetadata = {}, replaceOptions = {}) {
+  const merged = mergeRemoteStateWithLocalOnlyFields(remote?.state, replaceOptions.expected || store.get());
   if (!merged) throw new Error("invalid_cloud_state");
   merged.integrations = merged.integrations || {};
   merged.integrations.cloudSync = {
@@ -1250,7 +1328,7 @@ function applyRemoteCloudState(remote, syncMetadata = {}) {
     lastSyncedAt: remote.updatedAt || new Date().toISOString(),
     ...syncMetadata,
   };
-  state = store.replace(merged);
+  state = await store.replace(merged, replaceOptions);
   ui.account.pendingRemote = null;
   const releaseAccessAllowed = canAccessCurrentRelease(state.profile?.ageBand);
   if (!releaseAccessAllowed) {
@@ -1321,7 +1399,7 @@ async function signOutAccount() {
     ui.account.entitlement = null;
     ui.account.pendingRemote = null;
     ui.account.confirmDelete = false;
-    state = store.update(draft => { draft.integrations.cloudSync = { status: "local_only", revision: 0, consentVersion: "", lastSyncedAt: null }; });
+    state = await store.update(draft => { draft.integrations.cloudSync = { status: "local_only", revision: 0, consentVersion: "", lastSyncedAt: null }; });
     setAccountBusy(false);
   } catch (error) { setAccountBusy(false, accountErrorCopy(error)); }
 }
@@ -1344,7 +1422,7 @@ async function resetFitCoachAccountAndDevice() {
   ui.account.codeSent = false;
   ui.account.busy = false;
   ui.account.error = "";
-  state = store.reset();
+  state = await store.reset();
   applyTheme(state.settings.theme);
   ui.route = "today";
   ui.onboardingStep = 0;
@@ -1379,7 +1457,7 @@ async function deleteCloudAccount() {
     ui.account.entitlement = null;
     ui.account.pendingRemote = null;
     ui.account.confirmDelete = false;
-    state = store.reset();
+    state = await store.reset();
     ui.mode = "onboarding";
     ui.onboardingStep = 0;
     ui.onboardingDraft = { profile: deepClone(state.profile), settings: deepClone(state.settings), gymProfile: deepClone(state.gymProfile), consent: false };
@@ -1400,7 +1478,7 @@ async function connectNativeHealth() {
     if (permission?.requested !== true) throw new Error("health_permission_denied");
     ui.native.healthSummary = await nativeClient.readDailyHealthSummary();
     ui.native.healthError = "";
-    state = store.update(draft => {
+    state = await store.update(draft => {
       // Apple intentionally does not disclose read denial. This records only
       // that permission was requested and an aggregate query completed.
       draft.integrations.appleHealth.status = "permission_requested";
@@ -1566,7 +1644,7 @@ async function restoreSubscriptions() {
 // draft review sheet. A camera/text draft therefore cannot become confirmed
 // without the user pressing that button.
 
-function syncReviewEdits() {
+async function syncReviewEdits() {
   const modal = ui.modal;
   if (!modal || modal.type !== "nutrition-review") return;
   const name = document.querySelector("#review-name")?.value;
@@ -1577,7 +1655,7 @@ function syncReviewEdits() {
     fat: document.querySelector("#review-fat")?.value,
   };
   if (name === undefined && per.calories === undefined) return;
-  state = store.update(draft => {
+  state = await store.update(draft => {
     applyFoodEdit(draft.nutrition, modal.dateKey, modal.entryId, { name, per });
   });
 }
@@ -1588,14 +1666,14 @@ function openNutritionReview(dateKey, entryId) {
   render();
 }
 
-function createDraftFromEstimate(result, slot, { photoFile = null } = {}) {
+async function createDraftFromEstimate(result, slot, { photoFile = null } = {}) {
   releaseNutritionPreview();
   if (photoFile) {
     try { nutritionPreviewUrl = URL.createObjectURL(photoFile); } catch { nutritionPreviewUrl = null; }
   }
   const dateKey = nutritionDateKey();
   let entryId = null;
-  state = store.update(draft => {
+  state = await store.update(draft => {
     const entry = createFoodEntry({
       slot,
       source: photoFile ? "photo_estimate" : "text_estimate",
@@ -1624,7 +1702,7 @@ function shiftNutritionDay(direction) {
   render();
 }
 
-function addSelectedFood() {
+async function addSelectedFood() {
   const modal = ui.modal;
   const selected = modal?.selected;
   const slot = MEAL_SLOTS.includes(modal?.slot) ? modal.slot : null;
@@ -1632,7 +1710,7 @@ function addSelectedFood() {
   const source = selected.origin === "favorite" ? "favorite" : selected.origin === "recent" ? "recent" : selected.origin === "barcode" ? "barcode" : selected.origin === "provider" ? "provider" : "manual";
   const dateKey = nutritionDateKey();
   let added = false;
-  state = store.update(draft => {
+  state = await store.update(draft => {
     const entry = createFoodEntry({ slot, source, food: selected, multiplier: modal.multiplier || 1 });
     if (entry && addEntryToDay(draft.nutrition, dateKey, entry)) {
       recordRecentFood(draft.nutrition, entry);
@@ -1739,7 +1817,7 @@ async function searchProviderFoods() {
   renderModalRoot();
 }
 
-function addCustomFood() {
+async function addCustomFood() {
   const modal = ui.modal;
   const slot = MEAL_SLOTS.includes(modal?.slot) ? modal.slot : null;
   if (!slot) return toast("Choose a meal slot first.");
@@ -1758,7 +1836,7 @@ function addCustomFood() {
   };
   const dateKey = nutritionDateKey();
   let added = false;
-  state = store.update(draft => {
+  state = await store.update(draft => {
     const entry = createFoodEntry({ slot, source: "manual", food, multiplier: 1 });
     if (entry && addEntryToDay(draft.nutrition, dateKey, entry)) {
       recordRecentFood(draft.nutrition, entry);
@@ -1771,7 +1849,7 @@ function addCustomFood() {
   toast(`Added to ${MEAL_SLOT_LABELS[slot].toLowerCase()}.`);
 }
 
-function handleNutritionPhoto(input) {
+async function handleNutritionPhoto(input) {
   const file = input.files?.[0];
   if (!file) return;
   const context = document.querySelector("#nutrition-context")?.value || ui.modal?.context || "";
@@ -1779,7 +1857,7 @@ function handleNutritionPhoto(input) {
   // Deterministic preview estimate: file CONTENT is never read or stored.
   const result = estimatePhotoMeal({ photoName: file.name, photoSize: file.size, context, now: new Date() });
   input.value = "";
-  createDraftFromEstimate(result, slot, { photoFile: file });
+  await createDraftFromEstimate(result, slot, { photoFile: file });
 }
 
 function handleCommunityPhoto(input) {
@@ -1863,7 +1941,7 @@ function playMotionVideo(figure, video) {
   }
 }
 
-function handleClick(event) {
+async function handleClick(event) {
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const action = target.dataset.action;
@@ -1922,46 +2000,46 @@ function handleClick(event) {
     }
     if (ui.onboardingStep < ONBOARDING_STEP_COUNT - 1) { ui.onboardingStep+=1; render(); return; }
     if (!ui.onboardingDraft.consent) return;
-    state=store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.gymProfile={...draft.gymProfile,...ui.onboardingDraft.gymProfile,source:"manual"};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile},gymProfile:draft.gymProfile},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`Focus: ${draft.profile.focusAreas?.join(", ") || "balanced training"}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Training space: ${draft.gymProfile.selectedGymName || draft.profile.location}`,`${draft.gymProfile.equipment.length} equipment types available`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
-    applyTheme(state.settings.theme);ui.mode="app";ui.route="today";ensureDecision();maybeOpenTutorial();render();return;
+    state=await store.update(draft=>{draft.profile={...draft.profile,...ui.onboardingDraft.profile,onboarded:true};draft.settings={...draft.settings,...ui.onboardingDraft.settings};draft.gymProfile={...draft.gymProfile,...ui.onboardingDraft.gymProfile,source:"manual"};draft.activePlan=buildPlan({...draft,profile:{...draft.profile,...ui.onboardingDraft.profile},gymProfile:draft.gymProfile},EXERCISES,{minutes:ui.onboardingDraft.profile.duration});draft.memories=[`Goal: ${draft.profile.goal}`,`Focus: ${draft.profile.focusAreas?.join(", ") || "balanced training"}`,`${draft.profile.days} days/week`,`${draft.profile.duration}-minute sessions`,`Training space: ${draft.gymProfile.selectedGymName || draft.profile.location}`,`${draft.gymProfile.equipment.length} equipment types available`,`Main blocker: ${draft.profile.blocker}`,`Tone: ${draft.profile.tone}`];});
+    applyTheme(state.settings.theme);ui.mode="app";ui.route="today";await ensureDecision();maybeOpenTutorial();render();return;
   }
-  if (action === "route") { closeModal(); navigate(value); return; }
+  if (action === "route") { closeModal(); await navigate(value); return; }
   if (action === "open-quick-actions") { openModal({type:"quick-actions"});return; }
-  if (action === "water-add") { state=store.update(draft=>{draft.hydration=addWater(draft.hydration,Number(value));});render();toast("250 ml logged");return; }
-  if (action === "water-undo") { state=store.update(draft=>{draft.hydration=undoWater(draft.hydration);});render();toast("Last glass removed");return; }
+  if (action === "water-add") { state=await store.update(draft=>{draft.hydration=addWater(draft.hydration,Number(value));});render();toast("250 ml logged");return; }
+  if (action === "water-undo") { state=await store.update(draft=>{draft.hydration=undoWater(draft.hydration);});render();toast("Last glass removed");return; }
   if (action === "train-segment") { ui.trainSegment=value;ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
-  if (action === "set-energy") { state=store.update(draft=>{draft.profile.energy=Number(value);draft.profile.energyCheckedAt=new Date().toISOString();draft.decisions=draft.decisions.filter(item=>item.date!==new Date().toLocaleDateString("en-CA"));});ensureDecision();render();toast("Check-in saved");return; }
-  if (action === "propose-plan") { proposePlan(target.dataset.field,value);return; }
-  if (action === "approve-proposal") { approveProposal(value);return; }
-  if (action === "reject-proposal") { rejectProposal(value);return; }
-  if (action === "decision") { handleDecision(value);return; }
+  if (action === "set-energy") { state=await store.update(draft=>{draft.profile.energy=Number(value);draft.profile.energyCheckedAt=new Date().toISOString();draft.decisions=draft.decisions.filter(item=>item.date!==new Date().toLocaleDateString("en-CA"));});await ensureDecision();render();toast("Check-in saved");return; }
+  if (action === "propose-plan") { await proposePlan(target.dataset.field,value);return; }
+  if (action === "approve-proposal") { await approveProposal(value);return; }
+  if (action === "reject-proposal") { await rejectProposal(value);return; }
+  if (action === "decision") { await handleDecision(value);return; }
   if (action === "explain-decision") { openModal({type:"decision"});return; }
   if (action === "why-workout") { openModal({type:"why-workout"});return; }
-  if (action === "start-workout") { startWorkout(value);return; }
-  if (action === "start-scheduled-workout") { startScheduledWorkout(value);return; }
-  if (action === "start-routine") { startSavedRoutine(value);return; }
+  if (action === "start-workout") { await startWorkout(value);return; }
+  if (action === "start-scheduled-workout") { await startScheduledWorkout(value);return; }
+  if (action === "start-routine") { await startSavedRoutine(value);return; }
   if (action === "resume-workout") { resumeWorkout();return; }
   if (action === "minimize-workout") { ui.showActiveWorkout=false;ui.route="today";render();return; }
-  if (action === "toggle-set") { toggleSet(target);return; }
-  if (action === "add-set") { if(state.activeWorkout?.status==="paused")return toast("Resume the workout before adding sets.");state=store.update(draft=>{const exercise=draft.activeWorkout?.exercises?.[draft.activeWorkout.currentExerciseIndex];if(exercise&&exercise.sets.length<20)exercise.sets.push({id:uid("set"),index:exercise.sets.length+1,kind:"work",weight:0,reps:exercise.target.reps||8,rpe:null,unit:draft.activeWorkout.units||draft.settings.units,done:false,completedAt:null,error:""});});render();return; }
-  if (action === "adjust-rest") { state=store.update(draft=>{if(draft.activeWorkout)adjustRestTimer(draft.activeWorkout,Number(value));});render();return; }
-  if (action === "stop-rest") { state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.restTimer={endsAt:null,durationSeconds:draft.activeWorkout.restTimer.durationSeconds,running:false,paused:false};});render();return; }
-  if (action === "toggle-workout-pause") { state=store.update(draft=>{const workout=draft.activeWorkout;if(!workout)return;if(workout.status==="paused"){workout.accumulatedPausedMs+=(Date.now()-new Date(workout.pausedAt).getTime());workout.pausedAt=null;workout.status="active";if(workout.restTimer?.paused&&workout.restTimer.durationSeconds>0)startRestTimer(workout,workout.restTimer.durationSeconds);}else{workout.pausedAt=new Date().toISOString();workout.status="paused";const remaining=restSecondsRemaining(workout);if(workout.restTimer?.running&&remaining>0)workout.restTimer={...workout.restTimer,durationSeconds:remaining,endsAt:null,running:false,paused:true};}});render();return; }
-  if (action === "previous-exercise") { state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.currentExerciseIndex=Math.max(draft.activeWorkout.currentExerciseIndex-1,0);});render();window.scrollTo({top:0,behavior:"smooth"});return; }
-  if (action === "next-exercise") { state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.currentExerciseIndex=Math.min(draft.activeWorkout.currentExerciseIndex+1,draft.activeWorkout.exercises.length-1);});render();window.scrollTo({top:0,behavior:"smooth"});return; }
-  if (action === "view-current-instructions") { const current=state.activeWorkout?.exercises?.[state.activeWorkout.currentExerciseIndex];if(current)openExercise(current.exerciseId);return; }
+  if (action === "toggle-set") { await toggleSet(target);return; }
+  if (action === "add-set") { if(state.activeWorkout?.status==="paused")return toast("Resume the workout before adding sets.");state=await store.update(draft=>{const exercise=draft.activeWorkout?.exercises?.[draft.activeWorkout.currentExerciseIndex];if(exercise&&exercise.sets.length<20)exercise.sets.push({id:uid("set"),index:exercise.sets.length+1,kind:"work",weight:0,reps:exercise.target.reps||8,rpe:null,unit:draft.activeWorkout.units||draft.settings.units,done:false,completedAt:null,error:""});});render();return; }
+  if (action === "adjust-rest") { state=await store.update(draft=>{if(draft.activeWorkout)adjustRestTimer(draft.activeWorkout,Number(value));});render();return; }
+  if (action === "stop-rest") { state=await store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.restTimer={endsAt:null,durationSeconds:draft.activeWorkout.restTimer.durationSeconds,running:false,paused:false};});render();return; }
+  if (action === "toggle-workout-pause") { state=await store.update(draft=>{const workout=draft.activeWorkout;if(!workout)return;if(workout.status==="paused"){workout.accumulatedPausedMs+=(Date.now()-new Date(workout.pausedAt).getTime());workout.pausedAt=null;workout.status="active";if(workout.restTimer?.paused&&workout.restTimer.durationSeconds>0)startRestTimer(workout,workout.restTimer.durationSeconds);}else{workout.pausedAt=new Date().toISOString();workout.status="paused";const remaining=restSecondsRemaining(workout);if(workout.restTimer?.running&&remaining>0)workout.restTimer={...workout.restTimer,durationSeconds:remaining,endsAt:null,running:false,paused:true};}});render();return; }
+  if (action === "previous-exercise") { state=await store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.currentExerciseIndex=Math.max(draft.activeWorkout.currentExerciseIndex-1,0);});render();window.scrollTo({top:0,behavior:"smooth"});return; }
+  if (action === "next-exercise") { state=await store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.currentExerciseIndex=Math.min(draft.activeWorkout.currentExerciseIndex+1,draft.activeWorkout.exercises.length-1);});render();window.scrollTo({top:0,behavior:"smooth"});return; }
+  if (action === "view-current-instructions") { const current=state.activeWorkout?.exercises?.[state.activeWorkout.currentExerciseIndex];if(current)await openExercise(current.exerciseId);return; }
   if (action === "finish-workout") { openModal({type:"finish-workout"});return; }
-  if (action === "confirm-finish-workout") { completeActiveWorkout();return; }
+  if (action === "confirm-finish-workout") { await completeActiveWorkout();return; }
   if (action === "exit-workout") { openModal({type:"confirm-exit-workout"});return; }
-  if (action === "confirm-exit-workout") { state=store.update(draft=>{draft.activeWorkout=null;});closeModal();ui.showActiveWorkout=false;navigate("train");return; }
-  if (action === "rate-session") { state=store.update(draft=>{const session=draft.sessions.at(-1);if(session)session.rating=Number(value);});renderModalRoot();toast("Session rating saved locally.");return; }
-  if (action === "close-completion") { closeModal();navigate(value);return; }
-  if (action === "reorder-exercise") { planMutation("reorder",Number(value));return; }
-  if (action === "remove-plan-exercise") { planMutation("remove",Number(value));return; }
+  if (action === "confirm-exit-workout") { state=await store.update(draft=>{draft.activeWorkout=null;});closeModal();ui.showActiveWorkout=false;await navigate("train");return; }
+  if (action === "rate-session") { state=await store.update(draft=>{const session=draft.sessions.at(-1);if(session)session.rating=Number(value);});renderModalRoot();toast("Session rating saved locally.");return; }
+  if (action === "close-completion") { closeModal();await navigate(value);return; }
+  if (action === "reorder-exercise") { await planMutation("reorder",Number(value));return; }
+  if (action === "remove-plan-exercise") { await planMutation("remove",Number(value));return; }
   if (action === "swap-plan-exercise") { ui.replacementIndex=Number(value);ui.replacementMode="plan";ui.trainSegment="exercises";ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();toast("Choose a replacement from the library.");return; }
   if (action === "add-exercise") { ui.addMode=true;ui.replacementMode="add";ui.replacementIndex=null;ui.trainSegment="exercises";render();return; }
-  if (action === "save-routine") { state=store.update(draft=>{draft.workoutDrafts=[...(draft.workoutDrafts||[]),{id:uid("routine"),label:draft.activePlan.label,plan:deepClone(draft.activePlan),savedAt:new Date().toISOString()}].slice(-12);});toast("Routine snapshot saved locally.");return; }
-  if (action === "open-exercise") { openExercise(value);return; }
+  if (action === "save-routine") { state=await store.update(draft=>{draft.workoutDrafts=[...(draft.workoutDrafts||[]),{id:uid("routine"),label:draft.activePlan.label,plan:deepClone(draft.activePlan),savedAt:new Date().toISOString()}].slice(-12);});toast("Routine snapshot saved locally.");return; }
+  if (action === "open-exercise") { await openExercise(value);return; }
   if (action === "close-exercise") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;render();return; }
   if (action === "toggle-exercise-motion") {
     const figure=target.closest(".exercise-motion");
@@ -1993,41 +2071,41 @@ function handleClick(event) {
     // request. Calling play immediately after load can race on iOS.
     return;
   }
-  if (action === "toggle-favorite") { toggleFavorite(value);return; }
-  if (action === "set-exercise-preference") { setExercisePreference(target.dataset.field,value);return; }
+  if (action === "toggle-favorite") { await toggleFavorite(value);return; }
+  if (action === "set-exercise-preference") { await setExercisePreference(target.dataset.field,value);return; }
   if (action === "add-exercise-to-plan" || action === "confirm-exercise-replacement") {
     if (ui.replacementMode === "active") { ui.modal={type:"active-swap",exerciseId:value};renderModalRoot(); }
-    else applyPlanExercise(value);
+    else await applyPlanExercise(value);
     return;
   }
   if (action === "swap-active-exercise") { const current=state.activeWorkout?.exercises?.[Number(value)];if(current?.sets.some(set=>set.done))return toast("Finish or undo completed sets before swapping this exercise.");ui.replacementMode="active";ui.replacementIndex=Number(value);ui.trainSegment="exercises";ui.exerciseDetailId=null;ui.showActiveWorkout=false;render();return; }
-  if (action === "apply-active-swap") { state=store.update(draft=>{if(draft.activeWorkout)swapWorkoutExercise(draft.activeWorkout,ui.replacementIndex,getExerciseById(value));});ui.replacementIndex=null;ui.replacementMode=null;closeModal();ui.showActiveWorkout=true;render();toast("Exercise replaced in the active workout.");return; }
-  if (action === "reorder-active-exercise") { state=store.update(draft=>{const workout=draft.activeWorkout;const index=Number(value);const direction=Number(target.dataset.direction)||1;const next=index+direction;if(!workout||next<0||next>=workout.exercises.length)return;const [item]=workout.exercises.splice(index,1);workout.exercises.splice(next,0,item);workout.currentExerciseIndex=next;});render();return; }
+  if (action === "apply-active-swap") { state=await store.update(draft=>{if(draft.activeWorkout)swapWorkoutExercise(draft.activeWorkout,ui.replacementIndex,getExerciseById(value));});ui.replacementIndex=null;ui.replacementMode=null;closeModal();ui.showActiveWorkout=true;render();toast("Exercise replaced in the active workout.");return; }
+  if (action === "reorder-active-exercise") { state=await store.update(draft=>{const workout=draft.activeWorkout;const index=Number(value);const direction=Number(target.dataset.direction)||1;const next=index+direction;if(!workout||next<0||next>=workout.exercises.length)return;const [item]=workout.exercises.splice(index,1);workout.exercises.splice(next,0,item);workout.currentExerciseIndex=next;});render();return; }
   if (action === "clear-exercise-search") { ui.exerciseFilters.query="";ui.exerciseFilters.page=1;render();return; }
   if (action === "clear-exercise-filters") { ui.exerciseFilters={query:"",muscle:"",equipment:"",favorites:false,page:1};render();return; }
   if (action === "filter-exercises") { ui.exerciseFilters[target.dataset.field]=value;ui.exerciseFilters.page=1;render();return; }
   if (action === "exercise-page") { ui.exerciseFilters.page=Math.max(1,Number(value)||1);render();requestAnimationFrame(()=>{const results=document.querySelector(".exercise-grid");results?.querySelector(".exercise-card-open")?.focus({preventScroll:true});results?.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});});return; }
-  if (action === "ask-about-exercise") { const exercise=getExerciseById(value);ui.chatDraft=`Explain how ${exercise?.name || "this exercise"} fits my current plan without changing it.`;navigate("coach");return; }
+  if (action === "ask-about-exercise") { const exercise=getExerciseById(value);ui.chatDraft=`Explain how ${exercise?.name || "this exercise"} fits my current plan without changing it.`;await navigate("coach");return; }
   if (action === "open-library") { ui.exerciseDetailId=null;ui.replacementIndex=null;ui.replacementMode=null;ui.addMode=false;closeModal();ui.route="train";ui.trainSegment="exercises";ui.showActiveWorkout=false;render();return; }
-  if (action === "set-theme") { state=store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
+  if (action === "set-theme") { state=await store.update(draft=>{draft.settings.theme=value;});applyTheme(value);render();return; }
   if (action === "profile-edit") { ui.profileEditing=ui.profileEditing===value?null:value;render();return; }
-  if (action === "profile-field" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.profile[target.dataset.field]=value;});render();toast("Profile saved. Review a proposal before changing today’s plan.");return; }
-  if (action === "profile-number" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.profile[target.dataset.field]=Number(value);});render();toast("Preference saved. The active plan did not change.");return; }
-  if (action === "setting-field" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.settings[target.dataset.field]=value;});render();return; }
-  if (action === "cycle-theme") { const order=["light","dark","system"];const next=order[(order.indexOf(state.settings.theme)+1)%order.length];state=store.update(draft=>{draft.settings.theme=next;});applyTheme(next);render();toast(`${next[0].toUpperCase()+next.slice(1)} theme selected.`);return; }
-  if (action === "set-tone" && target.tagName === "BUTTON") { state=store.update(draft=>applyTonePreference(draft,value));stopSpeech({renderCoach:false});render();return; }
-  if (action === "set-answer-depth" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.settings.coachMode=value;});render();return; }
-  if (action === "set-voice-persona" && target.tagName === "BUTTON") { state=store.update(draft=>{draft.settings.voicePersona=value;});stopSpeech({renderCoach:false});render();return; }
-  if (action === "quick-prompt") { if(value==="I only have 20 minutes."){proposePlan("minutes",20);ui.chatNotice={kind:"info",title:"20-minute option is ready for review",message:"FitCoach opened a deterministic proposal. Approve it before today’s plan changes."};render();return;}void sendChat(value);return; }
-  if (action === "send-chat") { void sendChat();return; }
+  if (action === "profile-field" && target.tagName === "BUTTON") { state=await store.update(draft=>{draft.profile[target.dataset.field]=value;});render();toast("Profile saved. Review a proposal before changing today’s plan.");return; }
+  if (action === "profile-number" && target.tagName === "BUTTON") { state=await store.update(draft=>{draft.profile[target.dataset.field]=Number(value);});render();toast("Preference saved. The active plan did not change.");return; }
+  if (action === "setting-field" && target.tagName === "BUTTON") { state=await store.update(draft=>{draft.settings[target.dataset.field]=value;});render();return; }
+  if (action === "cycle-theme") { const order=["light","dark","system"];const next=order[(order.indexOf(state.settings.theme)+1)%order.length];state=await store.update(draft=>{draft.settings.theme=next;});applyTheme(next);render();toast(`${next[0].toUpperCase()+next.slice(1)} theme selected.`);return; }
+  if (action === "set-tone" && target.tagName === "BUTTON") { state=await store.update(draft=>applyTonePreference(draft,value));stopSpeech({renderCoach:false});render();return; }
+  if (action === "set-answer-depth" && target.tagName === "BUTTON") { state=await store.update(draft=>{draft.settings.coachMode=value;});render();return; }
+  if (action === "set-voice-persona" && target.tagName === "BUTTON") { state=await store.update(draft=>{draft.settings.voicePersona=value;});stopSpeech({renderCoach:false});render();return; }
+  if (action === "quick-prompt") { if(value==="I only have 20 minutes."){await proposePlan("minutes",20);ui.chatNotice={kind:"info",title:"20-minute option is ready for review",message:"FitCoach opened a deterministic proposal. Approve it before today’s plan changes."};render();return;}void await sendChat(value);return; }
+  if (action === "send-chat") { await sendChat();return; }
   if (action === "coach-message-action") {
-    executeTrainerAction({ kind: target.dataset.kind, value });
+    await executeTrainerAction({ kind: target.dataset.kind, value });
     return;
   }
   if (action === "restore-chat-draft") { ui.chatDraft=ui.lastFailedChatDraft;ui.chatNotice=null;render();requestAnimationFrame(()=>document.querySelector("#coach-input")?.focus());return; }
   if (action === "speak-message") { const message=state.chat.find(item=>item.id===value);if(!message)return;if(ui.speakingMessageId===value)stopSpeech();else speakText(message.text,{messageId:value});return; }
   if (action === "open-voice-room") { closeModal();openVoiceRoom();return; }
-  if (action === "voice-consent") { unlockVoicePlayback();state=store.update(draft=>{draft.settings.voiceConsent=true;});voiceController.grantConsent();renderVoiceRoot();return; }
+  if (action === "voice-consent") { unlockVoicePlayback();state=await store.update(draft=>{draft.settings.voiceConsent=true;});voiceController.grantConsent();renderVoiceRoot();return; }
   if (action === "voice-text-mode") { ui.voiceDocked=true;render();return; }
   if (action === "voice-expand") { ui.voiceDocked=false;renderVoiceRoot();return; }
   if (action === "voice-exit") { voiceController.exit();ui.voiceDocked=false;renderVoiceRoot();render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;return; }
@@ -2044,37 +2122,37 @@ function handleClick(event) {
   if (action === "account-resolve-cloud") { void syncAccount("cloud"); return; }
   if (action === "account-resolve-device") { void syncAccount("device"); return; }
   if (action === "account-export-cloud") { void exportCloudAccount(); return; }
-  if (action === "account-sign-out") { void signOutAccount(); return; }
+  if (action === "account-sign-out") { void await signOutAccount(); return; }
   if (action === "account-delete-start") { ui.account.confirmDelete=true;ui.account.error="";render();return; }
   if (action === "account-delete-cancel") { ui.account.confirmDelete=false;ui.account.error="";render();return; }
-  if (action === "account-delete-confirm") { void deleteCloudAccount(); return; }
+  if (action === "account-delete-confirm") { void await deleteCloudAccount(); return; }
   if (action === "account-refresh-entitlement") { setAccountBusy(true);void refreshEntitlements().finally(()=>setAccountBusy(false));return; }
   if (action === "subscription-purchase") { void purchaseSubscription(value); return; }
   if (action === "subscription-restore") { void restoreSubscriptions(); return; }
   if (action === "subscription-manage") { void nativeClient.openManageSubscriptions().catch(()=>toast("Subscription management is available in the native app."));return; }
-  if (action === "open-apple-health-plan") { void connectNativeHealth(); return; }
-  if (action === "mark-apple-health-planned") { state=store.update(draft=>{draft.integrations.appleHealth.status="planned";draft.integrations.appleHealth.syncMode="manual_until_ios";draft.integrations.appleHealth.requestedAt=new Date().toISOString();});closeModal();render();toast("Apple Health sync marked for the native iOS build.");return; }
+  if (action === "open-apple-health-plan") { void await connectNativeHealth(); return; }
+  if (action === "mark-apple-health-planned") { state=await store.update(draft=>{draft.integrations.appleHealth.status="planned";draft.integrations.appleHealth.syncMode="manual_until_ios";draft.integrations.appleHealth.requestedAt=new Date().toISOString();});closeModal();render();toast("Apple Health sync marked for the native iOS build.");return; }
   if (action === "open-pro-preview") { openModal({ type: "pro-preview" }); return; }
-  if (action === "select-pro-plan") { state=store.update(draft=>{draft.integrations.payments.selectedPlan=value==="monthly"?"monthly":"yearly";draft.integrations.payments.status="preview";});renderModalRoot();renderAppScreen();return; }
-  if (action === "mark-pro-preview") { state=store.update(draft=>{draft.integrations.payments.status="preview";});closeModal();render();toast("Pro preview saved. Payments are still not active.");return; }
+  if (action === "select-pro-plan") { state=await store.update(draft=>{draft.integrations.payments.selectedPlan=value==="monthly"?"monthly":"yearly";draft.integrations.payments.status="preview";});renderModalRoot();renderAppScreen();return; }
+  if (action === "mark-pro-preview") { state=await store.update(draft=>{draft.integrations.payments.status="preview";});closeModal();render();toast("Pro preview saved. Payments are still not active.");return; }
   if (action === "open-exercise-roadmap") { openModal({ type: "exercise-roadmap" }); return; }
   if (action === "open-gym-setup") { openModal({ type: "gym-setup" }); return; }
-  if (action === "save-gym-profile") { const selected=[...document.querySelectorAll('[data-action="gym-toggle-equipment"]:checked')].map(node=>node.dataset.value).filter(Boolean);state=store.update(draft=>{draft.gymProfile.selectedGymName=(document.querySelector("#gym-name")?.value || "").trim().slice(0,120);draft.gymProfile.selectedGymAddress=(document.querySelector("#gym-address")?.value || "").trim().slice(0,180);draft.gymProfile.equipment=selected.slice(0,60);draft.gymProfile.source="manual";});closeModal();render();toast("Equipment profile saved locally.");return; }
+  if (action === "save-gym-profile") { const selected=[...document.querySelectorAll('[data-action="gym-toggle-equipment"]:checked')].map(node=>node.dataset.value).filter(Boolean);state=await store.update(draft=>{draft.gymProfile.selectedGymName=(document.querySelector("#gym-name")?.value || "").trim().slice(0,120);draft.gymProfile.selectedGymAddress=(document.querySelector("#gym-address")?.value || "").trim().slice(0,180);draft.gymProfile.equipment=selected.slice(0,60);draft.gymProfile.source="manual";});closeModal();render();toast("Equipment profile saved locally.");return; }
   if (action === "open-community-draft") { openModal({ type: "community-draft", caption: "", visibility: "private" }); return; }
   if (action === "community-visibility") { if (ui.modal?.type === "community-draft") { ui.modal.caption=document.querySelector("#community-caption")?.value || ui.modal.caption || "";ui.modal.visibility=["private","founders","public_preview"].includes(value)?value:"private";renderModalRoot(); } return; }
-  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=["private","founders","public_preview"].includes(ui.modal?.visibility)?ui.modal.visibility:"private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");const draftId=uid("social-draft");state=store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:draftId,status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});if(communityPreviewUrl){communityPreviews.set(draftId,communityPreviewUrl);communityPreviewUrl=null;}closeModal();render();toast("Saved privately on this device. Public posting stays locked until accounts and moderation exist.");return; }
-  if (action === "delete-community-draft") { const preview=communityPreviews.get(value);if(preview){try{URL.revokeObjectURL(preview);}catch{}communityPreviews.delete(value);}state=store.update(draft=>{draft.socialDrafts=(draft.socialDrafts||[]).filter(item=>item.id!==value);});render();toast("Local progress draft deleted.");return; }
+  if (action === "save-community-draft") { const caption=(document.querySelector("#community-caption")?.value || "").trim().slice(0,280);const visibility=["private","founders","public_preview"].includes(ui.modal?.visibility)?ui.modal.visibility:"private";if(!caption&&!communityPreviewUrl)return toast("Add a caption or photo before saving a draft.");const draftId=uid("social-draft");state=await store.update(draft=>{draft.socialDrafts=[...(draft.socialDrafts || []),{id:draftId,status:"draft",visibility,caption,hasImagePreview:Boolean(communityPreviewUrl),imagePersisted:false,createdAt:new Date().toISOString()}].slice(-24);});if(communityPreviewUrl){communityPreviews.set(draftId,communityPreviewUrl);communityPreviewUrl=null;}closeModal();render();toast("Saved privately on this device. Public posting stays locked until accounts and moderation exist.");return; }
+  if (action === "delete-community-draft") { const preview=communityPreviews.get(value);if(preview){try{URL.revokeObjectURL(preview);}catch{}communityPreviews.delete(value);}state=await store.update(draft=>{draft.socialDrafts=(draft.socialDrafts||[]).filter(item=>item.id!==value);});render();toast("Local progress draft deleted.");return; }
   if (action === "open-tutorial") { ui.modal={type:"tutorial",step:0};renderModalRoot();return; }
   if (action === "tutorial-next") { ui.modal={type:"tutorial",step:Math.min(2,Number(target.dataset.step || 0)+1)};renderModalRoot();return; }
   if (action === "tutorial-back") { ui.modal={type:"tutorial",step:Math.max(0,Number(target.dataset.step || 0)-1)};renderModalRoot();return; }
-  if (action === "skip-tutorial" || action === "finish-tutorial") { state=store.update(draft=>{draft.settings.tutorialDismissed=true;});closeModal();render();return; }
+  if (action === "skip-tutorial" || action === "finish-tutorial") { state=await store.update(draft=>{draft.settings.tutorialDismissed=true;});closeModal();render();return; }
   if (action === "clear-chat") { openModal({type:"confirm-clear-chat"});return; }
-  if (action === "confirm-clear-chat") { invalidateCoachActivity({rotateSession:true});state=store.update(draft=>{draft.chat=[];draft.lastApi=null;});closeModal();render();return; }
+  if (action === "confirm-clear-chat") { invalidateCoachActivity({rotateSession:true});state=await store.update(draft=>{draft.chat=[];draft.lastApi=null;});closeModal();render();return; }
   if (action === "reset-profile") { openModal({type:"confirm-reset"});return; }
-  if (action === "confirm-reset") { void resetFitCoachAccountAndDevice();return; }
-  if (action === "export-data") { exportData();return; }
+  if (action === "confirm-reset") { void await resetFitCoachAccountAndDevice();return; }
+  if (action === "export-data") { await exportData();return; }
   if (action === "force-refresh") { void forceRefresh();return; }
-  if (action === "open-nutrition") { if(target.dataset.date === "today") ui.nutritionDate=localDateKey(new Date()); closeModal(); navigate("nutrition"); return; }
+  if (action === "open-nutrition") { if(target.dataset.date === "today") ui.nutritionDate=localDateKey(new Date()); closeModal(); await navigate("nutrition"); return; }
   if (action === "nutrition-day") { shiftNutritionDay(Number(value) || 0); return; }
   if (action === "nutrition-open-add") { if(target.dataset.date === "today") ui.nutritionDate=localDateKey(new Date()); openModal({ type: "nutrition-add", slot: MEAL_SLOTS.includes(value) ? value : mealSlotForHour(new Date().getHours()), query: "" }); if(target.dataset.focus === "barcode") requestAnimationFrame(()=>document.querySelector("#nutrition-barcode")?.focus()); return; }
   if (action === "nutrition-quick-food") { const kind=target.dataset.kind === "favorite" ? "favorite" : "recent";const source=kind === "favorite" ? state.nutrition.favorites : state.nutrition.recents;const item=source?.[Number(value)];if(!item)return toast("That saved food is no longer available.");openModal({type:"nutrition-add",slot:mealSlotForHour(new Date().getHours()),query:"",selected:{name:item.name,servingLabel:item.servingLabel,per:{...item.per},origin:kind},multiplier:normalizeMultiplier(item.multiplier||1)});return; }
@@ -2087,33 +2165,33 @@ function handleClick(event) {
   if (action === "nutrition-add-portion") { if (ui.modal) { ui.modal.multiplier = normalizeMultiplier((ui.modal.multiplier || 1) + Number(value)); renderModalRoot(); } return; }
   if (action === "nutrition-barcode-search") { lookupBarcodeFood(); return; }
   if (action === "nutrition-provider-search") { searchProviderFoods(); return; }
-  if (action === "nutrition-add-confirm") { addSelectedFood(); return; }
-  if (action === "nutrition-add-custom") { addCustomFood(); return; }
-  if (action === "nutrition-copy-yesterday") { const dateKey = nutritionDateKey(); const from = new Date(`${dateKey}T12:00:00`); from.setDate(from.getDate() - 1); let copied = 0; state = store.update(draft => { copied = copySlotFromDay(draft.nutrition, localDateKey(from), dateKey, value); }); render(); toast(copied ? `Copied ${copied} confirmed item${copied === 1 ? "" : "s"} from yesterday.` : "Nothing confirmed yesterday to copy."); return; }
+  if (action === "nutrition-add-confirm") { await addSelectedFood(); return; }
+  if (action === "nutrition-add-custom") { await addCustomFood(); return; }
+  if (action === "nutrition-copy-yesterday") { const dateKey = nutritionDateKey(); const from = new Date(`${dateKey}T12:00:00`); from.setDate(from.getDate() - 1); let copied = 0; state = await store.update(draft => { copied = copySlotFromDay(draft.nutrition, localDateKey(from), dateKey, value); }); render(); toast(copied ? `Copied ${copied} confirmed item${copied === 1 ? "" : "s"} from yesterday.` : "Nothing confirmed yesterday to copy."); return; }
   if (action === "nutrition-open-review") { openNutritionReview(target.dataset.date || nutritionDateKey(), value); return; }
   if (action === "nutrition-first-draft") { const day = state.nutrition.days[nutritionDateKey()]; const draftEntry = (day?.entries || []).find(entry => entry.status === "draft"); if (draftEntry) openNutritionReview(nutritionDateKey(), draftEntry.id); return; }
-  if (action === "nutrition-review-portion") { if (ui.modal) { syncReviewEdits(); const entry = findEntry(state.nutrition, ui.modal.dateKey, ui.modal.entryId); if (entry) { state = store.update(draft => { applyPortionEdit(draft.nutrition, ui.modal.dateKey, ui.modal.entryId, entry.multiplier + Number(value)); }); renderModalRoot(); } } return; }
-  if (action === "nutrition-review-candidate") { if (ui.modal) { const candidate = DEMO_MEALS.find(item => item.name === value); if (candidate) { state = store.update(draft => { applyFoodEdit(draft.nutrition, ui.modal.dateKey, ui.modal.entryId, { name: candidate.name, servingLabel: candidate.servingLabel, per: { ...candidate.per } }); }); renderModalRoot(); } } return; }
-  if (action === "nutrition-confirm-entry") { if (!ui.modal) return; syncReviewEdits(); const { dateKey } = ui.modal; let confirmed = false; state = store.update(draft => { const result = confirmNutritionEntry(draft.nutrition, dateKey, value, { userConfirmed: true }); if (result.ok) { recordRecentFood(draft.nutrition, result.entry); confirmed = true; } }); closeModal(); render(); toast(confirmed ? "Confirmed — it now counts in the day’s totals." : "This entry could not be confirmed."); return; }
-  if (action === "nutrition-discard-entry") { if (!ui.modal) return; const { dateKey } = ui.modal; state = store.update(draft => { removeNutritionEntry(draft.nutrition, dateKey, value); }); closeModal(); render(); toast("Draft discarded. Totals were never affected."); return; }
+  if (action === "nutrition-review-portion") { if (ui.modal) { await syncReviewEdits(); const entry = findEntry(state.nutrition, ui.modal.dateKey, ui.modal.entryId); if (entry) { state = await store.update(draft => { applyPortionEdit(draft.nutrition, ui.modal.dateKey, ui.modal.entryId, entry.multiplier + Number(value)); }); renderModalRoot(); } } return; }
+  if (action === "nutrition-review-candidate") { if (ui.modal) { const candidate = DEMO_MEALS.find(item => item.name === value); if (candidate) { state = await store.update(draft => { applyFoodEdit(draft.nutrition, ui.modal.dateKey, ui.modal.entryId, { name: candidate.name, servingLabel: candidate.servingLabel, per: { ...candidate.per } }); }); renderModalRoot(); } } return; }
+  if (action === "nutrition-confirm-entry") { if (!ui.modal) return; await syncReviewEdits(); const { dateKey } = ui.modal; let confirmed = false; state = await store.update(draft => { const result = confirmNutritionEntry(draft.nutrition, dateKey, value, { userConfirmed: true }); if (result.ok) { recordRecentFood(draft.nutrition, result.entry); confirmed = true; } }); closeModal(); render(); toast(confirmed ? "Confirmed — it now counts in the day’s totals." : "This entry could not be confirmed."); return; }
+  if (action === "nutrition-discard-entry") { if (!ui.modal) return; const { dateKey } = ui.modal; state = await store.update(draft => { removeNutritionEntry(draft.nutrition, dateKey, value); }); closeModal(); render(); toast("Draft discarded. Totals were never affected."); return; }
   if (action === "nutrition-open-entry") { openModal({ type: "nutrition-entry", dateKey: target.dataset.date || nutritionDateKey(), entryId: value }); return; }
-  if (action === "nutrition-entry-portion") { if (ui.modal) { const entry = findEntry(state.nutrition, ui.modal.dateKey, ui.modal.entryId); if (entry) { state = store.update(draft => { applyPortionEdit(draft.nutrition, ui.modal.dateKey, ui.modal.entryId, entry.multiplier + Number(value)); }); render(); } } return; }
-  if (action === "nutrition-favorite") { if (ui.modal) { let nowFavorite = false; state = store.update(draft => { const entry = findEntry(draft.nutrition, ui.modal.dateKey, value); if (entry) nowFavorite = toggleFavoriteFood(draft.nutrition, { name: entry.name, servingLabel: entry.servingLabel, per: { ...entry.per }, multiplier: entry.multiplier }); }); render(); toast(nowFavorite ? "Saved to favorites." : "Removed from favorites."); } return; }
-  if (action === "nutrition-remove-entry") { if (!ui.modal) return; const { dateKey } = ui.modal; state = store.update(draft => { removeNutritionEntry(draft.nutrition, dateKey, value); }); closeModal(); render(); toast("Entry removed."); return; }
+  if (action === "nutrition-entry-portion") { if (ui.modal) { const entry = findEntry(state.nutrition, ui.modal.dateKey, ui.modal.entryId); if (entry) { state = await store.update(draft => { applyPortionEdit(draft.nutrition, ui.modal.dateKey, ui.modal.entryId, entry.multiplier + Number(value)); }); render(); } } return; }
+  if (action === "nutrition-favorite") { if (ui.modal) { let nowFavorite = false; state = await store.update(draft => { const entry = findEntry(draft.nutrition, ui.modal.dateKey, value); if (entry) nowFavorite = toggleFavoriteFood(draft.nutrition, { name: entry.name, servingLabel: entry.servingLabel, per: { ...entry.per }, multiplier: entry.multiplier }); }); render(); toast(nowFavorite ? "Saved to favorites." : "Removed from favorites."); } return; }
+  if (action === "nutrition-remove-entry") { if (!ui.modal) return; const { dateKey } = ui.modal; state = await store.update(draft => { removeNutritionEntry(draft.nutrition, dateKey, value); }); closeModal(); render(); toast("Entry removed."); return; }
   if (action === "nutrition-open-targets") { openModal({ type: "nutrition-targets" }); return; }
-  if (action === "nutrition-save-targets") { const read = id => document.querySelector(id)?.value; state = store.update(draft => { draft.nutrition.targets = normalizeTargets({ calories: read("#target-kcal"), protein: read("#target-protein"), carbs: read("#target-carbs"), fat: read("#target-fat"), userSet: true }); }); closeModal(); render(); toast("Targets saved. FitCoach never adjusts them on its own."); return; }
+  if (action === "nutrition-save-targets") { const read = id => document.querySelector(id)?.value; state = await store.update(draft => { draft.nutrition.targets = normalizeTargets({ calories: read("#target-kcal"), protein: read("#target-protein"), carbs: read("#target-carbs"), fat: read("#target-fat"), userSet: true }); }); closeModal(); render(); toast("Targets saved. FitCoach never adjusts them on its own."); return; }
   if (action === "close-modal") { closeModal();return; }
 }
 
-function handleChange(event) {
+async function handleChange(event) {
   const target=event.target;
   const action=target.dataset.action;
   if (action === "set-field" && target.dataset.field === "weight") {
-    updateSetField(target);
+    await updateSetField(target);
     render();
     return;
   }
-  if (action === "nutrition-photo") { handleNutritionPhoto(target); return; }
+  if (action === "nutrition-photo") { await handleNutritionPhoto(target); return; }
   if (action === "community-photo") { handleCommunityPhoto(target); return; }
   if (action === "onboarding-profile-field") {
     if (target.dataset.field === "tone") applyOnboardingTone(target.value);
@@ -2122,26 +2200,26 @@ function handleChange(event) {
   }
   if (action === "onboarding-number") { ui.onboardingDraft.profile[target.dataset.field]=Number(target.value);render(); }
   if (action === "onboarding-setting") { ui.onboardingDraft.settings[target.dataset.field]=target.value;if(target.dataset.field==="theme")applyTheme(target.value);render(); }
-  if (action === "profile-field") { state=store.update(draft=>{draft.profile[target.dataset.field]=target.value;});render();toast("Profile saved. Review a proposal before changing today’s plan."); }
-  if (action === "profile-number") { state=store.update(draft=>{draft.profile[target.dataset.field]=Number(target.value);});render();toast("Preference saved. The active plan did not change."); }
-  if (action === "setting-field") { state=store.update(draft=>{draft.settings[target.dataset.field]=target.value;});render(); }
-  if (action === "setting-toggle") { state=store.update(draft=>{draft.settings[target.dataset.field]=target.checked;});render(); }
-  if (action === "profile-toggle") { state=store.update(draft=>{draft.profile[target.dataset.field]=target.checked;});render(); }
-  if (action === "set-tone") { state=store.update(draft=>applyTonePreference(draft,target.value));stopSpeech({renderCoach:false});render(); }
-  if (action === "set-answer-depth") { state=store.update(draft=>{draft.settings.coachMode=target.value;});render(); }
-  if (action === "set-voice-persona") { state=store.update(draft=>{draft.settings.voicePersona=target.value;});stopSpeech({renderCoach:false});render(); }
-  if (action === "gym-toggle-equipment") { const value=target.dataset.value || "";state=store.update(draft=>{const equipment=new Set(draft.gymProfile.equipment || []);if(target.checked)equipment.add(value);else equipment.delete(value);draft.gymProfile.equipment=[...equipment].slice(0,60);draft.gymProfile.source="manual";});renderModalRoot();renderAppScreen(); }
+  if (action === "profile-field") { state=await store.update(draft=>{draft.profile[target.dataset.field]=target.value;});render();toast("Profile saved. Review a proposal before changing today’s plan."); }
+  if (action === "profile-number") { state=await store.update(draft=>{draft.profile[target.dataset.field]=Number(target.value);});render();toast("Preference saved. The active plan did not change."); }
+  if (action === "setting-field") { state=await store.update(draft=>{draft.settings[target.dataset.field]=target.value;});render(); }
+  if (action === "setting-toggle") { state=await store.update(draft=>{draft.settings[target.dataset.field]=target.checked;});render(); }
+  if (action === "profile-toggle") { state=await store.update(draft=>{draft.profile[target.dataset.field]=target.checked;});render(); }
+  if (action === "set-tone") { state=await store.update(draft=>applyTonePreference(draft,target.value));stopSpeech({renderCoach:false});render(); }
+  if (action === "set-answer-depth") { state=await store.update(draft=>{draft.settings.coachMode=target.value;});render(); }
+  if (action === "set-voice-persona") { state=await store.update(draft=>{draft.settings.voicePersona=target.value;});stopSpeech({renderCoach:false});render(); }
+  if (action === "gym-toggle-equipment") { const value=target.dataset.value || "";state=await store.update(draft=>{const equipment=new Set(draft.gymProfile.equipment || []);if(target.checked)equipment.add(value);else equipment.delete(value);draft.gymProfile.equipment=[...equipment].slice(0,60);draft.gymProfile.source="manual";});renderModalRoot();renderAppScreen(); }
   if (action === "filter-favorites") { ui.exerciseFilters.favorites=target.checked;ui.exerciseFilters.page=1;render(); }
 }
 
-function handleInput(event) {
+async function handleInput(event) {
   const target=event.target;
   if (target.dataset.action === "onboarding-gym-name") {
     ui.onboardingDraft.gymProfile = { ...ui.onboardingDraft.gymProfile, selectedGymName: target.value.slice(0, 120), source: "manual" };
   }
   if (target.id === "exercise-search") { ui.exerciseFilters.query=target.value;ui.exerciseFilters.page=1;render();requestAnimationFrame(()=>{const input=document.querySelector("#exercise-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
-  if (target.dataset.action === "set-field") updateSetField(target);
-  if (target.id === "workout-notes") state=store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
+  if (target.dataset.action === "set-field") await updateSetField(target);
+  if (target.id === "workout-notes") state=await store.update(draft=>{if(draft.activeWorkout)draft.activeWorkout.notes=target.value.slice(0,2_000);});
   if (target.id === "coach-input") ui.chatDraft=target.value;
   if (target.id === "nutrition-search" && ui.modal) { const pendingNutrition=nutritionRequestController;nutritionRequestController=null;try{pendingNutrition?.abort("nutrition_query_changed");}catch{}ui.modal.query=target.value;ui.modal.providerResults=[];ui.modal.providerSearchBusy=false;ui.modal.providerSearchError="";renderModalRoot();requestAnimationFrame(()=>{const input=document.querySelector("#nutrition-search");input?.focus();input?.setSelectionRange(input.value.length,input.value.length);}); }
   if (target.id === "nutrition-barcode" && ui.modal) ui.modal.barcode=target.value;
@@ -2249,15 +2327,16 @@ function trapDialogFocus(event) {
   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
 }
 
-function bootstrap() {
-  createStore(ui.founder);
+async function bootstrap() {
+  await createStore(ui.founder);
   ui.mode=state.profile.onboarded && canAccessCurrentRelease(state.profile.ageBand)?"app":"onboarding";
   ui.onboardingDraft={profile:deepClone(state.profile),settings:deepClone(state.settings),gymProfile:deepClone(state.gymProfile),consent:false};
   const route=new URLSearchParams(location.search).get("route");
   if(ROUTES.includes(route))ui.route=route;
-  document.addEventListener("click",handleClick);
-  document.addEventListener("change",handleChange);
-  document.addEventListener("input",handleInput);
+  document.addEventListener("click", event => { void dispatchClick(event); });
+  document.addEventListener("change", event => { void handleChange(event).catch(handleLocalSaveError); });
+  document.addEventListener("input", event => { void handleInput(event).catch(handleLocalSaveError); });
+  window.addEventListener("storage", observeLocalDataChange);
   document.addEventListener("toggle",event=>{
     const disclosure=event.target?.closest?.("details[data-disclosure]");
     if(disclosure)ui.disclosures[disclosure.dataset.disclosure]=disclosure.open;
@@ -2323,7 +2402,7 @@ function bootstrap() {
     if (handleChoiceKeydown(event)) return;
     if((event.key==="Enter"||event.key===" ")&&event.target?.classList?.contains("voice-room-orb")){event.preventDefault();voiceController.interrupt();}
     if(event.key==="Escape"){if(voiceController.getState().active){voiceController.exit();ui.voiceDocked=false;render();voiceReturnFocus?.focus?.();voiceReturnFocus=null;}else if(ui.modal)closeModal();}
-    if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat();}
+    if(event.key==="Enter"&&event.target.id==="coach-input"&&!event.shiftKey){event.preventDefault();void sendChat().catch(handleLocalSaveError);}
     trapDialogFocus(event);
   });
   window.addEventListener("online",()=>{voiceController.setForeground(document.visibilityState==="visible");render();toast("Back online. Live Coach will be checked with your next message.");});
@@ -2337,4 +2416,19 @@ function bootstrap() {
   void initializePlatform();
 }
 
-bootstrap();
+void bootstrap().catch(error => {
+  // Unsupported browser/storage failures must never leave an apparently usable
+  // app whose saves are unsafe, or a blank launch with no recovery action.
+  dom.stage.innerHTML = '<main class="app-main"><h1>Your saved data is protected.</h1><p id="local-launch-error"></p><button type="button" id="local-retry">Try again</button><button type="button" id="local-export">Download saved copy</button></main>';
+  document.querySelector("#local-launch-error").textContent = error?.message === "local_coordination_unavailable"
+    ? "This browser doesn’t support safe shared saving. Update your browser or open FitCoach in a current Safari or Chrome. You can still download your saved copy here."
+    : "FitCoach couldn’t open device storage. Keep this tab open and retry. If available, download your saved copy before changing browser storage settings.";
+  document.querySelector("#local-retry").addEventListener("click", () => location.reload());
+  document.querySelector("#local-export").addEventListener("click", () => {
+    try {
+      const saved = localStorage.getItem(store.key());
+      if (!saved) return toast("No saved copy was found in this browser.");
+      downloadJson(JSON.parse(saved), "fitcoach-device-recovery.json");
+    } catch { toast("The saved copy is not readable. Nothing has been deleted."); }
+  });
+});

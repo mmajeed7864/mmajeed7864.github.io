@@ -451,12 +451,12 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-function clearFitCoachStorage(storage) {
+function clearFitCoachStorage(storage, preserveKeys = []) {
   const keys = [];
   const length = Number(storage?.length) || 0;
   for (let index = 0; index < length; index += 1) {
     const key = storage.key?.(index);
-    if (typeof key === "string" && key.startsWith("fitcoach-")) keys.push(key);
+    if (typeof key === "string" && key.startsWith("fitcoach-") && !preserveKeys.includes(key)) keys.push(key);
   }
   for (const key of keys) storage.removeItem?.(key);
   // Adapters without an enumerable Storage interface still get the known
@@ -522,8 +522,8 @@ export function createFitCoachStore({ storage = globalThis.localStorage, founder
       return persist(result === undefined ? draft : result);
     },
     replace: next => persist(next),
-    reset: () => {
-      clearFitCoachStorage(storage);
+    reset: ({ preserveKeys = [] } = {}) => {
+      clearFitCoachStorage(storage, preserveKeys);
       return persist(createInitialState(currentFounder, clock()));
     },
     export: () => JSON.stringify(current || loadFounder(currentFounder), null, 2),

@@ -36,8 +36,8 @@ function fixture() {
 // adapters for browser effects, so routing tests exercise the actual branches.
 function clickHarness(overrides = {}) {
   const source = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
-  const handler = source.slice(source.indexOf("function handleClick(event) {"), source.indexOf("function handleChange(event) {"));
-  assert.ok(handler.startsWith("function handleClick(event) {"));
+  const handler = source.slice(source.indexOf("async function handleClick(event) {"), source.indexOf("async function handleChange(event) {"));
+  assert.ok(handler.startsWith("async function handleClick(event) {"));
   const calls = [];
   const ui = { route: "today", nutritionDate: null, modal: null };
   const sandbox = {
@@ -68,7 +68,7 @@ function clickHarness(overrides = {}) {
   };
 }
 
-test("hydration drops invalid or duplicated entries and never mutates its input", () => {
+test("hydration drops invalid or duplicated entries and never mutates its input", async () => {
   const good = { id: "one", at: NOW.toISOString(), ml: 250.4, extra: "discard this" };
   const raw = { entries: [good, { ...good, ml: 900 }, null,
     { id: "bad-time", at: "invalid", ml: 250 },
@@ -86,7 +86,7 @@ test("hydration drops invalid or duplicated entries and never mutates its input"
   assert.deepEqual(normalizeHydration({ entries: "broken" }), { entries: [] });
 });
 
-test("daily water totals follow the local day and exclude future timestamps", () => {
+test("daily water totals follow the local day and exclude future timestamps", async () => {
   const log = { entries: [
     { id: "yesterday", at: BEFORE.toISOString(), ml: 500 },
     { id: "today", at: NOW.toISOString(), ml: 250 },
@@ -101,7 +101,7 @@ test("daily water totals follow the local day and exclude future timestamps", ()
   assert.equal(log.entries.length, 3);
 });
 
-test("water insertion is bounded and invalid volume cannot become a logged drink", () => {
+test("water insertion is bounded and invalid volume cannot become a logged drink", async () => {
   const initial = addWater(null, 250, NOW, "valid");
   for (const value of [-1, 0, 2001, NaN, Infinity, "250", undefined]) {
     assert.deepEqual(addWater(initial, value, NOW, "rejected"), initial);
@@ -115,7 +115,7 @@ test("water insertion is bounded and invalid volume cannot become a logged drink
   assert.equal(full.entries[0].id, "water-0");
 });
 
-test("real water actions persist through reload, undo, export, and local deletion", () => {
+test("real water actions persist through reload, undo, export, and local deletion", async () => {
   const storage = new MemoryStorage();
   const store = createFitCoachStore({ storage, clock: () => NOW });
   store.load();
@@ -125,18 +125,18 @@ test("real water actions persist through reload, undo, export, and local deletio
     addWater: (log, amount) => addWater(log, amount, NOW, `drink-${++sequence}`),
     undoWater: log => undoWater(log, NOW),
   });
-  harness.click("water-add", { value: "250" });
-  harness.click("water-add", { value: "250" });
+  await harness.click("water-add", { value: "250" });
+  await harness.click("water-add", { value: "250" });
   const reloaded = createFitCoachStore({ storage, clock: () => NOW });
   assert.equal(waterForDay(reloaded.load().hydration, NOW).totalMl, 500);
-  harness.click("water-undo");
+  await harness.click("water-undo");
   assert.equal(waterForDay(reloaded.load().hydration, NOW).totalMl, 250);
   assert.equal(JSON.parse(reloaded.export()).hydration.entries.length, 1);
   assert.equal(reloaded.reset().hydration.entries.length, 0);
   assert.equal(createFitCoachStore({ storage }).load().hydration.entries.length, 0);
 });
 
-test("hydration remains local during encrypted upload and survives remote restoration", () => {
+test("hydration remains local during encrypted upload and survives remote restoration", async () => {
   const input = fixture();
   input.state.hydration = addWater(null, 250, NOW, "local-glass");
   const projected = projectStateForEncryptedSync(input.state);
@@ -150,7 +150,7 @@ test("hydration remains local during encrypted upload and survives remote restor
   assert.equal(remote.hydration.entries[0].id, "remote-injection");
 });
 
-test("the actual new Home welcomes a first day without presenting an adherence deficit", () => {
+test("the actual new Home welcomes a first day without presenting an adherence deficit", async () => {
   const input = fixture();
   const html = renderTodayScreen(input);
   assert.match(html, /Your week starts here/);
@@ -163,7 +163,7 @@ test("the actual new Home welcomes a first day without presenting an adherence d
   assert.equal([...html.matchAll(/aria-checked="false"/g)].length, 5);
 });
 
-test("returning users begin a new week with a neutral planned count", () => {
+test("returning users begin a new week with a neutral planned count", async () => {
   const input = fixture();
   input.state.sessions = [{ id: "past-session", completedAt: new Date(2026, 7, 28, 12).toISOString(), exercises: [] }];
   const html = renderTodayScreen(input);
@@ -174,7 +174,7 @@ test("returning users begin a new week with a neutral planned count", () => {
   assert.match(html, /data-action="start-workout"/);
 });
 
-test("Home previews the saved active session instead of a different current plan", () => {
+test("Home previews the saved active session instead of a different current plan", async () => {
   const input = fixture();
   const sessionPlan = { ...input.plan, label: "My travel session", minutes: 20, exercises: input.plan.exercises.slice(0, 2) };
   input.state.activeWorkout = startWorkoutFromPlan(sessionPlan, NOW);
@@ -187,7 +187,7 @@ test("Home previews the saved active session instead of a different current plan
   assert.equal([...html.matchAll(/class="home-exercise"/g)].length, 2);
 });
 
-test("Home changes from Start to Resume to completed-session progress without mutating state", () => {
+test("Home changes from Start to Resume to completed-session progress without mutating state", async () => {
   const input = fixture();
   input.state.activeWorkout = startWorkoutFromPlan(input.plan, NOW);
   input.state.activeWorkout.exercises[0].sets[0].done = true;
@@ -208,7 +208,7 @@ test("Home changes from Start to Resume to completed-session progress without mu
   assert.doesNotMatch(hero, /data-action="start-workout"/);
 });
 
-test("Home uses only confirmed nutrition and real same-day energy check-ins", () => {
+test("Home uses only confirmed nutrition and real same-day energy check-ins", async () => {
   const input = fixture();
   input.state.nutrition.days[localDateKey(NOW)] = { entries: [
     { id: "confirmed", status: "confirmed", nutrients: { calories: 420, protein: 30, carbs: 40, fat: 12, fiber: 4, sugar: 2, sodium: 300 } },
@@ -223,7 +223,7 @@ test("Home uses only confirmed nutrition and real same-day energy check-ins", ()
   assert.match(html, /aria-checked="true"[^>]+data-value="4"/);
 });
 
-test("Home retains personalized first-day coach copy, tone, and both decision choices", () => {
+test("Home retains personalized first-day coach copy, tone, and both decision choices", async () => {
   const input = fixture();
   input.decision = computeDecision(input.state, NOW);
   const html = renderTodayScreen(input);
@@ -242,7 +242,7 @@ test("Home retains personalized first-day coach copy, tone, and both decision ch
   assert.doesNotMatch(coach, /data-action="approve-proposal"/);
 });
 
-test("personalized decision actions still stage proposals for review and reach the alternate plan", () => {
+test("personalized decision actions still stage proposals for review and reach the alternate plan", async () => {
   const input = fixture();
   input.state.sessions = [{ id: "previous-session", completedAt: BEFORE.toISOString(), exercises: [] }];
   const decision = computeDecision(input.state, NOW);
@@ -260,21 +260,21 @@ test("personalized decision actions still stage proposals for review and reach t
     harness.sandbox.ui.modal = { type: "proposal" };
   };
   const source = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
-  const decisionHandler = source.slice(source.indexOf("function handleDecision(kind) {"), source.indexOf("async function forceRefresh() {"));
-  assert.ok(decisionHandler.startsWith("function handleDecision(kind) {"));
+  const decisionHandler = source.slice(source.indexOf("async function handleDecision(kind) {"), source.indexOf("async function forceRefresh() {"));
+  assert.ok(decisionHandler.startsWith("async function handleDecision(kind) {"));
   runInNewContext(decisionHandler, harness.sandbox);
-  harness.click("decision", { value: "primary" });
+  await harness.click("decision", { value: "primary" });
   assert.equal(JSON.stringify(store.get().activePlan), startingPlan);
   assert.equal(store.get().pendingPlanProposal.status, "pending");
   assert.equal(harness.sandbox.ui.modal.type, "proposal");
   assert.equal(starts.length, 0);
   assert.equal(store.get().interventionOutcomes.at(-1).outcome, "primary");
-  harness.click("decision", { value: "secondary" });
+  await harness.click("decision", { value: "secondary" });
   assert.deepEqual(starts, ["MIN"]);
   assert.equal(store.get().interventionOutcomes.at(-1).outcome, "secondary");
 });
 
-test("coach recommendation text is escaped and absent secondary choices remain absent", () => {
+test("coach recommendation text is escaped and absent secondary choices remain absent", async () => {
   const input = fixture();
   input.decision = {
     title: '<script>unsafe title</script>', message: '<img src=x onerror="alert(1)">',
@@ -288,7 +288,7 @@ test("coach recommendation text is escaped and absent secondary choices remain a
   assert.doesNotMatch(html, /data-action="decision" data-value="secondary"/);
 });
 
-test("quick actions expose food, training, discovery, coach, and progress with real app handlers", () => {
+test("quick actions expose food, training, discovery, coach, and progress with real app handlers", async () => {
   const input = fixture();
   const source = readFileSync(new URL("../v040/app.js", import.meta.url), "utf8");
   let html = renderModal({ type: "quick-actions" }, input);
@@ -302,31 +302,31 @@ test("quick actions expose food, training, discovery, coach, and progress with r
   assert.match(html, /Resume workout/);
   assert.match(html, /data-action="resume-workout"/);
   const harness = clickHarness();
-  harness.click("open-quick-actions");
+  await harness.click("open-quick-actions");
   assert.equal(harness.sandbox.ui.modal.type, "quick-actions");
-  harness.click("open-voice-room");
+  await harness.click("open-voice-room");
   assert.equal(harness.sandbox.ui.modal, null);
   assert.deepEqual(harness.calls.slice(-2), ["close-modal", "voice"]);
 });
 
-test("global exercise discovery leaves any previous exercise detail", () => {
+test("global exercise discovery leaves any previous exercise detail", async () => {
   const harness = clickHarness();
   Object.assign(harness.sandbox.ui, { route: "train", trainSegment: "exercises", exerciseDetailId: "air-squat", modal: { type: "quick-actions" } });
-  harness.click("open-library");
+  await harness.click("open-library");
   assert.equal(harness.sandbox.ui.route, "train");
   assert.equal(harness.sandbox.ui.trainSegment, "exercises");
   assert.equal(harness.sandbox.ui.exerciseDetailId, null);
   assert.equal(harness.sandbox.ui.modal, null);
 });
 
-test("today food shortcuts cannot silently log into a previously viewed diary date", () => {
+test("today food shortcuts cannot silently log into a previously viewed diary date", async () => {
   const harness = clickHarness();
   harness.sandbox.ui.nutritionDate = localDateKey(BEFORE);
-  harness.click("nutrition-open-add", { value: "lunch", date: "today" });
+  await harness.click("nutrition-open-add", { value: "lunch", date: "today" });
   assert.equal(harness.sandbox.ui.nutritionDate || localDateKey(NOW), localDateKey(NOW));
   assert.equal(harness.sandbox.ui.modal.type, "nutrition-add");
   harness.sandbox.ui.nutritionDate = localDateKey(BEFORE);
-  harness.click("nutrition-open-add", { value: "dinner" });
+  await harness.click("nutrition-open-add", { value: "dinner" });
   assert.equal(harness.sandbox.ui.nutritionDate, localDateKey(BEFORE), "diary logging must retain an intentional historical date");
   const input = fixture();
   const home = renderTodayScreen(input);
