@@ -77,19 +77,10 @@ test("runtime signing is simulator-only and cannot inherit an account or provisi
   ]);
   const details =
     "Identifier=com.symbio.fitcoach.dev\nSignature=adhoc\nTeamIdentifier=not set\n";
-  const entitlements = {
-    "application-identifier": "com.symbio.fitcoach.dev",
-    "com.apple.developer.healthkit": true,
-  };
+  const entitlements = {};
   assert.equal(
     verifyRuntimeSigning(details, entitlements).developerAccountUsed,
     false,
-  );
-  assert.doesNotThrow(() =>
-    verifyRuntimeSigning(details, {
-      ...entitlements,
-      "keychain-access-groups": ["com.symbio.fitcoach.dev"],
-    }),
   );
   for (const invalid of [
     "",
@@ -101,8 +92,9 @@ test("runtime signing is simulator-only and cannot inherit an account or provisi
     assert.throws(() => verifyRuntimeSigning(invalid, entitlements));
   }
   for (const patch of [
-    { "application-identifier": undefined },
+    { "application-identifier": "com.symbio.fitcoach.dev" },
     { "application-identifier": "TEAM.com.symbio.fitcoach.dev" },
+    { "com.apple.developer.healthkit": true },
     { "com.apple.developer.team-identifier": "TEAM" },
     { "com.apple.security.application-groups": ["other-app"] },
     { "keychain-access-groups": ["*"] },

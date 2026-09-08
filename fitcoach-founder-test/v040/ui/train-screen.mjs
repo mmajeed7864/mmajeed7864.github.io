@@ -65,7 +65,7 @@ function workoutPlan({ state, plan, exerciseById }) {
     <section class="training-session-cover" aria-label="Planned workout">
       <div class="training-filmstrip" aria-label="Preview this session’s movements">${plan.exercises.map((item,index) => `<button class="training-film-frame" data-action="open-exercise" data-value="${escapeHtml(item.exerciseId)}" aria-label="Preview ${escapeHtml(item.snapshot?.name || "exercise")}">${exercisePoster(exerciseById(item.exerciseId) || item, { className: "training-film-poster", eager: index < 2, label: false })}<span class="training-film-number" aria-hidden="true">${String(index+1).padStart(2,"0")}</span><span class="training-film-caption">${escapeHtml(item.snapshot?.name || "Exercise")}${icon("chevron")}</span></button>`).join("")}</div>
       <div class="training-session-stats"><span><b>${plan.minutes}</b><small>MINUTES</small></span><span><b>${plan.exercises.length}</b><small>MOVEMENTS</small></span><span><b>${totalSets}</b><small>WORKING SETS</small></span></div>
-      <div class="training-cover-action">${button({ label: startLabel, action: startAction, value: plan.id, variant: "primary", iconName: "play" })}<span>${escapeHtml(titleCase(plan.equipment || state.profile.equipment))} / ${escapeHtml(titleCase(plan.intensity))}</span></div>
+      <div class="training-cover-action">${button({ label: startLabel, action: startAction, value: plan.id, variant: "primary", iconName: "play", extra: `data-plan-version-id="${escapeHtml(plan.versionId || "")}"` })}<span>${escapeHtml(titleCase(plan.equipment || state.profile.equipment))} / ${escapeHtml(titleCase(plan.intensity))}</span></div>
     </section>
 
     <details class="training-adjustment"><summary><span class="training-adjustment-icon">${icon("swap")}</span><span><b>Make it fit today</b><small>${plan.minutes} min · ${escapeHtml(titleCase(plan.location))} · ${escapeHtml(titleCase(plan.intensity))}</small></span>${icon("chevron")}</summary><div class="training-adjustment-body"><fieldset><legend>Time available</legend><div class="training-options training-options-minutes">${SESSION_MINUTES.map(value => adjustmentTile({ label: String(value), detail: "min", action: "propose-plan", field: "minutes", value: String(value), active: plan.minutes === value })).join("")}</div></fieldset><fieldset><legend>Training space</legend><div class="training-options">${[
@@ -113,7 +113,7 @@ function scheduleCard(slot) {
     <header><span class="eyebrow">${slot.exerciseCount} MOVEMENTS</span><b>${escapeHtml(slot.label)}</b><small>${escapeHtml(slot.focus)}</small></header>
     <div class="training-schedule-moves">${slot.exerciseNames.map((name,index) => `<span><i>${String(index+1).padStart(2,"0")}</i>${escapeHtml(name)}</span>`).join("")}</div>
     <div class="schedule-muscles">${slot.muscles.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div>
-    ${button({ label: `Start ${slot.label}`, action: "start-scheduled-workout", value: slot.id, variant: "primary", iconName: "play" })}
+    ${button({ label: `Start ${slot.label}`, action: "start-scheduled-workout", value: slot.id, variant: "primary", iconName: "play", extra: `data-plan-version-id="${escapeHtml(slot.plan.versionId || "")}"` })}
   </article>`;
 }
 
@@ -141,7 +141,7 @@ function routineCard(routine) {
   return `<article class="routine-card">
     <span>${icon("spark")}</span>
     <div><b>${escapeHtml(routine.label || plan.label || "Saved workout")}</b><small>${escapeHtml(savedAt)} · ${plan.minutes || "—"} min</small><p>${escapeHtml(exercises || "No exercise snapshot")}</p></div>
-    <button class="icon-only" data-action="start-routine" data-value="${escapeHtml(routine.id)}" aria-label="Start saved routine">${icon("play")}</button>
+    <button class="icon-only" data-action="start-routine" data-value="${escapeHtml(routine.id)}" data-plan-version-id="${escapeHtml(plan.versionId || "")}" data-saved-at="${escapeHtml(routine.savedAt || "")}" aria-label="Start saved routine">${icon("play")}</button>
   </article>`;
 }
 

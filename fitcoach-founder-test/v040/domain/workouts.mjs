@@ -446,6 +446,9 @@ export function createPlanProposal(state, library, changes, now = new Date()) {
 export function approvePlanProposal(state, proposalId, now = new Date()) {
   const proposal = state.pendingPlanProposal;
   if (!proposal || proposal.id !== proposalId || proposal.status !== "pending") return state;
+  if (!proposal.baseVersionId || !state.activePlan?.versionId || proposal.baseVersionId !== state.activePlan.versionId) {
+    throw new Error("local_plan_changed");
+  }
   const previous = state.activePlan;
   state.activePlan = { ...deepClone(proposal.candidate), activatedAt: now.toISOString(), approvedFromProposalId: proposal.id };
   state.planHistory = [...(state.planHistory || []), {
@@ -525,6 +528,32 @@ export function startWorkoutFromPlan(plan, now = new Date()) {
       sets: setsForPlanExercise({ ...item, units: normalizeUnit(plan.units, "lb") }),
     })),
   };
+}
+
+export function startWorkoutFromIntent(state, library, intent, now = new Date()) {
+  if (!state || !intent || !["plan", "schedule", "routine"].includes(intent.kind)) throw new Error("local_plan_changed");
+  if (state.activeWorkout) return { workout: state.activeWorkout, resumed: true, label: state.activeWorkout.planLabel || "Workout in progress", dayLabel: "" };
+  let plan;
+  let dayLabel = "";
+  if (intent.kind === "plan") {
+    const current = state.activePlan;
+    if (!current?.exercises?.length || !intent.baseVersionId || current.versionId !== intent.baseVersionId || !Object.hasOwn(PLAN_SPECS, intent.planId)) throw new Error("local_plan_changed");
+    plan = intent.planId === current.id ? deepClone(current) : buildPlan(state, library, {
+      planId: intent.planId,
+      minutes: intent.planId === "MIN" ? 12 : intent.planId === "B" ? Math.min(30, current.minutes) : current.minutes,
+    });
+  } else if (intent.kind === "schedule") {
+    const slot = buildWorkoutSchedule(state, library).find(candidate => candidate.id === intent.slotId);
+    if (!slot || !intent.planVersionId || slot.plan.versionId !== intent.planVersionId) throw new Error("local_plan_changed");
+    plan = slot.plan;
+    dayLabel = slot.dayLabel;
+  } else {
+    const routine = (state.workoutDrafts || []).find(candidate => candidate.id === intent.routineId);
+    if (!routine?.plan?.exercises?.length || !intent.planVersionId || routine.plan.versionId !== intent.planVersionId || routine.savedAt !== intent.savedAt) throw new Error("local_plan_changed");
+    plan = { ...deepClone(routine.plan), id: routine.plan.id || "saved-routine", label: routine.label || routine.plan.label || "Saved workout" };
+  }
+  state.activeWorkout = startWorkoutFromPlan(plan, now);
+  return { workout: state.activeWorkout, resumed: false, label: plan.label, dayLabel };
 }
 
 export function restSecondsRemaining(workout, now = new Date()) {

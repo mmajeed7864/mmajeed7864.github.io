@@ -52,7 +52,7 @@ import {
   resolveWorkoutReview,
   restSecondsRemaining,
   startRestTimer,
-  startWorkoutFromPlan,
+  startWorkoutFromIntent,
   swapWorkoutExercise,
   workoutReviewKey,
 } from "./domain/workouts.mjs";
@@ -669,14 +669,34 @@ function applyOnboardingTone(tone) {
 }
 
 async function stageProposal(proposal) {
-  state = await store.update(draft => { draft.pendingPlanProposal = proposal; });
-  openModal({ type: "proposal" });
-  renderAppScreen();
-  renderModalRoot();
+  const view = { route: ui.route, trainSegment: ui.trainSegment, showActiveWorkout: ui.showActiveWorkout, exerciseDetailId: ui.exerciseDetailId, modal: ui.modal };
+  const expectedPendingId = state.pendingPlanProposal?.id || "";
+  try {
+    state = await store.update(draft => {
+      if (!proposal?.baseVersionId || draft.activePlan?.versionId !== proposal.baseVersionId || (draft.pendingPlanProposal?.id || "") !== expectedPendingId) throw new Error("local_plan_changed");
+      draft.pendingPlanProposal = proposal;
+    });
+  } catch (error) {
+    if (error?.message !== "local_plan_changed") throw error;
+    state = await store.refresh();
+    render();
+    toast("Your plan changed before this preview was ready. Review the latest plan and try again.");
+    return false;
+  }
+  const viewIsCurrent = ui.route === view.route && ui.trainSegment === view.trainSegment && ui.showActiveWorkout === view.showActiveWorkout && ui.exerciseDetailId === view.exerciseDetailId && ui.modal === view.modal;
+  if (viewIsCurrent) {
+    openModal({ type: "proposal" });
+    renderAppScreen();
+    renderModalRoot();
+  } else {
+    render();
+    toast("Your plan preview is saved and ready to review.");
+  }
+  return true;
 }
 
 async function stageCandidate(candidate, reason, changes) {
-  await stageProposal({
+  return stageProposal({
     id: uid("proposal"),
     status: "pending",
     baseVersionId: state.activePlan.versionId,
@@ -694,58 +714,92 @@ async function proposePlan(field, value) {
 }
 
 async function approveProposal(id) {
-  state = await store.update(draft => approvePlanProposal(draft, id));
-  closeModal();
+  const modal = ui.modal;
+  try {
+    state = await store.update(draft => {
+      const proposal = draft.pendingPlanProposal;
+      if (!proposal || proposal.id !== id || proposal.status !== "pending") throw new Error("local_plan_changed");
+      approvePlanProposal(draft, id);
+    });
+  } catch (error) {
+    if (error?.message !== "local_plan_changed") throw error;
+    state = await store.refresh();
+    if (ui.modal === modal && modal?.type === "proposal") modal.error = "This plan was not activated because the saved plan changed. Close this preview and review the latest version.";
+    render();
+    return;
+  }
+  if (ui.modal === modal) closeModal();
   toast("Plan version approved and activated.");
   render();
 }
 
 async function rejectProposal(id) {
-  state = await store.update(draft => rejectPlanProposal(draft, id));
-  closeModal();
+  const modal = ui.modal;
+  try {
+    state = await store.update(draft => {
+      const proposal = draft.pendingPlanProposal;
+      if (!proposal || proposal.id !== id || proposal.status !== "pending") throw new Error("local_plan_changed");
+      rejectPlanProposal(draft, id);
+    });
+  } catch (error) {
+    if (error?.message !== "local_plan_changed") throw error;
+    state = await store.refresh();
+    if (ui.modal === modal && modal?.type === "proposal") modal.error = "This preview is no longer the saved proposal. Close it and review the latest version.";
+    render();
+    return;
+  }
+  if (ui.modal === modal) closeModal();
   toast("Current plan kept.");
   render();
 }
 
-async function startWorkout(planId) {
-  if (state.activeWorkout) return resumeWorkout();
-  const plan = planId === state.activePlan.id
-    ? state.activePlan
-    : buildPlan(state, EXERCISES, { planId, minutes: planId === "MIN" ? 12 : planId === "B" ? Math.min(30,state.activePlan.minutes) : state.activePlan.minutes });
-  state = await store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
-  ui.route = "train";
-  ui.trainSegment = "workout";
-  ui.showActiveWorkout = true;
-  render();
-  window.scrollTo({ top: 0, behavior: "instant" });
-  toast(`${plan.label} started. Every change is saved locally.`);
+function workoutStartView() {
+  return { route: ui.route, trainSegment: ui.trainSegment, showActiveWorkout: ui.showActiveWorkout, exerciseDetailId: ui.exerciseDetailId, modal: ui.modal };
 }
 
-async function startScheduledWorkout(slotId) {
-  if (state.activeWorkout) return resumeWorkout();
-  const slot = buildWorkoutSchedule(state, EXERCISES).find(item => item.id === slotId);
-  if (!slot) return toast("That scheduled workout is no longer available.");
-  state = await store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(slot.plan); });
-  ui.route = "train";
-  ui.trainSegment = "workout";
-  ui.showActiveWorkout = true;
-  render();
-  window.scrollTo({ top: 0, behavior: "instant" });
-  toast(`${slot.label} started. This session stays linked to ${slot.dayLabel}.`);
+function workoutStartViewIsCurrent(view) {
+  return ui.route === view.route && ui.trainSegment === view.trainSegment && ui.showActiveWorkout === view.showActiveWorkout && ui.exerciseDetailId === view.exerciseDetailId && ui.modal === view.modal;
 }
 
-async function startSavedRoutine(routineId) {
-  if (state.activeWorkout) return resumeWorkout();
-  const routine = (state.workoutDrafts || []).find(item => item.id === routineId && item.plan?.exercises?.length);
-  if (!routine) return toast("That saved routine is no longer available.");
-  const plan = { ...deepClone(routine.plan), id: routine.plan.id || "saved-routine", label: routine.label || routine.plan.label || "Saved workout" };
-  state = await store.update(draft => { draft.activeWorkout = startWorkoutFromPlan(plan); });
-  ui.route = "train";
-  ui.trainSegment = "workout";
-  ui.showActiveWorkout = true;
+async function commitWorkoutStart(intent, successMessage) {
+  const view = workoutStartView();
+  let result;
+  try {
+    state = await store.update(draft => { result = startWorkoutFromIntent(draft, EXERCISES, intent); });
+  } catch (error) {
+    if (error?.message !== "local_plan_changed") throw error;
+    state = await store.refresh();
+    render();
+    toast("That workout changed before it started. Review the latest version and try again.");
+    return;
+  }
+  const openWorkout = workoutStartViewIsCurrent(view);
+  if (openWorkout) {
+    ui.route = "train";
+    ui.trainSegment = "workout";
+    ui.showActiveWorkout = true;
+    ui.exerciseDetailId = null;
+  }
   render();
-  window.scrollTo({ top: 0, behavior: "instant" });
-  toast(`${plan.label} started from your saved routines.`);
+  if (openWorkout) window.scrollTo({ top: 0, behavior: "instant" });
+  toast(result.resumed ? "Your already-started workout is open with its latest saved progress." : successMessage(result));
+}
+
+async function startWorkout(targetOrPlanId) {
+  const dataset = typeof targetOrPlanId === "object" ? targetOrPlanId.dataset || {} : { value: targetOrPlanId };
+  await commitWorkoutStart({ kind: "plan", planId: dataset.value || state.activePlan?.id, baseVersionId: dataset.planVersionId || state.activePlan?.versionId || "" }, result => `${result.label} started. Every change is saved locally.`);
+}
+
+async function startScheduledWorkout(targetOrSlotId) {
+  const dataset = typeof targetOrSlotId === "object" ? targetOrSlotId.dataset || {} : { value: targetOrSlotId };
+  const displayed = buildWorkoutSchedule(state, EXERCISES).find(item => item.id === dataset.value);
+  await commitWorkoutStart({ kind: "schedule", slotId: dataset.value, planVersionId: dataset.planVersionId || displayed?.plan.versionId || "" }, result => `${result.label} started. This session stays linked to ${result.dayLabel}.`);
+}
+
+async function startSavedRoutine(targetOrRoutineId) {
+  const dataset = typeof targetOrRoutineId === "object" ? targetOrRoutineId.dataset || {} : { value: targetOrRoutineId };
+  const displayed = (state.workoutDrafts || []).find(item => item.id === dataset.value);
+  await commitWorkoutStart({ kind: "routine", routineId: dataset.value, planVersionId: dataset.planVersionId || displayed?.plan?.versionId || "", savedAt: dataset.savedAt || displayed?.savedAt || "" }, result => `${result.label} started from your saved routines.`);
 }
 
 function resumeWorkout() {
@@ -2287,9 +2341,9 @@ async function handleClick(event) {
   if (action === "decision") { await handleDecision(value);return; }
   if (action === "explain-decision") { openModal({type:"decision"});return; }
   if (action === "why-workout") { openModal({type:"why-workout"});return; }
-  if (action === "start-workout") { await startWorkout(value);return; }
-  if (action === "start-scheduled-workout") { await startScheduledWorkout(value);return; }
-  if (action === "start-routine") { await startSavedRoutine(value);return; }
+  if (action === "start-workout") { await startWorkout(target);return; }
+  if (action === "start-scheduled-workout") { await startScheduledWorkout(target);return; }
+  if (action === "start-routine") { await startSavedRoutine(target);return; }
   if (action === "resume-workout") { resumeWorkout();return; }
   if (action === "minimize-workout") { ui.showActiveWorkout=false;ui.route="today";render();return; }
   if (action === "toggle-set") { await toggleSet(target);return; }

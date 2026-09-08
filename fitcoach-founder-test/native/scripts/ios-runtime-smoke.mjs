@@ -46,21 +46,15 @@ export function verifyRuntimeSigning(details, entitlements) {
     !entitlements ||
     typeof entitlements !== "object" ||
     Array.isArray(entitlements) ||
-    entitlements["application-identifier"] !== "com.symbio.fitcoach.dev" ||
-    entitlements["com.apple.developer.team-identifier"] ||
-    entitlements["com.apple.security.application-groups"] !== undefined ||
-    (entitlements["keychain-access-groups"] !== undefined &&
-      (!Array.isArray(entitlements["keychain-access-groups"]) ||
-        entitlements["keychain-access-groups"].some(
-          (group) => group !== "com.symbio.fitcoach.dev",
-        )))
+    Object.keys(entitlements).length !== 0
   )
     throw new Error(
-      "Unexpected simulator app identity or Keychain access groups",
+      "Account-free simulator app must have no embedded signed entitlements",
     );
   return {
     mode: "ad-hoc-simulator-only",
-    applicationIdentifier: entitlements["application-identifier"],
+    applicationIdentifier: "com.symbio.fitcoach.dev",
+    embeddedEntitlements: "none",
     developerAccountUsed: false,
   };
 }
