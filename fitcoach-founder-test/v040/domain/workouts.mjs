@@ -446,6 +446,9 @@ export function createPlanProposal(state, library, changes, now = new Date()) {
 export function approvePlanProposal(state, proposalId, now = new Date()) {
   const proposal = state.pendingPlanProposal;
   if (!proposal || proposal.id !== proposalId || proposal.status !== "pending") return state;
+  if (!proposal.baseVersionId || !state.activePlan?.versionId || proposal.baseVersionId !== state.activePlan.versionId) {
+    throw new Error("local_plan_changed");
+  }
   const previous = state.activePlan;
   state.activePlan = { ...deepClone(proposal.candidate), activatedAt: now.toISOString(), approvedFromProposalId: proposal.id };
   state.planHistory = [...(state.planHistory || []), {
@@ -474,16 +477,16 @@ export function rejectPlanProposal(state, proposalId, now = new Date()) {
 
 // DOM indices describe an old render, not the latest saved workout. Resolve an
 // editing intent inside the coordinated mutation using stable rendered IDs.
-export function resolveWorkoutSet(workout, identity) {
+export function resolveWorkoutSet(workout, identity, { allowPaused = false } = {}) {
   if (!identity || ["workoutId", "exerciseId", "setId"].some(key => typeof identity[key] !== "string" || !identity[key].trim()) || workout?.id !== identity.workoutId) {
     throw new Error("local_workout_changed");
   }
   if (!Array.isArray(workout.exercises)) throw new Error("local_workout_changed");
-  const matches = workout.exercises.flatMap(exercise => exercise?.exerciseId === identity.exerciseId && Array.isArray(exercise.sets)
-    ? exercise.sets.filter(set => set?.id === identity.setId).map(set => ({ exercise, set })) : []);
+  const matches = workout.exercises.flatMap((exercise, index) => exercise?.exerciseId === identity.exerciseId && Array.isArray(exercise.sets)
+    ? exercise.sets.filter(set => set?.id === identity.setId).map(set => ({ exercise, set, index })) : []);
   if (matches.length !== 1) throw new Error("local_workout_changed");
-  if (workout.status === "paused") throw new Error("local_workout_paused");
-  if (workout.status !== "active") throw new Error("local_workout_changed");
+  if (workout.status === "paused" && !allowPaused) throw new Error("local_workout_paused");
+  if (workout.status !== "active" && !(allowPaused && workout.status === "paused")) throw new Error("local_workout_changed");
   return matches[0];
 }
 
@@ -527,6 +530,32 @@ export function startWorkoutFromPlan(plan, now = new Date()) {
   };
 }
 
+export function startWorkoutFromIntent(state, library, intent, now = new Date()) {
+  if (!state || !intent || !["plan", "schedule", "routine"].includes(intent.kind)) throw new Error("local_plan_changed");
+  if (state.activeWorkout) return { workout: state.activeWorkout, resumed: true, label: state.activeWorkout.planLabel || "Workout in progress", dayLabel: "" };
+  let plan;
+  let dayLabel = "";
+  if (intent.kind === "plan") {
+    const current = state.activePlan;
+    if (!current?.exercises?.length || !intent.baseVersionId || current.versionId !== intent.baseVersionId || !Object.hasOwn(PLAN_SPECS, intent.planId)) throw new Error("local_plan_changed");
+    plan = intent.planId === current.id ? deepClone(current) : buildPlan(state, library, {
+      planId: intent.planId,
+      minutes: intent.planId === "MIN" ? 12 : intent.planId === "B" ? Math.min(30, current.minutes) : current.minutes,
+    });
+  } else if (intent.kind === "schedule") {
+    const slot = buildWorkoutSchedule(state, library).find(candidate => candidate.id === intent.slotId);
+    if (!slot || !intent.planVersionId || slot.plan.versionId !== intent.planVersionId) throw new Error("local_plan_changed");
+    plan = slot.plan;
+    dayLabel = slot.dayLabel;
+  } else {
+    const routine = (state.workoutDrafts || []).find(candidate => candidate.id === intent.routineId);
+    if (!routine?.plan?.exercises?.length || !intent.planVersionId || routine.plan.versionId !== intent.planVersionId || routine.savedAt !== intent.savedAt) throw new Error("local_plan_changed");
+    plan = { ...deepClone(routine.plan), id: routine.plan.id || "saved-routine", label: routine.label || routine.plan.label || "Saved workout" };
+  }
+  state.activeWorkout = startWorkoutFromPlan(plan, now);
+  return { workout: state.activeWorkout, resumed: false, label: plan.label, dayLabel };
+}
+
 export function restSecondsRemaining(workout, now = new Date()) {
   const end = new Date(workout?.restTimer?.endsAt || "").getTime();
   if (!workout?.restTimer?.running || !Number.isFinite(end)) return 0;
@@ -534,8 +563,11 @@ export function restSecondsRemaining(workout, now = new Date()) {
 }
 
 export function startRestTimer(workout, seconds, now = new Date()) {
-  const durationSeconds = safeNumber(seconds, 90, 15, 600);
+  // Resuming/shortening a countdown may leave fewer than 15 seconds. Planned
+  // rest recommendations retain their separate 15-second minimum.
+  const durationSeconds = Math.ceil(safeNumber(seconds, 90, 1, 600));
   workout.restTimer = {
+    id: uid("rest"),
     durationSeconds,
     endsAt: new Date(now.getTime() + durationSeconds * 1_000).toISOString(),
     running: true,
@@ -552,6 +584,71 @@ export function adjustRestTimer(workout, deltaSeconds, now = new Date()) {
     return workout;
   }
   return startRestTimer(workout, next, now);
+}
+
+export function restTimerKey(workout) {
+  const timer = workout?.restTimer || {};
+  return JSON.stringify([timer.id || "", timer.endsAt || null, timer.durationSeconds ?? 90, Boolean(timer.running), Boolean(timer.paused)]);
+}
+
+export function workoutPauseKey(workout) {
+  return JSON.stringify([workout?.pauseRevision || "", workout?.status, workout?.pausedAt || null, workout?.accumulatedPausedMs || 0]);
+}
+
+export function changeWorkoutPause(workout, identity, now = new Date()) {
+  if (!identity?.workoutId || workout?.id !== identity.workoutId || identity.pauseKey !== workoutPauseKey(workout) || !["active", "paused"].includes(workout.status)) {
+    throw new Error("local_workout_changed");
+  }
+  if (workout.status === "paused") {
+    const pausedAt = new Date(workout.pausedAt || "").getTime();
+    if (!Number.isFinite(pausedAt)) throw new Error("local_workout_changed");
+    workout.accumulatedPausedMs = (workout.accumulatedPausedMs || 0) + Math.max(0, now.getTime() - pausedAt);
+    workout.pausedAt = null;
+    workout.status = "active";
+    if (workout.restTimer?.paused) {
+      if (workout.restTimer.durationSeconds > 0) startRestTimer(workout, workout.restTimer.durationSeconds, now);
+      else workout.restTimer = { ...workout.restTimer, endsAt: null, running: false, paused: false };
+    }
+  } else {
+    const remaining = restSecondsRemaining(workout, now);
+    workout.pausedAt = now.toISOString();
+    workout.status = "paused";
+    if (workout.restTimer?.running) workout.restTimer = {
+      ...workout.restTimer, endsAt: null, durationSeconds: remaining,
+      running: false, paused: remaining > 0,
+    };
+  }
+  workout.pauseRevision = uid("pause");
+  return workout;
+}
+
+export function changeWorkoutRest(workout, identity, operation, now = new Date()) {
+  if (!identity?.workoutId || workout?.id !== identity.workoutId || identity.restKey !== restTimerKey(workout)) throw new Error("local_workout_changed");
+  if (workout.status === "paused") throw new Error("local_workout_paused");
+  if (workout.status !== "active" || workout.restTimer?.paused || !workout.restTimer?.running || !restSecondsRemaining(workout, now)) throw new Error("local_workout_changed");
+  if (operation === "stop") {
+    workout.restTimer = { ...workout.restTimer, endsAt: null, running: false, paused: false };
+    return workout;
+  }
+  if (operation !== -15 && operation !== 15) throw new Error("local_workout_changed");
+  return adjustRestTimer(workout, operation, now);
+}
+
+export function expireWorkoutRest(workout, identity, now = new Date()) {
+  if (!identity?.workoutId || workout?.id !== identity.workoutId || identity.restKey !== restTimerKey(workout) || workout.status !== "active" || !workout.restTimer?.running || workout.restTimer.paused) return false;
+  const end = new Date(workout.restTimer.endsAt || "").getTime();
+  if (!Number.isFinite(end) || end > now.getTime()) return false;
+  workout.restTimer = { ...workout.restTimer, endsAt: null, running: false, paused: false };
+  return true;
+}
+
+export function navigateWorkoutExercise(workout, identity, direction) {
+  const { index } = resolveWorkoutSet(workout, identity, { allowPaused: true });
+  if (direction !== -1 && direction !== 1) throw new Error("local_workout_changed");
+  const next = index + direction;
+  if (!identity.neighborSetId || workout.exercises[next]?.sets[0]?.id !== identity.neighborSetId || workout.exercises.filter(exercise => exercise.sets[0]?.id === identity.neighborSetId).length !== 1) throw new Error("local_workout_changed");
+  workout.currentExerciseIndex = next;
+  return workout;
 }
 
 export function isValidCompletedSet(set) {
@@ -622,6 +719,23 @@ export function detectPerformanceRecords(previousSessions, completedSession, dis
   return { personalRecords, baselines };
 }
 
+// Confirmations review durable session content, not its volatile scroll position,
+// current movement or ticking rest timer. Never reuse this key for another session.
+export function workoutReviewKey(workout) {
+  if (!workout?.id || !["active", "paused"].includes(workout.status) || !Array.isArray(workout.exercises)) {
+    throw new Error("local_workout_changed");
+  }
+  const { currentExerciseIndex, scrollTop, restTimer, ...content } = workout;
+  return JSON.stringify(content);
+}
+
+export function resolveWorkoutReview(workout, review) {
+  if (!review?.workoutId || typeof review.key !== "string" || workout?.id !== review.workoutId || workoutReviewKey(workout) !== review.key) {
+    throw new Error("local_workout_changed");
+  }
+  return workout;
+}
+
 export function completeWorkout(state, now = new Date()) {
   const workout = state.activeWorkout;
   if (!workout) return { state, session: null, error: "NO_ACTIVE_WORKOUT" };
@@ -638,6 +752,9 @@ export function completeWorkout(state, now = new Date()) {
     units: normalizeUnit(exercise.units || workout.units, "lb"),
     sets: exercise.sets.filter(isValidCompletedSet).map(deepClone),
   })).filter(exercise => exercise.sets.length);
+  const pausedAt = new Date(workout.pausedAt || "").getTime();
+  const openPauseMs = workout.status === "paused" && Number.isFinite(pausedAt)
+    ? Math.max(0, now.getTime() - pausedAt) : 0;
   const session = {
     id: workout.id,
     completionReceiptId: `receipt-${workout.id}`,
@@ -647,7 +764,7 @@ export function completeWorkout(state, now = new Date()) {
     planId: workout.planId,
     planVersionId: workout.planVersionId || null,
     planLabel: workout.planLabel,
-    durationMinutes: Math.max(1, elapsedMinutes(workout.startedAt, now) - Math.round((workout.accumulatedPausedMs || 0) / 60_000)),
+    durationMinutes: Math.max(1, elapsedMinutes(workout.startedAt, now) - Math.round(((workout.accumulatedPausedMs || 0) + openPauseMs) / 60_000)),
     units: normalizeUnit(workout.units, "lb"),
     exercises,
     markedPR: false,

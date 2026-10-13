@@ -139,4 +139,18 @@ final class FitCoachRuntimeTests: XCTestCase {
         XCTAssertEqual(result["overflow"] as? Bool, false)
         XCTAssertNotEqual(AVAudioApplication.shared.recordPermission, .granted)
     }
+
+    @MainActor func testDocumentExportBridgeRejectsInvalidRequests() async throws {
+        let result = try await probe(prepare(), "documents-invalid")
+        for field in ["dataExportAvailable", "privateBackupAvailable", "webStorageClean"] {
+            XCTAssertEqual(result[field] as? Bool, true, field)
+        }
+        XCTAssertEqual(result["rejected"] as? Int, 7)
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows {
+                XCTAssertNil(window.rootViewController?.presentedViewController, "Invalid requests must not open a document picker")
+            }
+        }
+        XCTAssertNotEqual(AVAudioApplication.shared.recordPermission, .granted)
+    }
 }

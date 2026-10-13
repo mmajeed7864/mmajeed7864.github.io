@@ -1,5 +1,5 @@
-export const BUILD = "0.7.5";
-export const CACHE_GENERATION = "0705";
+export const BUILD = "0.8.0";
+export const CACHE_GENERATION = "0800";
 export const ROUTES = ["today", "train", "coach", "progress", "profile", "nutrition"];
 export const TRAIN_SEGMENTS = ["workout", "schedule", "exercises"];
 export const THEMES = ["light", "dark", "system"];

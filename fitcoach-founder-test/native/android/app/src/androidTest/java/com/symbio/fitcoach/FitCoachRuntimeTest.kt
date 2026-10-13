@@ -78,6 +78,37 @@ class FitCoachRuntimeTest {
         throw AssertionError("Native/WebView operation timed out")
     }
 
+    @Test fun documentExportBridgeRejectsInvalidRequests() {
+        val result = runAsync("""
+            const {createNativePlatformClient} = await import(new URL('/fitcoach-founder-test/v040/services/native-client.mjs', location.origin).href);
+            const client = createNativePlatformClient();
+            const native = window.Capacitor.Plugins.FitCoachNative;
+            let rejected = 0;
+            for (const [method, fileName, contents, expected] of [
+                ['saveDataExport', '../data.json', '{}', 'DATA_EXPORT_INVALID'],
+                ['saveDataExport', 'data.json', 'not JSON', 'DATA_EXPORT_INVALID'],
+                ['saveDataExport', 'data.json', '[]', 'DATA_EXPORT_INVALID'],
+                ['saveDataExport', 'data.json', '', 'DATA_EXPORT_INVALID'],
+                ['savePrivateBackup', '../data.fitcoach', '{}', 'PRIVATE_BACKUP_INVALID'],
+                ['savePrivateBackup', 'data.json', '{}', 'PRIVATE_BACKUP_INVALID'],
+                ['savePrivateBackup', 'data.fitcoach', '', 'PRIVATE_BACKUP_INVALID'],
+            ]) {
+                try {
+                    await native[method]({fileName, contents});
+                    throw new Error('Invalid document was accepted');
+                } catch (error) {
+                    if (error?.message !== expected) throw error;
+                    rejected += 1;
+                }
+            }
+            return {dataExportAvailable:client.dataExportAvailable, privateBackupAvailable:client.privateBackupAvailable, rejected};
+        """)
+        assertTrue(result.getBoolean("dataExportAvailable"))
+        assertTrue(result.getBoolean("privateBackupAvailable"))
+        assertEquals(7, result.getInt("rejected"))
+        assertEquals(PackageManager.PERMISSION_DENIED, context.checkSelfPermission(Manifest.permission.RECORD_AUDIO))
+    }
+
     @Test fun launchesPackagedOnboardingWithNativeBridge() {
         val result = runAsync("""
             const native = window.Capacitor.Plugins.FitCoachNative;

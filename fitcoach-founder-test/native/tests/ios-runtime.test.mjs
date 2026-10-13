@@ -46,8 +46,8 @@ const inventory = () => ({
 });
 const summary = () => ({
   result: "Passed",
-  totalTestCount: 4,
-  passedTests: 4,
+  totalTestCount: IOS_RUNTIME_TESTS.length,
+  passedTests: IOS_RUNTIME_TESTS.length,
   failedTests: 0,
   skippedTests: 0,
   expectedFailures: 0,
@@ -77,19 +77,10 @@ test("runtime signing is simulator-only and cannot inherit an account or provisi
   ]);
   const details =
     "Identifier=com.symbio.fitcoach.dev\nSignature=adhoc\nTeamIdentifier=not set\n";
-  const entitlements = {
-    "application-identifier": "com.symbio.fitcoach.dev",
-    "com.apple.developer.healthkit": true,
-  };
+  const entitlements = {};
   assert.equal(
     verifyRuntimeSigning(details, entitlements).developerAccountUsed,
     false,
-  );
-  assert.doesNotThrow(() =>
-    verifyRuntimeSigning(details, {
-      ...entitlements,
-      "keychain-access-groups": ["com.symbio.fitcoach.dev"],
-    }),
   );
   for (const invalid of [
     "",
@@ -101,8 +92,9 @@ test("runtime signing is simulator-only and cannot inherit an account or provisi
     assert.throws(() => verifyRuntimeSigning(invalid, entitlements));
   }
   for (const patch of [
-    { "application-identifier": undefined },
+    { "application-identifier": "com.symbio.fitcoach.dev" },
     { "application-identifier": "TEAM.com.symbio.fitcoach.dev" },
+    { "com.apple.developer.healthkit": true },
     { "com.apple.developer.team-identifier": "TEAM" },
     { "com.apple.security.application-groups": ["other-app"] },
     { "keychain-access-groups": ["*"] },
@@ -179,8 +171,8 @@ test("iOS simulation cannot use active devices or silently install another SDK",
   assert.throws(() => ownedSimulator(duplicate, udid, name));
 });
 
-test("XCTest proof requires all four exact installed-app tests, not build success or retries", () => {
-  assert.equal(verifyIOSRuntimeResults(summary(), tree()).tests, 4);
+test("XCTest proof requires every exact installed-app test, not build success or retries", () => {
+  assert.equal(verifyIOSRuntimeResults(summary(), tree()).tests, IOS_RUNTIME_TESTS.length);
   for (const key of [
     "totalTestCount",
     "passedTests",

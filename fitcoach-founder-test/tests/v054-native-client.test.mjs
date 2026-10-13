@@ -3,6 +3,85 @@ import assert from "node:assert/strict";
 
 import { createNativePlatformClient } from "../v040/services/native-client.mjs";
 
+test("readable exports have a separate capability and propagate save, cancel and failure", async () => {
+  const absent = createNativePlatformClient({ plugin: { savePrivateBackup: async () => ({ saved: true }), pickPrivateBackup: async () => ({ cancelled: true }) } });
+  assert.equal(absent.dataExportAvailable, false);
+  await assert.rejects(absent.saveDataExport("data.json", "{}"), /native_capability_unavailable/u);
+  let result = { saved: true };
+  const calls = [];
+  const client = createNativePlatformClient({ plugin: { saveDataExport: async value => { calls.push(value); return result; } } });
+  assert.equal(client.dataExportAvailable, true);
+  assert.equal(client.privateBackupAvailable, false);
+  assert.deepEqual(await client.saveDataExport("data.json", '{"title":"Café 🏋️"}'), { saved: true, cancelled: false });
+  result = { cancelled: true, saved: false };
+  assert.deepEqual(await client.saveDataExport("data.json", "{}"), { saved: false, cancelled: true });
+  result = {};
+  await assert.rejects(client.saveDataExport("data.json", "{}"), /native_data_export_save_failed/u);
+  assert.equal(calls.length, 3);
+});
+
+test("readable exports validate JSON objects, names and UTF-8 bytes before native IO", async () => {
+  let calls = 0;
+  const client = createNativePlatformClient({ plugin: { saveDataExport: async () => { calls += 1; return { saved: true }; } } });
+  for (const fileName of [".json", "data.fitcoach", "../data.json", "folder\\data.json", "a\u0000.json", "a\u007f.json", `${"a".repeat(120)}.json`]) {
+    await assert.rejects(client.saveDataExport(fileName, "{}"), /invalid_data_export/u);
+  }
+  for (const contents of ["", "not JSON", "null", "[]", "1", '"text"', `{"title":"${"é".repeat(6 * 1024 * 1024)}"}`]) {
+    await assert.rejects(client.saveDataExport("data.json", contents), /invalid_data_export/u);
+  }
+  assert.equal(calls, 0);
+});
+
+test("private native backups require both methods and preserve system cancellation", async () => {
+  for (const plugin of [null, {}, { savePrivateBackup: async () => ({ saved: true }) }]) {
+    const client = createNativePlatformClient({ plugin });
+    assert.equal(client.privateBackupAvailable, false);
+    await assert.rejects(() => client.savePrivateBackup("history.fitcoach", "{}"), /native_capability_unavailable/u);
+    await assert.rejects(() => client.pickPrivateBackup(), /native_capability_unavailable/u);
+  }
+  const calls = [];
+  const client = createNativePlatformClient({ plugin: {
+    savePrivateBackup: async options => { calls.push(options); return { saved: false, cancelled: true }; },
+    pickPrivateBackup: async () => ({ cancelled: true }),
+  } });
+  assert.equal(client.privateBackupAvailable, true);
+  assert.deepEqual(await client.savePrivateBackup("history.fitcoach", "{}"), { saved: false, cancelled: true });
+  assert.deepEqual(await client.pickPrivateBackup(), { cancelled: true });
+  assert.deepEqual(calls, [{ fileName: "history.fitcoach", contents: "{}" }]);
+});
+
+test("private native backups bound UTF-8 bytes and reject unsafe names before calling the bridge", async () => {
+  let called = 0;
+  const client = createNativePlatformClient({ plugin: {
+    savePrivateBackup: async () => { called += 1; return { saved: true }; },
+    pickPrivateBackup: async () => ({ fileName: "history.fitcoach", contents: "{}" }),
+  } });
+  for (const name of ["history.json", ".fitcoach", "../history.fitcoach", "folder\\history.fitcoach", "a\u0000.fitcoach", "a\u007f.fitcoach", `${"a".repeat(120)}.fitcoach`]) {
+    await assert.rejects(() => client.savePrivateBackup(name, "{}"), /invalid_private_backup/u);
+  }
+  await assert.rejects(() => client.savePrivateBackup("history.fitcoach", ""), /invalid_private_backup/u);
+  await assert.rejects(() => client.savePrivateBackup("history.fitcoach", "é".repeat(6 * 1024 * 1024 + 1)), /invalid_private_backup/u);
+  assert.equal(called, 0);
+  assert.deepEqual(await client.savePrivateBackup("history.fitcoach", "{}"), { saved: true, cancelled: false });
+  assert.deepEqual(await client.pickPrivateBackup(), { cancelled: false, fileName: "history.fitcoach", contents: "{}" });
+});
+
+test("private native backup errors cannot masquerade as a saved or opened file", async () => {
+  let selected = { fileName: "history.json", contents: "{}" };
+  let saved = {};
+  const client = createNativePlatformClient({ plugin: {
+    savePrivateBackup: async () => saved,
+    pickPrivateBackup: async () => selected,
+  } });
+  await assert.rejects(() => client.savePrivateBackup("history.fitcoach", "{}"), /native_private_backup_save_failed/u);
+  for (const file of [selected, { fileName: "history.fitcoach", contents: "" }, { fileName: `${"a".repeat(120)}.fitcoach`, contents: "{}" }, { fileName: "history.fitcoach", contents: "é".repeat(6 * 1024 * 1024 + 1) }]) {
+    selected = file;
+    await assert.rejects(() => client.pickPrivateBackup(), /native_private_backup_invalid_file/u);
+  }
+  saved = { saved: false, cancelled: true };
+  assert.deepEqual(await client.savePrivateBackup("history.fitcoach", "{}"), { saved: false, cancelled: true });
+});
+
 test("native client fails closed when no bridge is installed", async () => {
   const client = createNativePlatformClient({ plugin: null });
   assert.equal(client.available, false);

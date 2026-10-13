@@ -38,6 +38,12 @@ export type StoreTransaction = {
   errorCode?: string;
 };
 
+export type PrivateBackupFile = {
+  cancelled: boolean;
+  fileName?: string;
+  contents?: string;
+};
+
 export interface FitCoachNativePlugin {
   configureVoice(): Promise<VoiceRoute>;
   endVoiceSession(): Promise<void>;
@@ -56,6 +62,9 @@ export interface FitCoachNativePlugin {
   readSecureSession(): Promise<{ session: string | null }>;
   writeSecureSession(options: { session: string }): Promise<{ saved: boolean }>;
   clearSecureSession(): Promise<{ cleared: boolean }>;
+  saveDataExport(options: { fileName: string; contents: string }): Promise<{ saved: boolean; cancelled: boolean }>;
+  savePrivateBackup(options: { fileName: string; contents: string }): Promise<{ saved: boolean; cancelled: boolean }>;
+  pickPrivateBackup(): Promise<PrivateBackupFile>;
   addListener(event: "voiceRouteChanged", listener: (route: VoiceRoute) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(event: "voiceInterrupted", listener: (event: { shouldResumeOutput: boolean }) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(event: "speechPartial" | "speechFinal", listener: (event: { transcript: string }) => void): Promise<{ remove: () => Promise<void> }>;

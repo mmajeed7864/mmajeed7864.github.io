@@ -46,6 +46,30 @@ async function fitcoachRuntimeProbe(kind, value) {
         widths,
       };
     }
+    if (kind === "documents-invalid") {
+      const { createNativePlatformClient } = await import(moduleURL("services/native-client.mjs"));
+      const client = createNativePlatformClient();
+      const native = window.Capacitor.Plugins.FitCoachNative;
+      const errors = [];
+      for (const [method, fileName, contents, expected] of [
+        ["saveDataExport", "../data.json", "{}", "DATA_EXPORT_INVALID"],
+        ["saveDataExport", "data.json", "not JSON", "DATA_EXPORT_INVALID"],
+        ["saveDataExport", "data.json", "[]", "DATA_EXPORT_INVALID"],
+        ["saveDataExport", "data.json", "", "DATA_EXPORT_INVALID"],
+        ["savePrivateBackup", "../data.fitcoach", "{}", "PRIVATE_BACKUP_INVALID"],
+        ["savePrivateBackup", "data.json", "{}", "PRIVATE_BACKUP_INVALID"],
+        ["savePrivateBackup", "data.fitcoach", "", "PRIVATE_BACKUP_INVALID"],
+      ]) {
+        try {
+          await native[method]({ fileName, contents });
+          throw new Error("Invalid document was accepted");
+        } catch (error) {
+          if (error?.message !== expected) throw error;
+          errors.push(expected);
+        }
+      }
+      return { dataExportAvailable: client.dataExportAvailable, privateBackupAvailable: client.privateBackupAvailable, rejected: errors.length, webStorageClean: storageClean() };
+    }
     if (kind === "session-write" || kind === "session-recover-clear") {
       const { createNativePlatformClient } = await import(
         moduleURL("services/native-client.mjs")

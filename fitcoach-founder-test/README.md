@@ -1,15 +1,15 @@
 # FitCoach preview runtime map
 
-This directory contains historical prototypes plus the current v0.6 preview runtime, retained under the `v040/` source directory for compatibility. `index.html` and `sw.js` are the authoritative runtime manifests.
+This directory contains historical prototypes plus the current 0.8.0 development runtime, retained under the `v040/` source directory for compatibility. `index.html`, `sw.js` and `v040/core/constants.mjs` are the authoritative runtime manifests. GitHub main, this development branch, native kit metadata and store releases have separate versions/status; a source version is not deployment or store evidence.
 
 ## Active browser runtime
 
-FitCoach v0.6.2 is the active web runtime. Cache generation 0602 introduces a mobile-first visual redesign of Today, Train, Coach, Food, Progress, and Profile, a shared quick-action sheet, private local water logging, keyboard-accessible custom choices, and safer background account initialization. The AI trainer and voice room, workout logging and rest timers, nutrition confirmation and source attribution, progress photos, routines, plan approvals, and existing account/native capability adapters are retained. Every remote capability still fails closed when its reviewed server or store configuration is absent. See `RELEASE-v060.md` for scope, verification, and release boundaries.
+The local development build is 0.8.0 / cache generation 0800. It retains Today, Train, Coach, Food, Progress, Profile, quick actions, hydration, conversational onboarding, routines, plan approvals, exercise media, voice and account/native adapters. Workout intent protection, mobile-layout and encrypted-backup work are documented in `docs/PLAN_START_NATIVE_RUNTIME_V078.md`, `docs/MOBILE_RELEASE_QUALITY_V079.md` and `docs/PRIVATE_BACKUP_V080.md`. The October branch adds native encrypted-backup file controls and delayed-action protection; see `docs/MOBILE_BACKUP_RELIABILITY_20261012.md`. Every remote capability still fails closed when reviewed server/store configuration is absent. Interactive 3D is a planned addition documented in `docs/INTERACTIVE_3D_DIRECTION_20261012.md`, with existing features preserved.
 
-- document shell: `index.html?v=0602`
-- stylesheets: legacy base styles plus `v040/design-system-v060.css` and route-scoped `ui/*-v060.css`, all referenced with `?v=0602`
-- ES-module entry: `v040/app.js?v=0602`
-- service worker caches: `fitcoach-symbio-v0602` for the shell/anatomy graph and `fitcoach-exercise-images-v0602` for a bounded runtime image set
+- document shell: `index.html?v=0800`
+- stylesheets: base styles plus `v040/design-system-v070.css` and route-scoped `ui/*-v070.css`, referenced with `?v=0800`
+- ES-module entry: `v040/app.js?v=0800`
+- service worker: shell generation 0800 and separate bounded media-cache generation; inspect `sw.js` for exact cache names
 - install cache: shell, module graph, six active anatomy maps, and two compact original brand images; exercise images cache after first use with a 12-image limit, while motion video streams directly
 - local storage envelope: `fitcoach-v040:<profile>` (currently keeps the legacy local profile key for migration compatibility)
 

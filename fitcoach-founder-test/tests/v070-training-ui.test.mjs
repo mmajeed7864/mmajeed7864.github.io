@@ -130,7 +130,7 @@ test("the live logbook renders one marker per real set and keeps all logger/rest
   const markers=between(html,'<div class="training-set-markers"','</div>');
   assert.equal([...markers.matchAll(/<span class=/g)].length,workout.exercises.flatMap(item=>item.sets).length);
   assert.equal([...markers.matchAll(/class="is-logged"/g)].length,2);
-  assert.match(html, /data-rest-display>1:00/);
+  assert.match(html, /data-rest-display\b[^>]*>1:00/);
   assert.match(html, /&lt;script&gt;not markup&lt;\/script&gt;/);
   for(const action of ["set-field","toggle-set","add-set","stop-rest","adjust-rest","swap-active-exercise","reorder-active-exercise","previous-exercise","next-exercise","minimize-workout","toggle-workout-pause","finish-workout","exit-workout","view-current-instructions"]) assert.ok(html.includes(`data-action="${action}"`), action);
   assert.equal(JSON.stringify(input.state),before);

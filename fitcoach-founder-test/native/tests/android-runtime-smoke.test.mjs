@@ -52,7 +52,7 @@ test("successful Gradle exit or zero tests cannot substitute for every real runt
     (name) =>
       `<testcase name="${name}" classname="com.symbio.fitcoach.FitCoachRuntimeTest"/>`,
   ).join("");
-  assert.equal(verifyTestReport(`<testsuite>${cases}</testsuite>`).tests, 4);
+  assert.equal(verifyTestReport(`<testsuite>${cases}</testsuite>`).tests, TESTS.length);
   for (const xml of [
     "",
     '<testsuite tests="0"/>',

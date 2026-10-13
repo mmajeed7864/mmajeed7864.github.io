@@ -122,8 +122,60 @@ function renderCommunityDraft(context) {
   </div>`;
 }
 
+function renderPrivateBackup(modal, nativeBackupAvailable = false) {
+  const error = modal.error ? `<p class="field-error private-backup-error" role="alert">${escapeHtml(modal.error)}</p>` : "";
+  if (modal.phase === "restore-unlock") {
+    return {
+      title: "Unlock your backup",
+      body: `<div class="private-backup-flow">
+        <div class="private-backup-file">${icon("lock")}<span><b>${escapeHtml(modal.fileName || "FitCoach backup")}</b><small>Encrypted backup · ${escapeHtml(modal.fileSizeLabel || "local file")}</small></span></div>
+        <p>Enter the passphrase used when this backup was created. FitCoach decrypts it only on this device.</p>
+        <label class="account-input"><span>Backup passphrase</span><input id="private-backup-unlock" type="password" minlength="12" maxlength="128" autocomplete="current-password" spellcheck="false" placeholder="Enter backup passphrase" ${modal.busy ? "disabled" : ""}></label>
+        ${error}
+      </div>`,
+      actions: button({ label: "Choose another file", action: "private-backup-cancel-file", variant: "quiet", disabled: modal.busy })
+        + button({ label: modal.busy ? "Unlocking…" : "Review backup", action: "private-backup-unlock", variant: "primary", disabled: modal.busy }),
+    };
+  }
+  if (modal.phase === "restore-review") {
+    const summary = modal.summary || {};
+    return {
+      title: "Review before restoring",
+      body: `<div class="private-backup-flow">
+        <div class="private-backup-ready">${icon("check")}<span><b>Backup authenticated</b><small>Created ${escapeHtml(modal.createdLabel || "on another device")} · FitCoach ${escapeHtml(modal.appBuild || "version unknown")}</small></span></div>
+        <div class="private-backup-summary" aria-label="Backup contents"><span><b>${Number(summary.sessions) || 0}</b><small>sessions</small></span><span><b>${Number(summary.nutritionEntries) || 0}</b><small>food entries</small></span><span><b>${Number(summary.coachMessages) || 0}</b><small>Coach messages</small></span><span><b>${summary.hasActiveWorkout ? "Yes" : "No"}</b><small>active workout</small></span></div>
+        <div class="approval-boundary">${icon("info")}<p>This replaces the FitCoach data currently saved on this device. Nothing is uploaded, and the backup file is not changed.</p></div>
+        ${error}
+      </div>`,
+      actions: button({ label: "Keep current data", action: "close-modal", variant: "quiet", disabled: modal.busy })
+        + button({ label: modal.busy ? "Restoring…" : "Replace with this backup", action: "private-backup-restore", variant: "danger", disabled: modal.busy }),
+    };
+  }
+  return {
+    title: "Private backup",
+    body: `<div class="private-backup-flow">
+      <div class="private-backup-hero">${icon("lock")}<span><b>Your history, protected by you</b><small>AES-256 encryption happens on this device before the file is downloaded.</small></span></div>
+      <div class="private-backup-benefits"><span>${icon("check")}<b>Workouts, confirmed food, preferences, and Coach history</b></span><span>${icon("check")}<b>No cloud upload and no passphrase storage</b></span><span>${icon("check")}<b>Authenticated before any restore is offered</b></span></div>
+      <label class="account-input"><span>Create a passphrase</span><input id="private-backup-passphrase" type="password" minlength="12" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="At least 12 characters" ${modal.busy ? "disabled" : ""}></label>
+      <label class="account-input"><span>Confirm passphrase</span><input id="private-backup-confirm" type="password" minlength="12" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="Type it again" ${modal.busy ? "disabled" : ""}></label>
+      <p class="private-backup-warning"><b>Keep this passphrase safe.</b> It cannot be recovered by FitCoach.</p>
+      ${error}
+      ${nativeBackupAvailable
+        ? `<button type="button" class="private-backup-picker" data-action="private-backup-native-file" ${modal.busy ? "disabled" : ""}><span>${icon("sync")}<b>Restore an existing backup<small>Choose a .fitcoach file from this device</small></b>${icon("chevron")}</span></button>`
+        : `<label class="private-backup-picker"><input type="file" accept=".fitcoach,application/json" data-action="private-backup-file" ${modal.busy ? "disabled" : ""}><span>${icon("sync")}<b>Restore an existing backup<small>Choose a .fitcoach file from this device</small></b>${icon("chevron")}</span></label>`}
+      <div class="private-backup-readable"><span><b>Need a readable data export?</b><small>JSON is unencrypted—store it carefully.</small></span><button type="button" class="text-button" data-action="export-data" ${modal.busy ? "disabled" : ""}>Export JSON</button></div>
+    </div>`,
+    actions: button({ label: "Not now", action: "close-modal", variant: "quiet", disabled: modal.busy })
+      + button({ label: modal.busy ? modal.busyLabel || "Encrypting…" : "Create encrypted backup", action: "private-backup-create", variant: "primary", disabled: modal.busy }),
+  };
+}
+
 export function renderModal(modal, context) {
   if (!modal) return "";
+  if (modal.type === "private-backup") {
+    const content = renderPrivateBackup(modal, context.nativeBackupAvailable === true);
+    return shell(content.title, content.body, content.actions, { eyebrow: "YOUR DATA" });
+  }
   if (modal.type === "quick-actions") {
     const items = [
       ["food", "Log food", "Search, repeat a favourite, or scan a barcode", "nutrition-open-add", ""],
@@ -143,7 +195,7 @@ export function renderModal(modal, context) {
   if (modal.type === "proposal") {
     const proposal = context.state.pendingPlanProposal;
     if (!proposal) return "";
-    const body = `<p>${escapeHtml(proposal.reason)}</p><div class="proposal-diff"><span><small>CURRENT</small><b>${escapeHtml(context.state.activePlan?.label || "Plan A")}</b><em>${context.state.activePlan?.minutes || 45} min · ${escapeHtml(context.state.activePlan?.location || context.state.profile.location)}</em></span>${icon("chevron")}<span><small>PROPOSED</small><b>${escapeHtml(proposal.candidate.label)}</b><em>${proposal.candidate.minutes} min · ${escapeHtml(proposal.candidate.location)}</em></span></div><ul class="change-list">${proposal.changes.length ? proposal.changes.map(change => `<li>${icon("check")}${escapeHtml(change)}</li>`).join("") : `<li>${icon("check")}No semantic difference detected</li>`}</ul><div class="approval-boundary">${icon("info")}<p>Your current plan stays unchanged until you approve. You can keep it exactly as it is.</p></div>`;
+    const body = `<p>${escapeHtml(proposal.reason)}</p><div class="proposal-diff"><span><small>CURRENT</small><b>${escapeHtml(context.state.activePlan?.label || "Plan A")}</b><em>${context.state.activePlan?.minutes || 45} min · ${escapeHtml(context.state.activePlan?.location || context.state.profile.location)}</em></span>${icon("chevron")}<span><small>PROPOSED</small><b>${escapeHtml(proposal.candidate.label)}</b><em>${proposal.candidate.minutes} min · ${escapeHtml(proposal.candidate.location)}</em></span></div><ul class="change-list">${proposal.changes.length ? proposal.changes.map(change => `<li>${icon("check")}${escapeHtml(change)}</li>`).join("") : `<li>${icon("check")}No semantic difference detected</li>`}</ul><div class="approval-boundary">${icon("info")}<p>Your current plan stays unchanged until you approve. You can keep it exactly as it is.</p></div>${modal.error ? `<p class="field-error" role="alert">${escapeHtml(modal.error)}</p>` : ""}`;
     return shell("Make this change?",body,button({label:"Keep current plan",action:"reject-proposal",value:proposal.id,variant:"quiet"})+button({label:"Approve change",action:"approve-proposal",value:proposal.id,variant:"primary"}),{eyebrow:"PLAN VERSION PREVIEW"});
   }
   if (modal.type === "tutorial") {
@@ -162,12 +214,12 @@ export function renderModal(modal, context) {
     return shell("Why this workout?",`<p>This plan uses your saved goal, time, location, equipment, and workout history. It is not medical advice or live form assessment.</p><div class="evidence-grid"><span><small>GOAL</small><b>${escapeHtml(context.state.profile.goal)}</b></span><span><small>TIME</small><b>${plan.minutes} minutes</b></span><span><small>LOCATION</small><b>${escapeHtml(plan.location)}</b></span><span><small>EQUIPMENT</small><b>${escapeHtml(plan.equipment)}</b></span><span><small>INTENSITY</small><b>${escapeHtml(plan.intensity)}</b></span><span><small>HISTORY</small><b>${context.state.sessions.length} sessions</b></span></div>`,button({label:"Open workout",action:"route",value:"train",variant:"primary"}),{eyebrow:"PLAN EVIDENCE"});
   }
   if (modal.type === "finish-workout") {
-    const workout = context.state.activeWorkout;
+    const workout = modal.workout || context.state.activeWorkout;
     const completed = workout?.exercises.flatMap(item=>item.sets).filter(isValidCompletedSet).length || 0;
-    return shell("Finish and save this workout?",`<p>${completed} completed set${completed===1?"":"s"} will be saved to your history. Unfinished sets and sets without reps are left out.</p><div class="approval-boundary">${icon("info")}<p>Your logged work counts. You can rate the session after saving.</p></div>`,button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:`Save ${completed} set${completed===1?"":"s"}`,action:"confirm-finish-workout",variant:"primary",disabled:completed===0}),{eyebrow:"SESSION SUMMARY"});
+    return shell("Finish and save this workout?",`<p>${completed} completed set${completed===1?"":"s"} will be saved to your history. Unfinished sets and sets without reps are left out.</p><div class="approval-boundary">${icon("info")}<p>Your logged work counts. You can rate the session after saving.</p></div>${modal.error ? `<p class="field-error" role="alert">${escapeHtml(modal.error)}</p>` : ""}`,button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:`Save ${completed} set${completed===1?"":"s"}`,action:"confirm-finish-workout",variant:"primary",disabled:completed===0}),{eyebrow:"SESSION SUMMARY"});
   }
   if (modal.type === "completion") {
-    const summary = context.state.lastWorkoutSummary;
+    const summary = modal.summary || context.state.lastWorkoutSummary;
     const records = summary?.personalRecords || [];
     const baselines = summary?.baselines || [];
     const performance = records.length
@@ -175,14 +227,15 @@ export function renderModal(modal, context) {
       : baselines.length
         ? `<section class="completion-performance baseline"><span class="eyebrow">BASELINE CAPTURED</span><p>${baselines.length} weighted movement${baselines.length === 1 ? "" : "s"} now ${baselines.length === 1 ? "has" : "have"} a real starting point. A first log is a baseline—not a fake PR.</p></section>`
         : "";
-    return shell("Workout saved",`<div class="completion-mark">${icon("check")}</div><p>Your active workout is closed. Every number below comes from the saved sets.</p><div class="completion-grid"><span><b>${summary?.durationMinutes || 0}</b><small>minutes</small></span><span><b>${summary?.completedExercises || 0}</b><small>exercises</small></span><span><b>${summary?.completedSets || 0}</b><small>sets</small></span><span><b>${Math.round(summary?.totalVolume || 0).toLocaleString()}</b><small>volume</small></span></div>${performance}<div class="rating-row"><span>How did this session feel?</span>${[1,2,3,4,5].map(value=>`<button data-action="rate-session" data-value="${value}" aria-label="Rate session ${value} out of 5">${value}</button>`).join("")}</div>`,button({label:"View Progress",action:"close-completion",value:"progress",variant:"primary"})+button({label:"Back to Today",action:"close-completion",value:"today",variant:"quiet"}),{eyebrow:"COMPLETION RECEIPT"});
+    return shell("Workout saved",`<div class="completion-mark">${icon("check")}</div><p>Your active workout is closed. Every number below comes from the saved sets.</p><div class="completion-grid"><span><b>${summary?.durationMinutes || 0}</b><small>minutes</small></span><span><b>${summary?.completedExercises || 0}</b><small>exercises</small></span><span><b>${summary?.completedSets || 0}</b><small>sets</small></span><span><b>${Math.round(summary?.totalVolume || 0).toLocaleString()}</b><small>volume</small></span></div>${performance}<div class="rating-row"><span>How did this session feel?</span>${[1,2,3,4,5].map(value=>`<button data-action="rate-session" data-session-id="${escapeHtml(summary?.sessionId || "")}" data-receipt-id="${escapeHtml(summary?.receiptId || "")}" data-value="${value}" aria-label="Rate session ${value} out of 5">${value}</button>`).join("")}</div>`,button({label:"View Progress",action:"close-completion",value:"progress",variant:"primary"})+button({label:"Back to Today",action:"close-completion",value:"today",variant:"quiet"}),{eyebrow:"COMPLETION RECEIPT"});
   }
   if (modal.type === "active-swap") {
     const exercise = context.exerciseById(modal.exerciseId);
-    return shell("Replace this exercise?",`${exercise ? exercisePoster(exercise,{className:"modal-poster",eager:true}) : ""}<p>${escapeHtml(modal.currentName)} will be replaced with <b>${escapeHtml(exercise?.name || "the selected exercise")}</b>. Completed sets prevent replacement.</p>`,button({label:"Keep current",action:"close-modal",variant:"quiet"})+button({label:"Confirm replacement",action:"apply-active-swap",value:modal.exerciseId,variant:"primary"}),{eyebrow:"ACTIVE WORKOUT CHANGE"});
+    const error = modal.error ? `<p class="set-error" role="alert">${escapeHtml(modal.error)}</p>` : "";
+    return shell("Replace this exercise?",`${exercise ? exercisePoster(exercise,{className:"modal-poster",eager:true}) : ""}<p>${escapeHtml(modal.currentName)} will be replaced with <b>${escapeHtml(exercise?.name || "the selected exercise")}</b>. Completed sets prevent replacement.</p>${error}`,button({label:"Keep current",action:"close-modal",variant:"quiet"})+button({label:"Confirm replacement",action:"apply-active-swap",value:modal.exerciseId,variant:"primary"}),{eyebrow:"ACTIVE WORKOUT CHANGE"});
   }
   if (modal.type === "confirm-exit-workout") {
-    return shell("End this workout without saving?","<p>The active workout and its unsaved set entries will be removed from this device. Completed history is not affected.</p>",button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:"End unsaved workout",action:"confirm-exit-workout",variant:"danger"}),{eyebrow:"END WORKOUT"});
+    return shell("End this workout without saving?",`<p>The active workout and its unsaved set entries will be removed from this device. Completed history is not affected.</p>${modal.error ? `<p class="field-error" role="alert">${escapeHtml(modal.error)}</p>` : ""}`,button({label:"Keep training",action:"close-modal",variant:"quiet"})+button({label:"End unsaved workout",action:"confirm-exit-workout",variant:"danger"}),{eyebrow:"END WORKOUT"});
   }
   if (modal.type === "confirm-clear-chat") {
     return shell("Clear the Coach thread?","<p>This removes saved text messages from this local profile. Workout history and exercise preferences remain.</p>",button({label:"Keep thread",action:"close-modal",variant:"quiet"})+button({label:"Clear thread",action:"confirm-clear-chat",variant:"danger"}),{eyebrow:"LOCAL DATA"});

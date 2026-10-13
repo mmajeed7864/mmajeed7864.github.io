@@ -11,6 +11,7 @@ export const TESTS = Object.freeze([
   "decodesPackagedExerciseArtwork",
   "secureSessionSurvivesRecreationAndClears",
   "motionControlsPlayPauseResumeAndLoopOffline",
+  "documentExportBridgeRejectsInvalidRequests",
 ]);
 
 export function validateRuntimeHost(env, platform = process.platform) {

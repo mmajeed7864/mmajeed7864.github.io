@@ -8,6 +8,25 @@ import { normalizeHealthSummary, recoverVoicePhase } from "../bridge/fitcoach-na
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
+test("data exports and private backups share bounded user-selected native document IO", () => {
+  const ios = read("ios/App/App/FitCoachNativePlugin.swift");
+  const android = read("android/app/src/main/java/com/symbio/fitcoach/nativebridge/FitCoachNativePlugin.kt");
+  const contract = read("bridge/fitcoach-native.ts");
+  for (const method of ["saveDataExport", "savePrivateBackup", "pickPrivateBackup"]) {
+    for (const source of [contract, ios, android]) assert.match(source, new RegExp(method, "u"));
+  }
+  assert.match(ios, /UIDocumentPickerViewController\(forExporting: \[url\], asCopy: true\)/u);
+  assert.match(ios, /object is \[String: Any\]/u);
+  assert.match(ios, /guard privateBackupDocumentPicker === controller else \{ return \}/u);
+  assert.match(ios, /completeFileProtection/u);
+  assert.match(ios, /12 \* 1024 \* 1024/u);
+  assert.match(android, /JSONObject\(contents\)/u);
+  assert.match(android, /Intent\.ACTION_CREATE_DOCUMENT/u);
+  assert.match(android, /withContext\(Dispatchers\.IO\)/u);
+  assert.match(android, /12 \* 1024 \* 1024/u);
+  assert.doesNotMatch(read("android/app/src/main/AndroidManifest.xml"), /READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE/u);
+});
+
 function pngHeader(file) {
   const data = fs.readFileSync(path.join(root, file));
   assert.equal(data.subarray(1, 4).toString("ascii"), "PNG");
