@@ -14,6 +14,7 @@ This directory is a production-oriented native boundary for the existing FitCoac
 - Draft store metadata, privacy/data-safety inventories, age-safety policy, and machine-readable release gates.
 - Opaque iOS, Android adaptive, and store icon assets generated from the FitCoach Symbio mark.
 - Structural and behavioral tests that run without Xcode or Android Studio.
+- Native encrypted-backup export/selection and separately warned readable JSON export through the iOS document interfaces and Android Storage Access Framework, with bounded file IO and cancellation handling. The web flow guards delayed callbacks and explicitly confirms replacement; actual picker/device verification remains required. See [mobile backup reliability](../docs/MOBILE_BACKUP_RELIABILITY_20261012.md).
 
 The health bridges return daily aggregate values only. They do not persist raw HealthKit or Health Connect samples. The current release asks only for read access and exposes no workout-write bridge or permission. A future workout export must add a separate explicit approval action, contextual write permission, store disclosure, and device tests before any write API is restored.
 

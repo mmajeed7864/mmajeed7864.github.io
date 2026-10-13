@@ -28,6 +28,9 @@ test("Voice Room primes persistent browser audio engines from a user gesture", (
   assert.match(appSource, /function voiceAudioContext\(\)/u);
   assert.match(appSource, /function webAudioHandle\(blob, context\)/u);
   assert.match(appSource, /function unlockVoicePlayback\(\)/u);
+  assert.match(appSource, /function silentVoiceAudioUrl\(\)[\s\S]*URL\.createObjectURL\(new Blob\(\[bytes\], \{ type: "audio\/wav" \}\)\)/u);
+  assert.match(appSource, /sharedPremiumAudio\.src = silentVoiceAudioUrl\(\)/u);
+  assert.doesNotMatch(appSource, /sharedPremiumAudio\.src = ["']data:audio/u, "the playback primer must obey the app's blob-only media policy");
   assert.match(appSource, /function openVoiceRoom\(\) \{[\s\S]{0,260}unlockVoicePlayback\(\)/u);
   assert.match(appSource, /action === "voice-consent"\) \{ unlockVoicePlayback\(\)/u);
 });

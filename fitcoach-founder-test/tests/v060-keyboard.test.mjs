@@ -224,7 +224,7 @@ test("every training tab controls a uniquely labelled panel with one active Tab 
 test("all render paths initialize roving focus and modal trapping excludes negative Tab stops", () => {
   assert.match(app, /function renderAppScreen\(\) \{\s*const choiceFocus = captureChoiceFocus\(dom\.stage\);/u);
   assert.match(app, /renderOnboarding\([\s\S]*?syncChoiceTabStops\(dom\.stage\);\s*restoreChoiceFocus\(dom\.stage, choiceFocus\);/u);
-  assert.match(app, /function renderModalRoot\(\) \{\s*const choiceFocus = captureChoiceFocus\(dom\.modal\);/u);
+  assert.match(app, /function renderModalRoot\([^)]*\) \{\s*const choiceFocus = captureChoiceFocus\(dom\.modal\);/u);
   assert.match(app, /if \(handleChoiceKeydown\(event\)\) return;/u);
   assert.match(app, /node\.tabIndex >= 0/u);
 });

@@ -149,8 +149,8 @@ export function ownedSimulator(inventory, udid, name) {
 // Modern xcresulttool test tree, not log regexes or a successful build exit alone.
 export function verifyIOSRuntimeResults(summary, tree) {
   for (const [key, count] of Object.entries({
-    totalTestCount: 4,
-    passedTests: 4,
+    totalTestCount: IOS_RUNTIME_TESTS.length,
+    passedTests: IOS_RUNTIME_TESTS.length,
     failedTests: 0,
     skippedTests: 0,
     expectedFailures: 0,

@@ -46,8 +46,8 @@ const inventory = () => ({
 });
 const summary = () => ({
   result: "Passed",
-  totalTestCount: 4,
-  passedTests: 4,
+  totalTestCount: IOS_RUNTIME_TESTS.length,
+  passedTests: IOS_RUNTIME_TESTS.length,
   failedTests: 0,
   skippedTests: 0,
   expectedFailures: 0,
@@ -171,8 +171,8 @@ test("iOS simulation cannot use active devices or silently install another SDK",
   assert.throws(() => ownedSimulator(duplicate, udid, name));
 });
 
-test("XCTest proof requires all four exact installed-app tests, not build success or retries", () => {
-  assert.equal(verifyIOSRuntimeResults(summary(), tree()).tests, 4);
+test("XCTest proof requires every exact installed-app test, not build success or retries", () => {
+  assert.equal(verifyIOSRuntimeResults(summary(), tree()).tests, IOS_RUNTIME_TESTS.length);
   for (const key of [
     "totalTestCount",
     "passedTests",

@@ -1,6 +1,7 @@
 package com.symbio.fitcoach.nativebridge
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -11,6 +12,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.speech.RecognitionListener
@@ -52,6 +54,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.ZoneId
@@ -61,6 +68,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import org.json.JSONObject
 
 @CapacitorPlugin(
     name = "FitCoachNative",
@@ -93,6 +101,10 @@ class FitCoachNativePlugin : Plugin(), RecognitionListener, PurchasesUpdatedList
     private val pendingBillingActions = mutableListOf<PendingBillingAction>()
     private val cachedOffers = mutableMapOf<String, Pair<ProductDetails, ProductDetails.SubscriptionOfferDetails>>()
     private val securePreferences by lazy { context.getSharedPreferences("fitcoach_secure_session", Context.MODE_PRIVATE) }
+    private var pendingPrivateBackupSave: ByteArray? = null
+    private var privateBackupOpenPending = false
+    private var privateBackupWorkPending = false
+    private val privateBackupMaximumBytes = 12 * 1024 * 1024
 
     private val deviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
@@ -147,6 +159,8 @@ class FitCoachNativePlugin : Plugin(), RecognitionListener, PurchasesUpdatedList
     }
 
     override fun handleOnDestroy() {
+        pendingPrivateBackupSave = null
+        privateBackupOpenPending = false
         stopSpeechInternal()
         releaseBluetoothCommunicationDevice()
         audioManager.mode = AudioManager.MODE_NORMAL
@@ -581,6 +595,197 @@ class FitCoachNativePlugin : Plugin(), RecognitionListener, PurchasesUpdatedList
             return
         }
         call.resolve(JSObject().put("cleared", true))
+    }
+
+    @PluginMethod
+    fun savePrivateBackup(call: PluginCall) {
+        val fileName = call.getString("fileName")
+        val bytes = call.getString("contents")?.toByteArray(Charsets.UTF_8)
+        if (!validPrivateBackupName(fileName) || bytes == null || bytes.isEmpty() || bytes.size > privateBackupMaximumBytes) {
+            call.reject("PRIVATE_BACKUP_INVALID")
+            return
+        }
+        startDocumentExport(call, fileName, bytes, "application/vnd.fitcoach.backup+json")
+    }
+
+    @PluginMethod
+    fun saveDataExport(call: PluginCall) {
+        val fileName = call.getString("fileName")
+        val contents = call.getString("contents")
+        val bytes = contents?.toByteArray(Charsets.UTF_8)
+        if (!validExportName(fileName, ".json") || bytes == null || bytes.isEmpty() || bytes.size > privateBackupMaximumBytes) {
+            call.reject("DATA_EXPORT_INVALID")
+            return
+        }
+        try {
+            JSONObject(contents)
+        } catch (error: Exception) {
+            call.reject("DATA_EXPORT_INVALID")
+            return
+        }
+        startDocumentExport(call, fileName, bytes, "application/json")
+    }
+
+    private fun startDocumentExport(call: PluginCall, fileName: String?, bytes: ByteArray, mimeType: String) {
+        bridge.executeOnMainThread {
+            if (pendingPrivateBackupSave != null || privateBackupOpenPending || privateBackupWorkPending) {
+                call.reject("PRIVATE_BACKUP_PICKER_BUSY")
+                return@executeOnMainThread
+            }
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mimeType
+                putExtra(Intent.EXTRA_TITLE, fileName)
+            }
+            pendingPrivateBackupSave = bytes
+            try {
+                startActivityForResult(call, intent, "privateBackupSaveResult")
+            } catch (error: Exception) {
+                pendingPrivateBackupSave = null
+                call.reject("PRIVATE_BACKUP_SAVE_FAILED", null, error)
+            }
+        }
+    }
+
+    @ActivityCallback
+    private fun privateBackupSaveResult(call: PluginCall, result: ActivityResult) {
+        val bytes = pendingPrivateBackupSave
+        pendingPrivateBackupSave = null
+        if (result.resultCode == Activity.RESULT_CANCELED) {
+            call.resolve(JSObject().put("saved", false).put("cancelled", true))
+            return
+        }
+        val uri = result.data?.data
+        if (result.resultCode != Activity.RESULT_OK || uri == null || bytes == null) {
+            call.reject("PRIVATE_BACKUP_SAVE_FAILED")
+            return
+        }
+        privateBackupWorkPending = true
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val output = context.contentResolver.openOutputStream(uri, "wt")
+                        ?: throw IllegalStateException("No writable document stream")
+                    output.use {
+                        it.write(bytes)
+                        it.flush()
+                    }
+                }
+                call.resolve(JSObject().put("saved", true).put("cancelled", false))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                call.reject("PRIVATE_BACKUP_SAVE_FAILED", null, error)
+            } finally {
+                privateBackupWorkPending = false
+            }
+        }
+    }
+
+    @PluginMethod
+    fun pickPrivateBackup(call: PluginCall) {
+        bridge.executeOnMainThread {
+            if (pendingPrivateBackupSave != null || privateBackupOpenPending || privateBackupWorkPending) {
+                call.reject("PRIVATE_BACKUP_PICKER_BUSY")
+                return@executeOnMainThread
+            }
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/*"
+                putExtra(
+                    Intent.EXTRA_MIME_TYPES,
+                    arrayOf("application/vnd.fitcoach.backup+json", "application/json", "application/octet-stream"),
+                )
+            }
+            privateBackupOpenPending = true
+            try {
+                startActivityForResult(call, intent, "privateBackupOpenResult")
+            } catch (error: Exception) {
+                privateBackupOpenPending = false
+                call.reject("PRIVATE_BACKUP_READ_FAILED", null, error)
+            }
+        }
+    }
+
+    @ActivityCallback
+    private fun privateBackupOpenResult(call: PluginCall, result: ActivityResult) {
+        privateBackupOpenPending = false
+        if (result.resultCode == Activity.RESULT_CANCELED) {
+            call.resolve(JSObject().put("cancelled", true))
+            return
+        }
+        val uri = result.data?.data
+        if (result.resultCode != Activity.RESULT_OK || uri == null) {
+            call.reject("PRIVATE_BACKUP_SELECTION_INVALID")
+            return
+        }
+        privateBackupWorkPending = true
+        scope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val fileName = privateBackupDisplayName(uri)
+                    if (!validPrivateBackupName(fileName)) throw IllegalArgumentException("Invalid backup name")
+                    context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                        if (descriptor.length > privateBackupMaximumBytes.toLong()) throw IllegalArgumentException("Backup is too large")
+                    }
+                    val input = context.contentResolver.openInputStream(uri)
+                        ?: throw IllegalStateException("No readable document stream")
+                    val data = ByteArrayOutputStream()
+                    input.use { stream ->
+                        val buffer = ByteArray(8 * 1024)
+                        var total = 0
+                        while (true) {
+                            val count = stream.read(buffer)
+                            if (count < 0) break
+                            total += count
+                            if (total > privateBackupMaximumBytes) throw IllegalArgumentException("Backup is too large")
+                            data.write(buffer, 0, count)
+                        }
+                    }
+                    val bytes = data.toByteArray()
+                    if (bytes.isEmpty()) throw IllegalArgumentException("Backup is empty")
+                    val contents = Charsets.UTF_8.newDecoder()
+                        .onMalformedInput(CodingErrorAction.REPORT)
+                        .onUnmappableCharacter(CodingErrorAction.REPORT)
+                        .decode(ByteBuffer.wrap(bytes)).toString()
+                    Pair(fileName, contents)
+                }
+                call.resolve(
+                    JSObject()
+                        .put("cancelled", false)
+                        .put("fileName", result.first)
+                        .put("contents", result.second),
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                call.reject("PRIVATE_BACKUP_READ_FAILED", null, error)
+            } finally {
+                privateBackupWorkPending = false
+            }
+        }
+    }
+
+    private fun privateBackupDisplayName(uri: Uri): String {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) return cursor.getString(index) ?: ""
+            }
+        }
+        return uri.lastPathSegment?.substringAfterLast('/') ?: ""
+    }
+
+    private fun validPrivateBackupName(value: String?): Boolean {
+        return validExportName(value, ".fitcoach")
+    }
+
+    private fun validExportName(value: String?, suffix: String): Boolean {
+        val name = value?.trim() ?: return false
+        return name.length > suffix.length
+            && name.length <= 120
+            && name.endsWith(suffix, ignoreCase = true)
+            && name.none { it.code < 32 || it.code == 127 || it == '/' || it == '\\' }
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {

@@ -122,8 +122,60 @@ function renderCommunityDraft(context) {
   </div>`;
 }
 
+function renderPrivateBackup(modal, nativeBackupAvailable = false) {
+  const error = modal.error ? `<p class="field-error private-backup-error" role="alert">${escapeHtml(modal.error)}</p>` : "";
+  if (modal.phase === "restore-unlock") {
+    return {
+      title: "Unlock your backup",
+      body: `<div class="private-backup-flow">
+        <div class="private-backup-file">${icon("lock")}<span><b>${escapeHtml(modal.fileName || "FitCoach backup")}</b><small>Encrypted backup · ${escapeHtml(modal.fileSizeLabel || "local file")}</small></span></div>
+        <p>Enter the passphrase used when this backup was created. FitCoach decrypts it only on this device.</p>
+        <label class="account-input"><span>Backup passphrase</span><input id="private-backup-unlock" type="password" minlength="12" maxlength="128" autocomplete="current-password" spellcheck="false" placeholder="Enter backup passphrase" ${modal.busy ? "disabled" : ""}></label>
+        ${error}
+      </div>`,
+      actions: button({ label: "Choose another file", action: "private-backup-cancel-file", variant: "quiet", disabled: modal.busy })
+        + button({ label: modal.busy ? "Unlocking…" : "Review backup", action: "private-backup-unlock", variant: "primary", disabled: modal.busy }),
+    };
+  }
+  if (modal.phase === "restore-review") {
+    const summary = modal.summary || {};
+    return {
+      title: "Review before restoring",
+      body: `<div class="private-backup-flow">
+        <div class="private-backup-ready">${icon("check")}<span><b>Backup authenticated</b><small>Created ${escapeHtml(modal.createdLabel || "on another device")} · FitCoach ${escapeHtml(modal.appBuild || "version unknown")}</small></span></div>
+        <div class="private-backup-summary" aria-label="Backup contents"><span><b>${Number(summary.sessions) || 0}</b><small>sessions</small></span><span><b>${Number(summary.nutritionEntries) || 0}</b><small>food entries</small></span><span><b>${Number(summary.coachMessages) || 0}</b><small>Coach messages</small></span><span><b>${summary.hasActiveWorkout ? "Yes" : "No"}</b><small>active workout</small></span></div>
+        <div class="approval-boundary">${icon("info")}<p>This replaces the FitCoach data currently saved on this device. Nothing is uploaded, and the backup file is not changed.</p></div>
+        ${error}
+      </div>`,
+      actions: button({ label: "Keep current data", action: "close-modal", variant: "quiet", disabled: modal.busy })
+        + button({ label: modal.busy ? "Restoring…" : "Replace with this backup", action: "private-backup-restore", variant: "danger", disabled: modal.busy }),
+    };
+  }
+  return {
+    title: "Private backup",
+    body: `<div class="private-backup-flow">
+      <div class="private-backup-hero">${icon("lock")}<span><b>Your history, protected by you</b><small>AES-256 encryption happens on this device before the file is downloaded.</small></span></div>
+      <div class="private-backup-benefits"><span>${icon("check")}<b>Workouts, confirmed food, preferences, and Coach history</b></span><span>${icon("check")}<b>No cloud upload and no passphrase storage</b></span><span>${icon("check")}<b>Authenticated before any restore is offered</b></span></div>
+      <label class="account-input"><span>Create a passphrase</span><input id="private-backup-passphrase" type="password" minlength="12" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="At least 12 characters" ${modal.busy ? "disabled" : ""}></label>
+      <label class="account-input"><span>Confirm passphrase</span><input id="private-backup-confirm" type="password" minlength="12" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="Type it again" ${modal.busy ? "disabled" : ""}></label>
+      <p class="private-backup-warning"><b>Keep this passphrase safe.</b> It cannot be recovered by FitCoach.</p>
+      ${error}
+      ${nativeBackupAvailable
+        ? `<button type="button" class="private-backup-picker" data-action="private-backup-native-file" ${modal.busy ? "disabled" : ""}><span>${icon("sync")}<b>Restore an existing backup<small>Choose a .fitcoach file from this device</small></b>${icon("chevron")}</span></button>`
+        : `<label class="private-backup-picker"><input type="file" accept=".fitcoach,application/json" data-action="private-backup-file" ${modal.busy ? "disabled" : ""}><span>${icon("sync")}<b>Restore an existing backup<small>Choose a .fitcoach file from this device</small></b>${icon("chevron")}</span></label>`}
+      <div class="private-backup-readable"><span><b>Need a readable data export?</b><small>JSON is unencrypted—store it carefully.</small></span><button type="button" class="text-button" data-action="export-data" ${modal.busy ? "disabled" : ""}>Export JSON</button></div>
+    </div>`,
+    actions: button({ label: "Not now", action: "close-modal", variant: "quiet", disabled: modal.busy })
+      + button({ label: modal.busy ? modal.busyLabel || "Encrypting…" : "Create encrypted backup", action: "private-backup-create", variant: "primary", disabled: modal.busy }),
+  };
+}
+
 export function renderModal(modal, context) {
   if (!modal) return "";
+  if (modal.type === "private-backup") {
+    const content = renderPrivateBackup(modal, context.nativeBackupAvailable === true);
+    return shell(content.title, content.body, content.actions, { eyebrow: "YOUR DATA" });
+  }
   if (modal.type === "quick-actions") {
     const items = [
       ["food", "Log food", "Search, repeat a favourite, or scan a barcode", "nutrition-open-add", ""],

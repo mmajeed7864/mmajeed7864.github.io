@@ -6,9 +6,10 @@ import Security
 import Speech
 import StoreKit
 import UIKit
+import UniformTypeIdentifiers
 
 @objc(FitCoachNativePlugin)
-public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
+public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate {
     public let identifier = "FitCoachNativePlugin"
     public let jsName = "FitCoachNative"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -29,6 +30,9 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "readSecureSession", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "writeSecureSession", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearSecureSession", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveDataExport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "savePrivateBackup", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pickPrivateBackup", returnType: CAPPluginReturnPromise),
     ]
 
     private let audioSession = AVAudioSession.sharedInstance()
@@ -44,6 +48,10 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
     private var voiceSessionActive = false
     private var outputSessionActive = false
     private var transactionUpdates: Task<Void, Never>?
+    private var privateBackupPickerCall: CAPPluginCall?
+    private var privateBackupExportCall: CAPPluginCall?
+    private var privateBackupExportURL: URL?
+    private weak var privateBackupDocumentPicker: UIDocumentPickerViewController?
 
     private static let storeProducts = [
         "premium_monthly": "fitcoach_premium_monthly",
@@ -51,6 +59,7 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
     ]
     private static let secureSessionService = "com.symbio.fitcoach.auth"
     private static let secureSessionAccount = "session-v1"
+    private static let privateBackupMaximumBytes = 12 * 1024 * 1024
 
     public override func load() {
         let center = NotificationCenter.default
@@ -62,6 +71,7 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     deinit {
+        removePrivateBackupExport()
         transactionUpdates?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
@@ -457,6 +467,188 @@ public final class FitCoachNativePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         call.resolve(["cleared": true])
+    }
+
+    @objc public func savePrivateBackup(_ call: CAPPluginCall) {
+        guard let fileName = call.getString("fileName"),
+              Self.validPrivateBackupName(fileName),
+              let contents = call.getString("contents"),
+              let data = contents.data(using: .utf8),
+              !data.isEmpty,
+              data.count <= Self.privateBackupMaximumBytes else {
+            call.reject("PRIVATE_BACKUP_INVALID")
+            return
+        }
+        presentDocumentExport(call, fileName: fileName, data: data)
+    }
+
+    @objc public func saveDataExport(_ call: CAPPluginCall) {
+        guard let fileName = call.getString("fileName"),
+              Self.validExportName(fileName, suffix: ".json"),
+              let contents = call.getString("contents"),
+              let data = contents.data(using: .utf8),
+              !data.isEmpty, data.count <= Self.privateBackupMaximumBytes,
+              let object = try? JSONSerialization.jsonObject(with: data),
+              object is [String: Any] else {
+            call.reject("DATA_EXPORT_INVALID")
+            return
+        }
+        presentDocumentExport(call, fileName: fileName, data: data)
+    }
+
+    private func presentDocumentExport(_ call: CAPPluginCall, fileName: String, data: Data) {
+        DispatchQueue.main.async {
+            guard self.privateBackupExportCall == nil, self.privateBackupPickerCall == nil else {
+                call.reject("PRIVATE_BACKUP_PICKER_BUSY")
+                return
+            }
+            guard let presenter = self.bridge?.viewController, presenter.presentedViewController == nil else {
+                call.reject("PRIVATE_BACKUP_PRESENTER_UNAVAILABLE")
+                return
+            }
+            self.privateBackupExportCall = call
+            do {
+                let folder = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("fitcoach-private-backup-\(UUID().uuidString)", isDirectory: true)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+                let url = folder.appendingPathComponent(fileName, isDirectory: false)
+                self.privateBackupExportURL = url
+                try data.write(to: url, options: [.atomic, .completeFileProtection])
+                let picker = UIDocumentPickerViewController(forExporting: [url], asCopy: true)
+                picker.delegate = self
+                self.privateBackupDocumentPicker = picker
+                if let popover = picker.popoverPresentationController {
+                    popover.sourceView = presenter.view
+                    popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
+                }
+                presenter.present(picker, animated: true)
+            } catch {
+                self.privateBackupExportCall = nil
+                self.removePrivateBackupExport()
+                call.reject("PRIVATE_BACKUP_SAVE_FAILED", nil, error)
+            }
+        }
+    }
+
+    @objc public func pickPrivateBackup(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.privateBackupPickerCall == nil, self.privateBackupExportCall == nil else {
+                call.reject("PRIVATE_BACKUP_PICKER_BUSY")
+                return
+            }
+            guard let presenter = self.bridge?.viewController, presenter.presentedViewController == nil else {
+                call.reject("PRIVATE_BACKUP_PRESENTER_UNAVAILABLE")
+                return
+            }
+            let backupType = UTType(exportedAs: "com.symbio.fitcoach.private-backup", conformingTo: .json)
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [backupType, .json], asCopy: true)
+            picker.delegate = self
+            picker.allowsMultipleSelection = false
+            self.privateBackupPickerCall = call
+            self.privateBackupDocumentPicker = picker
+            presenter.present(picker, animated: true)
+        }
+    }
+
+    public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        guard privateBackupDocumentPicker === controller else { return }
+        privateBackupDocumentPicker = nil
+        if let call = privateBackupExportCall {
+            privateBackupExportCall = nil
+            removePrivateBackupExport()
+            call.resolve(["saved": false, "cancelled": true])
+            return
+        }
+        let call = privateBackupPickerCall
+        privateBackupPickerCall = nil
+        call?.resolve(["cancelled": true])
+    }
+
+    public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard privateBackupDocumentPicker === controller else { return }
+        privateBackupDocumentPicker = nil
+        if let call = privateBackupExportCall {
+            privateBackupExportCall = nil
+            removePrivateBackupExport()
+            guard urls.count == 1 else {
+                call.reject("PRIVATE_BACKUP_SAVE_FAILED")
+                return
+            }
+            call.resolve(["saved": true, "cancelled": false])
+            return
+        }
+        let call = privateBackupPickerCall
+        guard let call, urls.count == 1 else {
+            privateBackupPickerCall = nil
+            call?.reject("PRIVATE_BACKUP_SELECTION_INVALID")
+            return
+        }
+        let url = urls[0]
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let contents = try Self.readPrivateBackupContents(url)
+                DispatchQueue.main.async {
+                    guard self.privateBackupPickerCall === call else { return }
+                    self.privateBackupPickerCall = nil
+                    call.resolve(["cancelled": false, "fileName": url.lastPathComponent, "contents": contents])
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    guard self.privateBackupPickerCall === call else { return }
+                    self.privateBackupPickerCall = nil
+                    call.reject("PRIVATE_BACKUP_READ_FAILED", nil, error)
+                }
+            }
+        }
+    }
+
+    private static func readPrivateBackupContents(_ url: URL) throws -> String {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+        guard values.isRegularFile == true,
+              let fileSize = values.fileSize,
+              fileSize > 0,
+              fileSize <= privateBackupMaximumBytes,
+              validPrivateBackupName(url.lastPathComponent),
+              let stream = InputStream(url: url) else {
+            throw NSError(domain: "FitCoachPrivateBackup", code: 1)
+        }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 8 * 1024)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 { throw stream.streamError ?? NSError(domain: "FitCoachPrivateBackup", code: 2) }
+            if count == 0 { break }
+            guard data.count + count <= privateBackupMaximumBytes else { throw NSError(domain: "FitCoachPrivateBackup", code: 3) }
+            data.append(contentsOf: buffer.prefix(count))
+        }
+        guard data.count == fileSize, let contents = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "FitCoachPrivateBackup", code: 4)
+        }
+        return contents
+    }
+
+    private static func validPrivateBackupName(_ value: String) -> Bool {
+        validExportName(value, suffix: ".fitcoach")
+    }
+
+    private static func validExportName(_ value: String, suffix: String) -> Bool {
+        let name = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.count > suffix.count
+            && name.count <= 120
+            && name.lowercased().hasSuffix(suffix)
+            && name.rangeOfCharacter(from: .controlCharacters) == nil
+            && !name.contains("/")
+            && !name.contains("\\")
+    }
+
+    private func removePrivateBackupExport() {
+        guard let url = privateBackupExportURL else { return }
+        privateBackupExportURL = nil
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
     }
 
     private static func secureSessionQuery(returnData: Bool) -> [String: Any] {

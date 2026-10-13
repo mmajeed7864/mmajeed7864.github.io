@@ -5,6 +5,7 @@ export const IOS_RUNTIME_TESTS = Object.freeze([
   "testDecodesPackagedExerciseArtwork",
   "testSecureSessionSurvivesReloadAndClears",
   "testMotionControlsPlayPauseResumeAndLoop",
+  "testDocumentExportBridgeRejectsInvalidRequests",
 ]);
 export const IOS_RUNTIME_FILES = Object.freeze([
   "FitCoachRuntimeTests.swift",

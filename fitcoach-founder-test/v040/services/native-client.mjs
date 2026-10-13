@@ -3,6 +3,11 @@ function pluginFromScope(scope = globalThis) {
 }
 
 const clean = (value, max = 240) => typeof value === "string" ? value.trim().slice(0, max) : "";
+const PRIVATE_BACKUP_MAX_BYTES = 12 * 1024 * 1024;
+const PRIVATE_BACKUP_NAME_RE = /^[^/\\\u0000-\u001f\u007f]+\.fitcoach$/iu;
+const DATA_EXPORT_NAME_RE = /^[^/\\\u0000-\u001f\u007f]+\.json$/iu;
+const encodedBytes = value => new TextEncoder().encode(value).byteLength;
+const validPrivateBackupName = value => typeof value === "string" && value.length <= 120 && PRIVATE_BACKUP_NAME_RE.test(value);
 
 function normalizeStoreTransaction(value) {
   if (!value || typeof value !== "object") return null;
@@ -28,6 +33,10 @@ export function createNativePlatformClient({ plugin = pluginFromScope(), clock =
     && typeof plugin.readSecureSession === "function"
     && typeof plugin.writeSecureSession === "function"
     && typeof plugin.clearSecureSession === "function";
+  const privateBackupAvailable = available
+    && typeof plugin.savePrivateBackup === "function"
+    && typeof plugin.pickPrivateBackup === "function";
+  const dataExportAvailable = available && typeof plugin.saveDataExport === "function";
 
   function requireMethod(name) {
     if (!available || typeof plugin?.[name] !== "function") throw new Error("native_capability_unavailable");
@@ -113,6 +122,8 @@ export function createNativePlatformClient({ plugin = pluginFromScope(), clock =
 
   return Object.freeze({
     available,
+    privateBackupAvailable,
+    dataExportAvailable,
     createRecognitionSession,
     secureSessionStorage,
     async initialize() {
@@ -170,6 +181,43 @@ export function createNativePlatformClient({ plugin = pluginFromScope(), clock =
       });
     },
     async openManageSubscriptions() { return requireMethod("openManageSubscriptions")(); },
+    async saveDataExport(fileName, contents) {
+      if (!dataExportAvailable) throw new Error("native_capability_unavailable");
+      const normalizedName = typeof fileName === "string" ? fileName.trim() : "";
+      if (!normalizedName || normalizedName.length > 120 || !DATA_EXPORT_NAME_RE.test(normalizedName)
+        || typeof contents !== "string" || !contents.length || encodedBytes(contents) > PRIVATE_BACKUP_MAX_BYTES) {
+        throw new Error("invalid_data_export");
+      }
+      let value;
+      try { value = JSON.parse(contents); } catch { throw new Error("invalid_data_export"); }
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid_data_export");
+      const result = await plugin.saveDataExport({ fileName: normalizedName, contents });
+      if (result?.cancelled === true) return Object.freeze({ saved: false, cancelled: true });
+      if (result?.saved !== true) throw new Error("native_data_export_save_failed");
+      return Object.freeze({ saved: true, cancelled: false });
+    },
+    async savePrivateBackup(fileName, contents) {
+      if (!privateBackupAvailable) throw new Error("native_capability_unavailable");
+      const normalizedName = typeof fileName === "string" ? fileName.trim() : "";
+      if (!validPrivateBackupName(normalizedName) || typeof contents !== "string" || !contents.length || encodedBytes(contents) > PRIVATE_BACKUP_MAX_BYTES) {
+        throw new Error("invalid_private_backup");
+      }
+      const result = await plugin.savePrivateBackup({ fileName: normalizedName, contents });
+      if (result?.cancelled === true) return Object.freeze({ saved: false, cancelled: true });
+      if (result?.saved !== true) throw new Error("native_private_backup_save_failed");
+      return Object.freeze({ saved: true, cancelled: false });
+    },
+    async pickPrivateBackup() {
+      if (!privateBackupAvailable) throw new Error("native_capability_unavailable");
+      const result = await plugin.pickPrivateBackup();
+      if (result?.cancelled === true) return Object.freeze({ cancelled: true });
+      const fileName = typeof result?.fileName === "string" ? result.fileName.trim() : "";
+      const contents = typeof result?.contents === "string" ? result.contents : "";
+      if (!validPrivateBackupName(fileName) || !contents.length || encodedBytes(contents) > PRIVATE_BACKUP_MAX_BYTES) {
+        throw new Error("native_private_backup_invalid_file");
+      }
+      return Object.freeze({ cancelled: false, fileName, contents });
+    },
     async prepareVoiceOutput() {
       if (!available || typeof plugin.prepareVoiceOutput !== "function") return { available: false };
       return plugin.prepareVoiceOutput();

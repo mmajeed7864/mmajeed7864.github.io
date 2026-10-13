@@ -1,3 +1,4 @@
 # Reproducible generated web assets, never source or a signed native build.
 /dist/
-/node_modules/
+# Ignore either an installed dependency directory or a local pinned-dependency link.
+/node_modules

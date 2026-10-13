@@ -71,6 +71,13 @@ import {
 } from "./services/native-lifecycle.mjs";
 import { createNativePlatformClient } from "./services/native-client.mjs";
 import { createNutritionClient, normalizeBarcode } from "./services/nutrition-client.mjs";
+import {
+  PRIVATE_BACKUP_EXTENSION,
+  PRIVATE_BACKUP_MAX_FILE_BYTES,
+  createPrivateBackup,
+  inspectPrivateBackup,
+  openPrivateBackup,
+} from "./services/private-backup.mjs";
 import { createPremiumVoiceClient } from "./services/voice-client.mjs";
 import { canAccessCurrentRelease } from "./policy/youth-safety.mjs";
 import { renderCoachScreen, renderVoiceRoom } from "./ui/coach-screen.mjs";
@@ -160,6 +167,17 @@ let voiceReturnFocus = null;
 let nutritionPreviewUrl = null;
 let communityPreviewUrl = null;
 const communityPreviews = new Map();
+// Encrypted backup contents and decrypted review data are session-only. They
+// never enter app state, localStorage, account sync, logs, or the DOM.
+let pendingPrivateBackupFile = null;
+let pendingPrivateBackupRestore = null;
+let pendingPrivateBackupExpectedState = null;
+
+function clearPendingPrivateBackup() {
+  pendingPrivateBackupFile = null;
+  pendingPrivateBackupRestore = null;
+  pendingPrivateBackupExpectedState = null;
+}
 
 function releaseNutritionPreview() {
   if (!nutritionPreviewUrl) return;
@@ -202,7 +220,8 @@ const pendingNativeTransactions = new Map();
 const freshRuntimeSessionCode = prefix => uid(prefix).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 72);
 let voiceSessionCode = freshRuntimeSessionCode("voice");
 let nutritionSessionCode = freshRuntimeSessionCode("nutrition");
-const SILENT_AUDIO_URI = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+const SILENT_AUDIO_BASE64 = "UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+let silentAudioUrl = null;
 const sharedPremiumAudio = typeof Audio === "function" ? new Audio() : null;
 let sharedVoiceAudioContext = null;
 if (sharedPremiumAudio) {
@@ -255,6 +274,13 @@ function nativeRoutedAudio(base) {
   return createNativeRoutedAudio(base, nativeClient);
 }
 
+function silentVoiceAudioUrl() {
+  if (silentAudioUrl) return silentAudioUrl;
+  const bytes = Uint8Array.from(atob(SILENT_AUDIO_BASE64), character => character.charCodeAt(0));
+  silentAudioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  return silentAudioUrl;
+}
+
 const premiumVoice = createPremiumVoiceClient({
   audioFactory: (url, { blob } = {}) => {
     const context = sharedVoiceAudioContext;
@@ -284,7 +310,7 @@ function unlockVoicePlayback() {
   if (!sharedPremiumAudio || sharedPremiumAudio.dataset.fitcoachUnlocked === "true") return;
   try {
     sharedPremiumAudio.muted = true;
-    sharedPremiumAudio.src = SILENT_AUDIO_URI;
+    sharedPremiumAudio.src = silentVoiceAudioUrl();
     sharedPremiumAudio.load?.();
     const attempt = sharedPremiumAudio.play();
     Promise.resolve(attempt).then(() => {
@@ -490,9 +516,16 @@ function render() {
   dom.offline.hidden = navigator.onLine;
 }
 
-function renderModalRoot() {
+function renderModalRoot({ preservePrivateBackupFields = true } = {}) {
   const choiceFocus = captureChoiceFocus(dom.modal);
-  dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl, communityPreviewUrl });
+  const backupFields = preservePrivateBackupFields && ui.modal?.type === "private-backup"
+    ? [...dom.modal.querySelectorAll('.private-backup-flow input')].filter(field => field.type === "password").map(field => ({ id: field.id, value: field.value }))
+    : [];
+  dom.modal.innerHTML = renderModal(ui.modal, { state, decision, exerciseById: getExerciseById, previewUrl: nutritionPreviewUrl, communityPreviewUrl, nativeBackupAvailable: nativeClient.privateBackupAvailable });
+  for (const field of backupFields) {
+    const input = dom.modal.querySelector(`#${CSS.escape(field.id)}`);
+    if (input?.type === "password") input.value = field.value;
+  }
   dom.modal.hidden = !ui.modal;
   syncChoiceTabStops(dom.modal);
   document.querySelector("#app-frame")?.toggleAttribute("inert", Boolean(ui.modal) || (voiceController.getState().active && !ui.voiceDocked));
@@ -526,9 +559,10 @@ function renderVoiceRoot() {
 }
 
 function openModal(modal) {
+  if (ui.modal?.type === "private-backup" && ui.modal !== modal) clearPendingPrivateBackup();
   modalReturnFocus = document.activeElement;
   ui.modal = modal;
-  renderModalRoot();
+  renderModalRoot({ preservePrivateBackupFields: false });
 }
 
 function closeModal() {
@@ -539,6 +573,7 @@ function closeModal() {
     try { pendingNutrition?.abort("nutrition_modal_closed"); } catch {}
   }
   if (ui.modal?.type === "community-draft") releaseCommunityPreview();
+  if (ui.modal?.type === "private-backup") clearPendingPrivateBackup();
   ui.modal = null;
   renderModalRoot();
   modalReturnFocus?.focus?.();
@@ -1347,6 +1382,7 @@ function invalidateCoachActivity({ rotateSession = false } = {}) {
 }
 
 function resetRuntimeEffects() {
+  clearPendingPrivateBackup();
   invalidateCoachActivity({ rotateSession: true });
   const pendingNutrition = nutritionRequestController;
   nutritionRequestController = null;
@@ -1495,12 +1531,262 @@ async function forceRefresh() {
 }
 
 async function exportData() {
-  const blob = new Blob([await store.export()],{type:"application/json"});
+  if (ui.modal?.type !== "private-backup" || ui.modal.phase !== "menu" || ui.modal.busy) return;
+  const operation = { ...ui.modal, busy: true, error: "", busyLabel: "Preparing readable export…" };
+  ui.modal = operation;
+  renderModalRoot();
+  try {
+    const contents = await store.export();
+    if (ui.modal !== operation) return;
+    const fileName = `fitcoach-data-${new Date().toLocaleDateString("en-CA")}.json`;
+    if (nativeClient.dataExportAvailable) {
+      operation.busyLabel = "Choose a save location…";
+      renderModalRoot();
+      const result = await nativeClient.saveDataExport(fileName, contents);
+      if (ui.modal !== operation) return;
+      ui.modal = { ...operation, busy: false, error: "" };
+      renderModalRoot();
+      toast(result.cancelled ? "Data export cancelled. Your FitCoach data is unchanged." : "Readable data export saved. This file is unencrypted—store it carefully.");
+    } else if (nativeClient.available) {
+      throw new Error("native_data_export_unavailable");
+    } else {
+      downloadTextFile(contents, fileName);
+      ui.modal = { ...operation, busy: false, error: "" };
+      renderModalRoot();
+      toast("Readable data export download started. This file is unencrypted—store it carefully.");
+    }
+  } catch (error) {
+    if (ui.modal !== operation) return;
+    ui.modal = { ...operation, busy: false, error: ({
+      native_data_export_unavailable: "Update the FitCoach app to save a readable export on this device. Encrypted backup remains available.",
+      invalid_data_export: "This readable export is invalid or too large to save safely. Your FitCoach data is unchanged.",
+      DATA_EXPORT_INVALID: "This readable export could not be handed to the device safely.",
+    })[String(error?.message || "")] || "The readable export could not be saved. Choose another location and try again. Your FitCoach data is unchanged." };
+    renderModalRoot();
+  }
+}
+
+function downloadTextFile(value, filename, type = "application/json") {
+  const blob = new Blob([value], { type });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `fitcoach-v040-${ui.founder}-${new Date().toLocaleDateString("en-CA")}.json`;
+  link.download = filename;
   link.click();
-  setTimeout(()=>URL.revokeObjectURL(link.href),500);
+  setTimeout(() => URL.revokeObjectURL(link.href), 500);
+}
+
+function privateBackupErrorCopy(error) {
+  return ({
+    private_backup_not_supported: "Encrypted backups are not supported by this browser. Update Safari or Chrome and try again.",
+    private_backup_passphrase_required: "Enter a backup passphrase.",
+    private_backup_passphrase_too_short: "Use at least 12 characters for your backup passphrase.",
+    private_backup_passphrase_too_long: "Use no more than 128 characters for your backup passphrase.",
+    private_backup_passphrases_do_not_match: "The two passphrases do not match.",
+    private_backup_invalid_file: "This is not a supported FitCoach private backup.",
+    private_backup_file_too_large: "This backup is too large to open safely on this device.",
+    private_backup_invalid_state: "The backup opened, but its FitCoach data is invalid.",
+    private_backup_state_too_large: "This FitCoach data is too large to back up safely on this device.",
+    private_backup_wrong_passphrase_or_corrupt: "That passphrase did not unlock this backup, or the file has been changed.",
+    invalid_private_backup: "This backup could not be handed to the device safely.",
+    native_private_backup_invalid_file: "The selected file is not a supported FitCoach private backup.",
+    native_private_backup_save_failed: "The device could not save this backup. Choose another location and try again.",
+    PRIVATE_BACKUP_SAVE_FAILED: "The device could not save this backup. Choose another location and try again.",
+    PRIVATE_BACKUP_READ_FAILED: "The device could not read the selected backup.",
+    PRIVATE_BACKUP_INVALID: "The selected file is not a supported FitCoach private backup.",
+    PRIVATE_BACKUP_PICKER_BUSY: "Finish the open file action before starting another one.",
+    local_changes_during_sync: "Your current FitCoach data changed while you were reviewing the backup. Nothing was replaced; open the file again to compare safely.",
+  })[String(error?.message || error || "")] || "The private backup could not be completed. Your current FitCoach data is unchanged.";
+}
+
+function privateBackupFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 1) return "local file";
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function createEncryptedPrivateBackup() {
+  if (ui.modal?.type !== "private-backup" || ui.modal.busy) return;
+  const passphrase = document.querySelector("#private-backup-passphrase")?.value || "";
+  const confirmation = document.querySelector("#private-backup-confirm")?.value || "";
+  if (passphrase !== confirmation) {
+    ui.modal.error = privateBackupErrorCopy("private_backup_passphrases_do_not_match");
+    renderModalRoot();
+    return;
+  }
+  const operation = { ...ui.modal, busy: true, error: "", busyLabel: "Encrypting…" };
+  ui.modal = operation;
+  renderModalRoot();
+  try {
+    const exported = await store.export();
+    if (ui.modal !== operation) return;
+    const serialized = await createPrivateBackup(exported, passphrase);
+    if (ui.modal !== operation) return;
+    const fileName = `fitcoach-private-${new Date().toLocaleDateString("en-CA")}${PRIVATE_BACKUP_EXTENSION}`;
+    if (nativeClient.privateBackupAvailable) {
+      operation.busyLabel = "Choose a save location…";
+      renderModalRoot();
+      const result = await nativeClient.savePrivateBackup(fileName, serialized);
+      if (ui.modal !== operation) return;
+      if (result.cancelled) {
+        ui.modal = { ...ui.modal, busy: false, error: "" };
+        renderModalRoot();
+        toast("Backup save cancelled. Your FitCoach data is unchanged.");
+        return;
+      }
+    } else {
+      downloadTextFile(serialized, fileName, "application/vnd.fitcoach.backup+json");
+    }
+    closeModal();
+    toast("Encrypted private backup created. Keep its passphrase somewhere safe.");
+  } catch (error) {
+    if (ui.modal !== operation) return;
+    ui.modal = { ...ui.modal, busy: false, error: privateBackupErrorCopy(error) };
+    renderModalRoot();
+  }
+}
+
+function choosePrivateBackupContents(serialized, { fileName = "FitCoach backup", fileSize = 0 } = {}, operation) {
+  if (ui.modal !== operation || ui.modal?.type !== "private-backup") return;
+  clearPendingPrivateBackup();
+  const size = Number(fileSize) || new TextEncoder().encode(String(serialized || "")).byteLength;
+  if (typeof serialized !== "string" || size < 1 || size > PRIVATE_BACKUP_MAX_FILE_BYTES) {
+    ui.modal = { ...ui.modal, busy: false, error: privateBackupErrorCopy(size > PRIVATE_BACKUP_MAX_FILE_BYTES ? "private_backup_file_too_large" : "private_backup_invalid_file") };
+    renderModalRoot();
+    return;
+  }
+  try {
+    inspectPrivateBackup(serialized);
+    pendingPrivateBackupFile = serialized;
+    ui.modal = {
+      type: "private-backup",
+      phase: "restore-unlock",
+      busy: false,
+      error: "",
+      fileName: String(fileName || "FitCoach backup").slice(0, 120),
+      fileSizeLabel: privateBackupFileSize(size),
+    };
+  } catch (error) {
+    ui.modal = { type: "private-backup", phase: "menu", busy: false, error: privateBackupErrorCopy(error) };
+  }
+  renderModalRoot();
+}
+
+async function choosePrivateBackupFile(file) {
+  if (ui.modal?.type !== "private-backup" || ui.modal.busy) return;
+  const operation = { ...ui.modal, busy: true, error: "", busyLabel: "Opening backup…" };
+  clearPendingPrivateBackup();
+  ui.modal = operation;
+  renderModalRoot();
+  try {
+    if (!file || file.size < 1 || file.size > PRIVATE_BACKUP_MAX_FILE_BYTES) {
+      choosePrivateBackupContents("", { fileName: file?.name, fileSize: Number(file?.size) || 0 }, operation);
+      return;
+    }
+    choosePrivateBackupContents(await file.text(), { fileName: file.name, fileSize: file.size }, operation);
+  } catch (error) {
+    if (ui.modal !== operation) return;
+    ui.modal = { ...operation, busy: false, error: privateBackupErrorCopy(error) };
+    renderModalRoot();
+  }
+}
+
+async function chooseNativePrivateBackupFile() {
+  if (ui.modal?.type !== "private-backup" || ui.modal.busy || !nativeClient.privateBackupAvailable) return;
+  const operation = { ...ui.modal, busy: true, error: "", busyLabel: "Choose your backup…" };
+  clearPendingPrivateBackup();
+  ui.modal = operation;
+  renderModalRoot();
+  try {
+    const result = await nativeClient.pickPrivateBackup();
+    if (ui.modal !== operation) return;
+    if (result.cancelled) {
+      if (ui.modal?.type === "private-backup") {
+        ui.modal = { ...ui.modal, busy: false, error: "" };
+        renderModalRoot();
+      }
+      return;
+    }
+    choosePrivateBackupContents(result.contents, { fileName: result.fileName }, operation);
+  } catch (error) {
+    if (ui.modal !== operation) return;
+    ui.modal = { ...ui.modal, busy: false, error: privateBackupErrorCopy(error) };
+    renderModalRoot();
+  }
+}
+
+async function unlockPrivateBackup() {
+  if (ui.modal?.type !== "private-backup" || ui.modal.phase !== "restore-unlock" || ui.modal.busy || !pendingPrivateBackupFile) return;
+  const passphrase = document.querySelector("#private-backup-unlock")?.value || "";
+  const operation = { ...ui.modal, busy: true, error: "" };
+  ui.modal = operation;
+  renderModalRoot();
+  try {
+    const opened = await openPrivateBackup(pendingPrivateBackupFile, passphrase);
+    if (ui.modal !== operation) return;
+    const latest = await store.refresh();
+    if (ui.modal !== operation) return;
+    pendingPrivateBackupRestore = opened;
+    pendingPrivateBackupExpectedState = latest;
+    ui.modal = {
+      type: "private-backup",
+      phase: "restore-review",
+      busy: false,
+      error: "",
+      summary: opened.summary,
+      createdLabel: new Date(opened.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }),
+      appBuild: opened.appBuild,
+    };
+  } catch (error) {
+    if (ui.modal !== operation) return;
+    ui.modal = { ...ui.modal, busy: false, error: privateBackupErrorCopy(error) };
+  }
+  renderModalRoot();
+}
+
+function stateForPrivateBackupRestore(opened) {
+  const next = deepClone(opened.state);
+  next.integrations = next.integrations || {};
+  next.integrations.cloudSync = { status: "local_only", revision: 0, consentVersion: "", lastSyncedAt: null };
+  next.integrations.appleHealth = { status: "native_required", syncMode: "read_only", lastSyncedAt: null };
+  next.integrations.payments = {
+    status: "not_configured",
+    trialDays: Number(next.integrations.payments?.trialDays) || 7,
+    selectedPlan: next.integrations.payments?.selectedPlan === "monthly" ? "monthly" : "yearly",
+  };
+  return next;
+}
+
+async function restorePrivateBackup() {
+  if (ui.modal?.type !== "private-backup" || ui.modal.phase !== "restore-review" || ui.modal.busy || !pendingPrivateBackupRestore || !pendingPrivateBackupExpectedState) return;
+  const operation = { ...ui.modal, busy: true, error: "" };
+  ui.modal = operation;
+  renderModalRoot();
+  try {
+    syncCoordinator.cancel();
+    state = await store.replace(stateForPrivateBackupRestore(pendingPrivateBackupRestore), {
+      expected: pendingPrivateBackupExpectedState,
+      assertCurrent: () => {
+        if (ui.modal !== operation) throw new Error("private_backup_cancelled");
+      },
+    });
+    resetRuntimeEffects();
+    applyTheme(state.settings.theme);
+    ui.account.pendingRemote = null;
+    ui.native.healthSummary = null;
+    ui.native.healthError = "";
+    ui.mode = state.profile?.onboarded && canAccessCurrentRelease(state.profile.ageBand) ? "app" : "onboarding";
+    ui.route = "today";
+    ui.onboardingStep = 0;
+    ui.onboardingDraft = { profile: deepClone(state.profile), settings: deepClone(state.settings), gymProfile: deepClone(state.gymProfile), consent: false };
+    closeModal();
+    render();
+    toast("Private backup restored. Cloud, health, and store connections stayed device-specific.");
+  } catch (error) {
+    if (ui.modal !== operation) return;
+    ui.modal = { ...ui.modal, busy: false, error: privateBackupErrorCopy(error) };
+    renderModalRoot();
+  }
 }
 
 function downloadJson(value, filename) {
@@ -2476,6 +2762,12 @@ async function handleClick(event) {
   if (action === "confirm-clear-chat") { invalidateCoachActivity({rotateSession:true});state=await store.update(draft=>{draft.chat=[];draft.lastApi=null;});closeModal();render();return; }
   if (action === "reset-profile") { openModal({type:"confirm-reset"});return; }
   if (action === "confirm-reset") { void await resetFitCoachAccountAndDevice();return; }
+  if (action === "open-private-backup") { clearPendingPrivateBackup();openModal({type:"private-backup",phase:"menu",busy:false,error:""});return; }
+  if (action === "private-backup-create") { void createEncryptedPrivateBackup();return; }
+  if (action === "private-backup-native-file") { void chooseNativePrivateBackupFile();return; }
+  if (action === "private-backup-cancel-file") { clearPendingPrivateBackup();ui.modal={type:"private-backup",phase:"menu",busy:false,error:""};renderModalRoot();return; }
+  if (action === "private-backup-unlock") { void unlockPrivateBackup();return; }
+  if (action === "private-backup-restore") { void restorePrivateBackup();return; }
   if (action === "export-data") { await exportData();return; }
   if (action === "force-refresh") { void forceRefresh();return; }
   if (action === "open-nutrition") { if(target.dataset.date === "today") ui.nutritionDate=localDateKey(new Date()); closeModal(); await navigate("nutrition"); return; }
@@ -2511,6 +2803,7 @@ async function handleClick(event) {
 
 async function handleChange(event) {
   const target=event.target;
+  if (target.dataset.action === "private-backup-file") { await choosePrivateBackupFile(target.files?.[0]); return; }
   const action=target.dataset.action;
   if (action === "set-field" && target.dataset.field === "weight") {
     await updateSetField(target);

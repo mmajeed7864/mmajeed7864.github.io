@@ -125,9 +125,83 @@
 .space-page .style-boundary { font-size: 11px; line-height: 1.55; color: var(--muted); }
 .space-page button:focus-visible, .space-page summary:focus-visible, .space-page a:focus-visible, .space-page input:focus-visible { outline: 3px solid var(--space-blue); outline-offset: 3px; }
 html[data-theme="dark"] .space-page { --space-blue: #8ab5ff; }
+
+/* Private, device-only backup flow. The visual treatment deliberately uses
+   the current product blue instead of generic security green or dark panels. */
+.private-backup-flow { display: grid; gap: 16px; min-width: 0; }
+.private-backup-flow > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.private-backup-hero,
+.private-backup-file,
+.private-backup-ready {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 13px;
+  align-items: center;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 17px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 10%, var(--surface)), var(--surface));
+}
+.private-backup-hero > .icon,
+.private-backup-file > .icon,
+.private-backup-ready > .icon {
+  width: 46px;
+  height: 46px;
+  padding: 11px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(145deg, #3b7cff, #1747dc);
+  box-shadow: 0 10px 24px rgba(36, 87, 255, .2);
+}
+.private-backup-ready > .icon { background: linear-gradient(145deg, #3477f6, #153fbd); }
+.private-backup-hero span,
+.private-backup-file span,
+.private-backup-ready span { display: grid; gap: 4px; min-width: 0; }
+.private-backup-hero b,
+.private-backup-file b,
+.private-backup-ready b { color: var(--text); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.private-backup-hero small,
+.private-backup-file small,
+.private-backup-ready small { color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.private-backup-benefits { display: grid; gap: 0; border-block: 1px solid var(--border); }
+.private-backup-benefits > span { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 52px; color: var(--text); }
+.private-backup-benefits > span + span { border-top: 1px solid var(--border); }
+.private-backup-benefits .icon { width: 18px; height: 18px; color: var(--primary); }
+.private-backup-benefits b { font-size: 12px; font-weight: 600; line-height: 1.45; }
+.private-backup-flow .account-input { display: grid; gap: 7px; min-width: 0; }
+.private-backup-flow .account-input > span { color: var(--muted); font-size: 11px; font-weight: 650; }
+.private-backup-flow .account-input input { width: 100%; min-width: 0; min-height: 50px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--surface-2); font: inherit; font-size: 16px; outline: none; }
+.private-backup-flow .account-input input:focus-visible { border-color: var(--primary); outline: 3px solid color-mix(in srgb, var(--primary) 25%, transparent); outline-offset: 1px; }
+.private-backup-warning { padding: 12px 13px; border-left: 3px solid var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+.private-backup-warning b { color: var(--text); }
+.private-backup-picker { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 13px; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.private-backup-picker > input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.private-backup-picker > span { display: grid; grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 11px; align-items: center; min-height: 66px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 13px; color: var(--text); background: var(--surface-2); }
+.private-backup-picker > span > .icon:first-child { width: 38px; height: 38px; padding: 9px; border-radius: 11px; color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+.private-backup-picker > span > .icon:last-child { width: 17px; height: 17px; color: var(--muted); }
+.private-backup-picker b { display: grid; gap: 3px; min-width: 0; font-size: 12px; line-height: 1.35; }
+.private-backup-picker small { color: var(--muted); font-size: 10px; font-weight: 500; }
+.private-backup-picker > input:focus-visible + span { border-color: var(--primary); outline: 3px solid color-mix(in srgb, var(--primary) 25%, transparent); outline-offset: 2px; }
+.private-backup-picker:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 25%, transparent); outline-offset: 2px; }
+.private-backup-picker:disabled, .private-backup-picker:has(> input:disabled) { opacity: .6; cursor: wait; }
+.private-backup-readable { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding-top: 2px; }
+.private-backup-readable > span { display: grid; gap: 3px; min-width: 0; }
+.private-backup-readable b { color: var(--text); font-size: 11px; line-height: 1.35; }
+.private-backup-readable small { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.private-backup-readable .text-button { flex: 0 0 auto; min-height: 44px; color: var(--primary); font-size: 11px; font-weight: 700; }
+.private-backup-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.private-backup-summary > span { display: grid; gap: 3px; min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.private-backup-summary b { color: var(--text); font-family: var(--font-display); font-size: 25px; line-height: 1; }
+.private-backup-summary small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.private-backup-error { margin: 0; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--danger) 36%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--danger) 7%, var(--surface)); font-size: 12px; line-height: 1.5; }
+html[data-theme="dark"] .private-backup-hero,
+html[data-theme="dark"] .private-backup-file,
+html[data-theme="dark"] .private-backup-ready { background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), var(--surface)); }
 @media (hover: hover) {
   .space-settings-row:hover, .space-page .profile-hub-list > button:hover { background: var(--surface-2); }
   .space-page .privacy-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .private-backup-picker:hover > span { border-color: color-mix(in srgb, var(--primary) 46%, var(--border)); }
 }
 @media (max-width: 359px) {
   .space-settings-row, .space-page .space-panel > summary, .space-privacy > details > summary { padding-inline: 13px; gap: 9px; }
